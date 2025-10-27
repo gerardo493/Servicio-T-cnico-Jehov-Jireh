@@ -1,9 +1,15 @@
 {
-  "admin": {
-    "password": "pbkdf2:sha256:260000$Gvh2XOS4Xa1wHJB3$3af45b5d04b7accd6b8e424ae73374e8af76ebb516cc56e0f3fe859e7bd881c0"
-  },
-  "angel": {
-    "password": "pbkdf2:sha256:260000$p1FVDRYFzHBd66CP$d5728eeefa3c60e3eb79bc174ad68eed26731befce76732d253153ad2a5201a5"
-  }
+    "administrador": {
+        "id": 1,
+        "password": "scrypt:32768:8:1$0a03XrCgX1fgDlCo$89578de6d72bf81f4f8710d41e1077cc2ee9d6a426f2e8bf9c42621746a3dacc127c2da7b8f3bbc6d158eff824e11cddfb7352838501013cd931357c09704224",
+        "role": "admin"
+    },
+    "usuarios": {
+        "administradorp1": {
+            "password_hash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+            "rol": "Administrador Principal",
+            "fecha_creacion": "2025-10-27T01:37:47.708799",
+            "activo": true
+        }
+    }
 }
-

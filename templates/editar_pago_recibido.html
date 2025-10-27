@@ -1,0 +1,543 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Estilo Neomórfico para Editar Pago */
+    .pago-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #d1d9e6,
+            -20px -20px 60px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .neo-card:hover {
+        box-shadow: 
+            25px 25px 70px #d1d9e6,
+            -25px -25px 70px #ffffff;
+        transform: translateY(-2px);
+    }
+
+    .neo-header {
+        background: linear-gradient(135deg, #e8e8e8 0%, #d1d1d1 100%);
+        border-radius: 25px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #c4c4c4,
+            -20px -20px 60px #ffffff,
+            inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+            inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+        color: #2d3748;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .neo-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+        color: #1a202c;
+        text-shadow: 
+            0 2px 4px rgba(0, 0, 0, 0.1),
+            0 0 20px rgba(0, 255, 136, 0.3);
+        background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .neo-subtitle {
+        font-size: 1.1rem;
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
+        color: #4a5568;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .neo-header .fas {
+        font-size: 2rem;
+        color: #00ff88;
+        text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+
+    .form-section {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .form-section h3 {
+        color: #2d3748;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        font-size: 1.3rem;
+        border-bottom: 3px solid #00ff88;
+        padding-bottom: 0.5rem;
+    }
+
+    .neo-input {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 16px;
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        color: #4a5568;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .neo-input:focus {
+        outline: none;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff,
+            0 0 0 3px rgba(0, 255, 136, 0.2);
+    }
+
+    .neo-button {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 24px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 
+            6px 6px 12px #d1d9e6,
+            -6px -6px 12px #ffffff;
+        color: #4a5568;
+        cursor: pointer;
+    }
+
+    .neo-button:hover {
+        box-shadow: 
+            8px 8px 16px #d1d9e6,
+            -8px -8px 16px #ffffff;
+        transform: translateY(-1px);
+        text-decoration: none;
+        color: #4a5568;
+    }
+
+    .neo-button:active {
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        transform: translateY(0);
+    }
+
+    .neo-button-primary {
+        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+        color: #000;
+        box-shadow: 
+            0 0 20px rgba(0, 255, 136, 0.5),
+            6px 6px 12px rgba(0, 255, 136, 0.3),
+            -6px -6px 12px rgba(0, 204, 106, 0.3);
+        border: 1px solid #00ff88;
+    }
+
+    .neo-button-primary:hover {
+        box-shadow: 
+            0 0 30px rgba(0, 255, 136, 0.8),
+            8px 8px 16px rgba(0, 255, 136, 0.4),
+            -8px -8px 16px rgba(0, 204, 106, 0.4);
+        color: #000;
+    }
+
+    .neo-button-secondary {
+        background: #f0f0f3;
+        color: #4a5568;
+        box-shadow: 
+            4px 4px 8px #d1d9e6,
+            -4px -4px 8px #ffffff;
+    }
+
+    .tasa-info {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #00ff88;
+    }
+
+    .tasa-info h5 {
+        color: #1976d2;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .tasa-info p {
+        color: #424242;
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .calculadora {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #8b5cf6;
+    }
+
+    .calculadora h5 {
+        color: #7b1fa2;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .calculadora .row {
+        margin-bottom: 1rem;
+    }
+
+    .calculadora label {
+        color: #4a148c;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .calculadora .neo-input {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .calculadora .neo-input:focus {
+        border-color: #8b5cf6;
+        box-shadow: 
+            inset 6px 6px 12px rgba(139, 92, 246, 0.1),
+            inset -6px -6px 12px rgba(255, 255, 255, 0.8),
+            0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+
+    .resultado {
+        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 1rem;
+        border-left: 4px solid #00ff88;
+    }
+
+    .resultado h6 {
+        color: #2e7d32;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .resultado p {
+        color: #1b5e20;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .form-label {
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-text {
+        color: #718096;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+
+    .required {
+        color: #e53e3e;
+    }
+
+    .info-pago {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #ff9800;
+    }
+
+    .info-pago h5 {
+        color: #e65100;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .info-pago .row {
+        margin-bottom: 0.5rem;
+    }
+
+    .info-pago .col-md-6 {
+        font-size: 0.9rem;
+    }
+
+    .info-pago .info-label {
+        color: #bf360c;
+        font-weight: 600;
+    }
+
+    .info-pago .info-value {
+        color: #d84315;
+        font-weight: 700;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .pago-container {
+            padding: 1rem 0;
+        }
+        
+        .neo-card {
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .neo-header {
+            padding: 2rem;
+        }
+        
+        .form-section {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<div class="pago-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="neo-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="neo-title">
+                        <i class="fas fa-edit me-3"></i>
+                        Editar Pago Recibido
+                    </h1>
+                    <p class="neo-subtitle">Modificar información del pago registrado</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/pagos-recibidos/{{ pago.id }}" class="neo-button neo-button-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información del Pago Original -->
+        <div class="info-pago">
+            <h5><i class="fas fa-info-circle me-2"></i>Información Original del Pago</h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="info-label">ID:</div>
+                    <div class="info-value">{{ pago.id[:8] }}...</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-label">Fecha:</div>
+                    <div class="info-value">{{ pago.fecha }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-label">Hora:</div>
+                    <div class="info-value">{{ pago.hora }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="info-label">Usuario:</div>
+                    <div class="info-value">{{ pago.usuario }}</div>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" class="row">
+            <!-- Información del Cliente -->
+            <div class="col-md-6">
+                <div class="form-section">
+                    <h3><i class="fas fa-user me-2"></i>Información del Cliente</h3>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Cliente <span class="required">*</span></label>
+                        <select name="cliente" class="neo-input" required>
+                            <option value="">Seleccionar cliente...</option>
+                            {% for id, cliente in clientes.items() %}
+                            <option value="{{ cliente.nombre }}" {% if pago.cliente == cliente.nombre %}selected{% endif %}>{{ cliente.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Nota de Entrega Asociada</label>
+                        <select name="numero_nota" class="neo-input">
+                            <option value="">Sin nota asociada</option>
+                            {% for numero, nota in notas.items() %}
+                            <option value="{{ numero }}" {% if pago.numero_nota == numero %}selected{% endif %}>NE-{{ numero }} - {{ nota.cliente }} - ${{ "%.2f"|format(nota.total_usd) }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Opcional: Asociar este pago a una nota de entrega específica</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del Pago -->
+            <div class="col-md-6">
+                <div class="form-section">
+                    <h3><i class="fas fa-money-bill-wave me-2"></i>Información del Pago</h3>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago <span class="required">*</span></label>
+                        <select name="metodo_pago" class="neo-input" required>
+                            <option value="">Seleccionar método...</option>
+                            {% for metodo in metodos_pago %}
+                            <option value="{{ metodo }}" {% if pago.metodo_pago == metodo %}selected{% endif %}>{{ metodo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Número de Referencia</label>
+                        <input type="text" name="numero_referencia" class="neo-input" value="{{ pago.numero_referencia or '' }}" placeholder="Número de referencia bancaria">
+                        <div class="form-text">Número de referencia, transferencia o comprobante</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Banco</label>
+                        <input type="text" name="banco" class="neo-input" value="{{ pago.banco or '' }}" placeholder="Nombre del banco">
+                        <div class="form-text">Solo para transferencias bancarias</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calculadora de Montos -->
+            <div class="col-12">
+                <div class="calculadora">
+                    <h5><i class="fas fa-calculator me-2"></i>Calculadora de Montos</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Monto en USD</label>
+                            <input type="number" name="monto_usd" id="monto_usd" class="neo-input" step="0.01" min="0" value="{{ pago.monto_usd }}" placeholder="0.00">
+                            <div class="form-text">Ingrese el monto en dólares</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Monto en Bs</label>
+                            <input type="number" name="monto_bs" id="monto_bs" class="neo-input" step="0.01" min="0" value="{{ pago.monto_bs }}" placeholder="0.00">
+                            <div class="form-text">Ingrese el monto en bolívares</div>
+                        </div>
+                    </div>
+                    <div class="resultado" id="resultado" style="display: none;">
+                        <h6><i class="fas fa-info-circle me-2"></i>Conversión Automática</h6>
+                        <p id="conversion_text"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="col-12">
+                <div class="form-section">
+                    <h3><i class="fas fa-comment me-2"></i>Observaciones</h3>
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones</label>
+                        <textarea name="observaciones" class="neo-input" rows="3" placeholder="Observaciones adicionales sobre el pago...">{{ pago.observaciones or '' }}</textarea>
+                        <div class="form-text">Información adicional sobre el pago recibido</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="col-12">
+                <div class="form-section">
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="neo-button neo-button-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Actualizar Pago
+                        </button>
+                        <a href="/pagos-recibidos/{{ pago.id }}" class="neo-button neo-button-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            Cancelar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const tasaBCV = {{ pago.tasa_bcv }};
+    
+    // Función para calcular conversión automática
+    function calcularConversion() {
+        const montoUSD = parseFloat(document.getElementById('monto_usd').value) || 0;
+        const montoBs = parseFloat(document.getElementById('monto_bs').value) || 0;
+        const resultado = document.getElementById('resultado');
+        const conversionText = document.getElementById('conversion_text');
+        
+        if (montoUSD > 0 && montoBs === 0) {
+            // Calcular Bs desde USD
+            const bsCalculado = montoUSD * tasaBCV;
+            document.getElementById('monto_bs').value = bsCalculado.toFixed(2);
+            conversionText.innerHTML = `$${montoUSD.toFixed(2)} USD = Bs ${bsCalculado.toFixed(2)}`;
+            resultado.style.display = 'block';
+        } else if (montoBs > 0 && montoUSD === 0) {
+            // Calcular USD desde Bs
+            const usdCalculado = montoBs / tasaBCV;
+            document.getElementById('monto_usd').value = usdCalculado.toFixed(2);
+            conversionText.innerHTML = `Bs ${montoBs.toFixed(2)} = $${usdCalculado.toFixed(2)} USD`;
+            resultado.style.display = 'block';
+        } else if (montoUSD > 0 && montoBs > 0) {
+            // Ambos valores ingresados, mostrar conversión
+            const bsCalculado = montoUSD * tasaBCV;
+            const usdCalculado = montoBs / tasaBCV;
+            conversionText.innerHTML = `
+                <strong>Conversión USD→Bs:</strong> $${montoUSD.toFixed(2)} = Bs ${bsCalculado.toFixed(2)}<br>
+                <strong>Conversión Bs→USD:</strong> Bs ${montoBs.toFixed(2)} = $${usdCalculado.toFixed(2)}
+            `;
+            resultado.style.display = 'block';
+        } else {
+            resultado.style.display = 'none';
+        }
+    }
+    
+    // Event listeners para cálculo automático
+    document.getElementById('monto_usd').addEventListener('input', calcularConversion);
+    document.getElementById('monto_bs').addEventListener('input', calcularConversion);
+    
+    // Validación del formulario
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const montoUSD = parseFloat(document.getElementById('monto_usd').value) || 0;
+        const montoBs = parseFloat(document.getElementById('monto_bs').value) || 0;
+        
+        if (montoUSD === 0 && montoBs === 0) {
+            e.preventDefault();
+            alert('Debe ingresar al menos un monto (USD o Bs)');
+            return false;
+        }
+    });
+</script>
+{% endblock %}
+
+
+

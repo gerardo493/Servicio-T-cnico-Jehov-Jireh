@@ -1,0 +1,87 @@
+{
+    "roles_disponibles": [
+        "Administrador",
+        "Administrador Principal",
+        "Técnico",
+        "Vendedor",
+        "Cajero",
+        "Solo Lectura"
+    ],
+    "permisos_por_rol": {
+        "Administrador Principal": {
+            "configuracion_sistema": true,
+            "eliminar_ordenes": true,
+            "ver_reportes": true,
+            "modificar_precios": true,
+            "gestionar_usuarios": true,
+            "gestionar_clientes": true,
+            "gestionar_inventario": true,
+            "gestionar_pagos": true,
+            "ver_bitacora": true,
+            "backup": true
+        },
+        "Administrador": {
+            "configuracion_sistema": false,
+            "eliminar_ordenes": true,
+            "ver_reportes": true,
+            "modificar_precios": true,
+            "gestionar_usuarios": true,
+            "gestionar_clientes": true,
+            "gestionar_inventario": true,
+            "gestionar_pagos": true,
+            "ver_bitacora": true,
+            "backup": false
+        },
+        "Técnico": {
+            "configuracion_sistema": false,
+            "eliminar_ordenes": false,
+            "ver_reportes": false,
+            "modificar_precios": false,
+            "gestionar_usuarios": false,
+            "gestionar_clientes": true,
+            "gestionar_inventario": true,
+            "gestionar_pagos": false,
+            "ver_bitacora": false,
+            "backup": false
+        },
+        "Vendedor": {
+            "configuracion_sistema": false,
+            "eliminar_ordenes": false,
+            "ver_reportes": false,
+            "modificar_precios": true,
+            "gestionar_usuarios": false,
+            "gestionar_clientes": true,
+            "gestionar_inventario": false,
+            "gestionar_pagos": true,
+            "ver_bitacora": false,
+            "backup": false
+        },
+        "Cajero": {
+            "configuracion_sistema": false,
+            "eliminar_ordenes": false,
+            "ver_reportes": false,
+            "modificar_precios": false,
+            "gestionar_usuarios": false,
+            "gestionar_clientes": false,
+            "gestionar_inventario": false,
+            "gestionar_pagos": true,
+            "ver_bitacora": false,
+            "backup": false
+        },
+        "Solo Lectura": {
+            "configuracion_sistema": false,
+            "eliminar_ordenes": false,
+            "ver_reportes": false,
+            "modificar_precios": false,
+            "gestionar_usuarios": false,
+            "gestionar_clientes": false,
+            "gestionar_inventario": false,
+            "gestionar_pagos": false,
+            "ver_bitacora": false,
+            "backup": false
+        }
+    },
+    "usuarios": {
+        "administradorp1": "Administrador Principal"
+    }
+}

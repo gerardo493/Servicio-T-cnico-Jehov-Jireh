@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante de Retiro - {{ orden.numero_orden }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #00ff88;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            color: #4a5568;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #00ff88;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            color: #2d3748;
+            font-size: 16px;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+        
+        .equipment-details {
+            background: #fff;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .equipment-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .equipment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-entregado {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-reparado {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .status-listo {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .signature-section {
+            margin-top: 40px;
+            padding: 20px;
+            border: 2px dashed #00ff88;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .signature-line {
+            border-bottom: 2px solid #333;
+            width: 300px;
+            margin: 20px auto;
+            height: 50px;
+        }
+        
+        .signature-label {
+            font-weight: bold;
+            color: #4a5568;
+            margin-top: 10px;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .qr-code img {
+            max-width: 150px;
+            height: auto;
+        }
+        
+        .cost-summary {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .cost-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 18px;
+            color: #2d3748;
+        }
+        
+        .cost-label {
+            color: #6c757d;
+        }
+        
+        .cost-value {
+            color: #2d3748;
+            font-weight: bold;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .container {
+                max-width: none;
+                margin: 0;
+                padding: 15px;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">{{ empresa.nombre_empresa or 'Servicio Técnico' }}</div>
+            <h1 class="title">COMPROBANTE DE RETIRO DE EQUIPO</h1>
+            <p class="subtitle">Orden de Servicio #{{ orden.numero_orden }}</p>
+        </div>
+        
+        <!-- Información de la Orden -->
+        <div class="section">
+            <h2 class="section-title">Información de la Orden</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Número de Orden:</span>
+                    <div class="info-value">{{ orden.numero_orden }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Fecha de Retiro:</span>
+                    <div class="info-value">{{ orden.entrega.fecha_entrega if orden.entrega else 'No especificada' }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Estado Actual:</span>
+                    <div class="info-value">
+                        <span class="status-badge status-{{ orden.estado }}">
+                            {{ config.estados_servicio[orden.estado].nombre if config.estados_servicio and orden.estado in config.estados_servicio else orden.estado.replace('_', ' ').title() }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Técnico Responsable:</span>
+                    <div class="info-value">{{ orden.entrega.tecnico_entrega if orden.entrega else orden.tecnico_asignado or 'No asignado' }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información del Cliente -->
+        <div class="section">
+            <h2 class="section-title">Datos del Cliente</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Nombre Completo:</span>
+                    <div class="info-value">{{ orden.cliente.nombre }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Cédula/RIF:</span>
+                    <div class="info-value">{{ orden.cliente.cedula_rif }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Teléfono:</span>
+                    <div class="info-value">{{ orden.cliente.telefono }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Email:</span>
+                    <div class="info-value">{{ orden.cliente.email or 'No especificado' }}</div>
+                </div>
+            </div>
+            {% if orden.cliente.direccion %}
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <span class="info-label">Dirección:</span>
+                <div class="info-value">{{ orden.cliente.direccion }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Información de Quien Retira -->
+        {% if orden.entrega %}
+        <div class="section">
+            <h2 class="section-title">Datos de Quien Retira</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Nombre:</span>
+                    <div class="info-value">{{ orden.entrega.nombre_retira }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Cédula/RIF:</span>
+                    <div class="info-value">{{ orden.entrega.cedula_retira }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Teléfono:</span>
+                    <div class="info-value">{{ orden.entrega.telefono_retira }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tipo de Pago:</span>
+                    <div class="info-value">{{ orden.entrega.tipo_pago.replace('_', ' ').title() }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Detalles del Equipo -->
+        <div class="equipment-details">
+            <h2 class="equipment-title">Equipo Retirado</h2>
+            <div class="equipment-grid">
+                <div class="info-item">
+                    <span class="info-label">Marca:</span>
+                    <div class="info-value">{{ orden.equipo.marca }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Modelo:</span>
+                    <div class="info-value">{{ orden.equipo.modelo }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">IMEI 1:</span>
+                    <div class="info-value">{{ orden.equipo.imei }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">IMEI 2:</span>
+                    <div class="info-value">{{ orden.equipo.imei2 or 'No especificado' }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Número de Serie:</span>
+                    <div class="info-value">{{ orden.equipo.numero_serie or 'No especificado' }}</div>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Color:</span>
+                    <div class="info-value">{{ orden.equipo.color or 'No especificado' }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Resumen de Costos -->
+        {% if orden.diagnostico or orden.reparacion or orden.entrega %}
+        <div class="cost-summary">
+            <h2 class="section-title">Resumen de Costos</h2>
+            
+            {% if orden.diagnostico %}
+            <div class="cost-item">
+                <span class="cost-label">Costo Estimado (Diagnóstico):</span>
+                <span class="cost-value">${{ "%.2f"|format(orden.diagnostico.total_estimado) }}</span>
+            </div>
+            {% endif %}
+            
+            {% if orden.reparacion %}
+            <div class="cost-item">
+                <span class="cost-label">Costo Adicional (Reparación):</span>
+                <span class="cost-value">${{ "%.2f"|format(orden.reparacion.costo_adicional) }}</span>
+            </div>
+            <div class="cost-item">
+                <span class="cost-label">Total Repuestos:</span>
+                <span class="cost-value">${{ "%.2f"|format(orden.reparacion.total_repuestos) }}</span>
+            </div>
+            {% endif %}
+            
+            {% if orden.entrega %}
+            <div class="cost-item">
+                <span class="cost-label">Monto Pagado:</span>
+                <span class="cost-value">${{ "%.2f"|format(orden.entrega.monto_pagado) }}</span>
+            </div>
+            <div class="cost-item">
+                <span class="cost-label">Monto Pendiente:</span>
+                <span class="cost-value">${{ "%.2f"|format(orden.entrega.monto_pendiente) }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Observaciones -->
+        {% if orden.entrega and orden.entrega.observaciones_entrega %}
+        <div class="section">
+            <h2 class="section-title">Observaciones de Entrega</h2>
+            <div class="info-value">{{ orden.entrega.observaciones_entrega }}</div>
+        </div>
+        {% endif %}
+        
+        <!-- Firma Digital -->
+        {% if orden.entrega and orden.entrega.firma_digital %}
+        <div class="section">
+            <h2 class="section-title">Firma Digital del Cliente</h2>
+            <div style="text-align: center;">
+                <img src="{{ orden.entrega.firma_digital }}" alt="Firma Digital" style="max-width: 300px; border: 1px solid #ddd; border-radius: 8px;">
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Sección de Firmas -->
+        <div class="signature-section">
+            <h3>Firma de Conformidad</h3>
+            <p>El cliente confirma haber recibido el equipo en las condiciones descritas y está conforme con el servicio prestado.</p>
+            <div class="signature-line"></div>
+            <div class="signature-label">Firma del Cliente</div>
+            
+            <div style="margin-top: 40px;">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Técnico Responsable</div>
+            </div>
+        </div>
+        
+        <!-- QR Code -->
+        <div class="qr-code">
+            <div id="qrcode"></div>
+            <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
+                Escanea este código para verificar la autenticidad del comprobante
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>{{ empresa.nombre_empresa or 'Servicio Técnico' }}</strong></p>
+            <p>{{ empresa.direccion or 'Dirección no especificada' }}</p>
+            <p>Teléfono: {{ empresa.telefono or 'No especificado' }} | Email: {{ empresa.email or 'No especificado' }}</p>
+            <p>Comprobante generado el <span id="fecha-actual"></span></p>
+        </div>
+    </div>
+    
+    <!-- QR Code Script -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        // Mostrar fecha actual
+        const ahora = new Date();
+        const fechaFormateada = ahora.toLocaleDateString('es-ES') + ' ' + ahora.toLocaleTimeString('es-ES');
+        document.getElementById('fecha-actual').textContent = fechaFormateada;
+        
+        // Generar QR Code con información de la orden
+        const qrData = {
+            orden: '{{ orden.numero_orden }}',
+            cliente: '{{ orden.cliente.nombre }}',
+            fecha: '{{ orden.entrega.fecha_entrega if orden.entrega else "" }}',
+            estado: '{{ orden.estado }}'
+        };
+        
+        QRCode.toCanvas(document.getElementById('qrcode'), JSON.stringify(qrData), {
+            width: 150,
+            height: 150,
+            color: {
+                dark: '#00ff88',
+                light: '#ffffff'
+            }
+        }, function (error) {
+            if (error) console.error('Error generando QR:', error);
+        });
+        
+        // Auto-imprimir al cargar (opcional)
+        window.onload = function() {
+            // Descomentar la siguiente línea para auto-imprimir
+            // window.print();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Autocompletado Simple</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .cliente-search-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .cliente-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-top: none;
+            border-radius: 0 0 15px 15px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .cliente-option {
+            padding: 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cliente-option:hover {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            transform: translateX(5px);
+        }
+
+        .cliente-option.active {
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+            border-left: 4px solid #0ea5e9;
+            transform: translateX(5px);
+        }
+
+        .cliente-selected {
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+            border: 2px solid #0ea5e9;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .cliente-info-adicional {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(14, 165, 233, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-user me-2"></i>Test Autocompletado Cliente - VERSIÓN ACTUALIZADA</h4>
+                        <small class="text-muted">Si ves este mensaje, los cambios se están aplicando correctamente</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="cliente-search-container">
+                            <div class="form-floating">
+                                <input type="text" id="cliente-search" class="form-control" 
+                                       placeholder="Escriba el nombre, RIF o cédula del cliente para buscar..."
+                                       autocomplete="off">
+                                <label for="cliente-search">Buscar Cliente</label>
+                            </div>
+                            <div class="cliente-dropdown" id="cliente-dropdown">
+                                <!-- Opciones de clientes se cargarán aquí -->
+                            </div>
+                            <div class="cliente-selected" id="cliente-selected">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <div class="fw-bold" id="cliente-nombre-selected"></div>
+                                        <small class="text-muted" id="cliente-cedula-selected"></small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarCliente()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Información adicional del cliente -->
+                                <div class="row" id="cliente-info-adicional" style="display: none;">
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                            <input type="email" id="cliente-email" class="form-control" readonly 
+                                                   style="background-color: #f8f9fa;">
+                                            <label for="cliente-email"><i class="fas fa-envelope me-2"></i>Email</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-floating">
+                                            <input type="tel" id="cliente-telefono" class="form-control" readonly 
+                                                   style="background-color: #f8f9fa;">
+                                            <label for="cliente-telefono"><i class="fas fa-phone me-2"></i>Teléfono</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        <div class="form-floating">
+                                            <textarea id="cliente-direccion" class="form-control" readonly 
+                                                      style="background-color: #f8f9fa; height: 80px;"></textarea>
+                                            <label for="cliente-direccion"><i class="fas fa-map-marker-alt me-2"></i>Dirección</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="cliente_id" id="cliente_id" value="">
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h5><i class="fas fa-info-circle me-2"></i>Instrucciones de Prueba:</h5>
+                            <ol>
+                                <li>Haz clic en el campo "Buscar Cliente"</li>
+                                <li>Escribe "Juan" o "María" para probar la búsqueda</li>
+                                <li>Selecciona un cliente de la lista</li>
+                                <li>Verifica que se autocomplete la información adicional</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos de prueba
+        var clientes = {
+            "V-12345678": {
+                "id": "V-12345678",
+                "nombre": "Juan Pérez",
+                "email": "juan.perez@email.com",
+                "telefono": "0412-1234567",
+                "direccion": "Av. Principal, Edificio Central, Piso 5, Caracas"
+            },
+            "J-87654321": {
+                "id": "J-87654321",
+                "nombre": "María González",
+                "email": "maria.gonzalez@empresa.com",
+                "telefono": "0424-9876543",
+                "direccion": "Calle 2, Zona Industrial, Valencia"
+            },
+            "E-11223344": {
+                "id": "E-11223344",
+                "nombre": "Carlos Rodríguez",
+                "email": "carlos@tienda.com",
+                "telefono": "0416-5555555",
+                "direccion": "Plaza Bolívar, Local 15, Maracay"
+            }
+        };
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            setupClienteSearch();
+            console.log('✅ Sistema de autocompletado inicializado correctamente');
+        });
+
+        // Configurar búsqueda de clientes
+        function setupClienteSearch() {
+            const searchInput = document.getElementById('cliente-search');
+            const dropdown = document.getElementById('cliente-dropdown');
+            
+            // Debounce para búsqueda en tiempo real
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    filtrarClientes();
+                }, 300);
+            });
+            
+            searchInput.addEventListener('focus', mostrarTodosClientes);
+            searchInput.addEventListener('keydown', manejarTeclasCliente);
+            
+            // Cerrar dropdown al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+
+        function manejarTeclasCliente(e) {
+            const dropdown = document.getElementById('cliente-dropdown');
+            const options = dropdown.querySelectorAll('.cliente-option:not(.hidden)');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const currentActive = dropdown.querySelector('.cliente-option.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                    const next = currentActive.nextElementSibling;
+                    if (next && !next.classList.contains('hidden')) {
+                        next.classList.add('active');
+                    }
+                } else if (options.length > 0) {
+                    options[0].classList.add('active');
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const currentActive = dropdown.querySelector('.cliente-option.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                    const prev = currentActive.previousElementSibling;
+                    if (prev && !prev.classList.contains('hidden')) {
+                        prev.classList.add('active');
+                    }
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const activeOption = dropdown.querySelector('.cliente-option.active');
+                if (activeOption) {
+                    const id = activeOption.dataset.id;
+                    const nombre = activeOption.dataset.nombre;
+                    seleccionarCliente(id, nombre);
+                }
+            } else if (e.key === 'Escape') {
+                dropdown.style.display = 'none';
+                document.getElementById('cliente-search').blur();
+            }
+        }
+
+        function filtrarClientes() {
+            const query = document.getElementById('cliente-search').value.toLowerCase().trim();
+            const dropdown = document.getElementById('cliente-dropdown');
+            
+            if (query === '') {
+                mostrarTodosClientes();
+                return;
+            }
+            
+            dropdown.innerHTML = '';
+            
+            const clientesFiltrados = Object.entries(clientes).filter(([id, cliente]) => {
+                const nombre = cliente.nombre.toLowerCase();
+                const email = (cliente.email || '').toLowerCase();
+                const telefono = (cliente.telefono || '').toLowerCase();
+                const direccion = (cliente.direccion || '').toLowerCase();
+                
+                return nombre.includes(query) || 
+                       id.toLowerCase().includes(query) || 
+                       email.includes(query) || 
+                       telefono.includes(query) ||
+                       direccion.includes(query);
+            });
+            
+            if (clientesFiltrados.length === 0) {
+                dropdown.innerHTML = `
+                    <div class="cliente-option text-center text-muted py-3">
+                        <i class="fas fa-search me-2"></i>
+                        No se encontraron clientes
+                    </div>
+                `;
+            } else {
+                clientesFiltrados.forEach(([id, cliente]) => {
+                    const option = document.createElement('div');
+                    option.className = 'cliente-option';
+                    option.dataset.id = id;
+                    option.dataset.nombre = cliente.nombre;
+                    option.innerHTML = `
+                        <div>
+                            <div class="fw-bold">${cliente.nombre}</div>
+                            <small class="text-muted">ID: ${id}</small>
+                            ${cliente.email ? `<br><small class="text-info"><i class="fas fa-envelope me-1"></i>${cliente.email}</small>` : ''}
+                            ${cliente.telefono ? `<br><small class="text-success"><i class="fas fa-phone me-1"></i>${cliente.telefono}</small>` : ''}
+                        </div>
+                        <i class="fas fa-arrow-right text-muted"></i>
+                    `;
+                    option.onclick = () => seleccionarCliente(id, cliente.nombre);
+                    dropdown.appendChild(option);
+                });
+            }
+            
+            dropdown.style.display = 'block';
+        }
+
+        function mostrarTodosClientes() {
+            const dropdown = document.getElementById('cliente-dropdown');
+            dropdown.innerHTML = '';
+            
+            Object.entries(clientes).forEach(([id, cliente]) => {
+                const option = document.createElement('div');
+                option.className = 'cliente-option';
+                option.dataset.id = id;
+                option.dataset.nombre = cliente.nombre;
+                option.innerHTML = `
+                    <div>
+                        <div class="fw-bold">${cliente.nombre}</div>
+                        <small class="text-muted">ID: ${id}</small>
+                        ${cliente.email ? `<br><small class="text-info"><i class="fas fa-envelope me-1"></i>${cliente.email}</small>` : ''}
+                        ${cliente.telefono ? `<br><small class="text-success"><i class="fas fa-phone me-1"></i>${cliente.telefono}</small>` : ''}
+                    </div>
+                    <i class="fas fa-arrow-right text-muted"></i>
+                `;
+                option.onclick = () => seleccionarCliente(id, cliente.nombre);
+                dropdown.appendChild(option);
+            });
+            
+            dropdown.style.display = 'block';
+        }
+
+        function seleccionarCliente(id, nombre) {
+            const cliente = clientes[id];
+            if (!cliente) {
+                alert('Cliente no encontrado');
+                return;
+            }
+            
+            // Actualizar campos básicos
+            document.getElementById('cliente_id').value = id;
+            document.getElementById('cliente-search').value = nombre;
+            document.getElementById('cliente-nombre-selected').textContent = nombre;
+            document.getElementById('cliente-cedula-selected').textContent = `ID: ${id}`;
+            
+            // Autocompletar información adicional
+            document.getElementById('cliente-email').value = cliente.email || '';
+            document.getElementById('cliente-telefono').value = cliente.telefono || '';
+            document.getElementById('cliente-direccion').value = cliente.direccion || '';
+            
+            // Mostrar sección de cliente seleccionado
+            document.getElementById('cliente-selected').style.display = 'block';
+            document.getElementById('cliente-info-adicional').style.display = 'block';
+            document.getElementById('cliente-dropdown').style.display = 'none';
+            
+            console.log('✅ Cliente seleccionado:', nombre);
+        }
+
+        function limpiarCliente() {
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('cliente-search').value = '';
+            document.getElementById('cliente-nombre-selected').textContent = '';
+            document.getElementById('cliente-cedula-selected').textContent = '';
+            document.getElementById('cliente-email').value = '';
+            document.getElementById('cliente-telefono').value = '';
+            document.getElementById('cliente-direccion').value = '';
+            document.getElementById('cliente-selected').style.display = 'none';
+            document.getElementById('cliente-info-adicional').style.display = 'none';
+            document.getElementById('cliente-dropdown').style.display = 'none';
+            
+            document.getElementById('cliente-search').focus();
+        }
+    </script>
+</body>
+</html>
+

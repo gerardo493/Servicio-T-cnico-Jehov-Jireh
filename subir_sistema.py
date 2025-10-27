@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script Completo para Subir Sistema - Sistema de Recordatorios KISVIC
+Script Completo para Subir Sistema - Sistema de Recordatorios
 Autor: Sistema Automático
 Fecha: 2025-08-18
 Versión: 1.0
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class SistemaDeployer:
     def __init__(self):
-        self.project_name = "Sistema de Recordatorios KISVIC"
+        self.project_name = "Sistema de Recordatorios"
         self.project_dir = os.getcwd()
         self.backup_dir = "backups_deploy"
         self.temp_dir = "temp_deploy"
@@ -62,7 +62,7 @@ class SistemaDeployer:
 {self.colors['cyan']}╔══════════════════════════════════════════════════════════════╗
 ║                    🚀 SUBIR SISTEMA COMPLETO                     ║
 ║                     Sistema de Recordatorios                     ║
-║                           KISVIC 2025                           ║
+║                           2025                           ║
 ╚══════════════════════════════════════════════════════════════╝{self.colors['reset']}
 """
         print(banner)
@@ -532,7 +532,7 @@ class SistemaDeployer:
             self.colored_print("\n🌐 URLs IMPORTANTES:", 'blue')
             self.colored_print("-" * 20, 'yellow')
             self.colored_print("📊 Dashboard Render: https://dashboard.render.com/web/srv-d2ckh46r433s73appvug", 'cyan')
-            self.colored_print("🌐 Aplicación: https://kisvic2025.onrender.com", 'cyan')
+            self.colored_print("🌐 Aplicación: https://tu-app.onrender.com", 'cyan')
             
         except Exception as e:
             self.colored_print(f"❌ Error obteniendo información: {e}", 'red')

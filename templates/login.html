@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - Sistema de Facturación</title>
+    <title>Iniciar Sesión - Sistema de Reparaciones</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -50,13 +50,34 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
         }
 
         .logo-container img {
-            max-width: 100%;
-            width: auto;
-            height: auto;
-            filter: drop-shadow(0 0 10px var(--color-gold-light));
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.2);
+            object-fit: cover;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            filter: drop-shadow(0 0 20px var(--color-gold-light));
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .logo-container img:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 12px 25px rgba(0,0,0,0.3);
+        }
+
+        .company-name {
+            color: var(--color-gold-light);
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-top: 15px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            letter-spacing: 1px;
         }
 
         .card {
@@ -240,6 +261,7 @@
     <div class="login-container">
         <div class="logo-container">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid">
+            <div class="company-name">{{ empresa.nombre.split(' - ')[0] if empresa and empresa.nombre else 'TECNICEL' }}</div>
         </div>
         <div class="card">
             <div class="card-header text-center">

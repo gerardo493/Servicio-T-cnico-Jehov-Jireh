@@ -3,152 +3,319 @@
 {% block title %}Reporte de Notas de Entrega{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2><i class="fas fa-chart-bar"></i> Reporte de Notas de Entrega</h2>
-    
-    <!-- Filtros -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5>Filtros</h5>
-        </div>
-        <div class="card-body">
-            <form method="GET" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">Estado</label>
-                    <select name="estado" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="PENDIENTE_ENTREGA" {{ 'selected' if estado == 'PENDIENTE_ENTREGA' }}>Pendiente de Entrega</option>
-                        <option value="ENTREGADO" {{ 'selected' if estado == 'ENTREGADO' }}>Entregado</option>
-                        <option value="PENDIENTE_FACTURACION" {{ 'selected' if estado == 'PENDIENTE_FACTURACION' }}>Pendiente de Facturación</option>
-                        <option value="FACTURADO" {{ 'selected' if estado == 'FACTURADO' }}>Facturado</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Modalidad</label>
-                    <select name="modalidad" class="form-select">
-                        <option value="">Todas</option>
-                        <option value="contado" {{ 'selected' if modalidad == 'contado' }}>Contado</option>
-                        <option value="credito" {{ 'selected' if modalidad == 'credito' }}>A Crédito</option>
-                        <option value="nota_credito" {{ 'selected' if modalidad == 'nota_credito' }}>Nota de Crédito</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Desde</label>
-                    <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio or '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Hasta</label>
-                    <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin or '' }}">
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">Filtrar</button>
-                    <a href="{{ url_for('reporte_notas_entrega') }}" class="btn btn-secondary">Limpiar</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Resumen -->
-    {% if notas %}
+<div class="container-fluid">
+    <!-- Header del Reporte -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ notas|length }}</h5>
-                    <p class="card-text">Total Notas</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">${{ "%.2f"|format(notas.values()|sum(attribute='subtotal_usd')) }}</h5>
-                    <p class="card-text">Total USD</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ notas|selectattr('estado', 'equalto', 'ENTREGADO')|list|length }}</h5>
-                    <p class="card-text">Entregadas</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">{{ notas|selectattr('estado', 'equalto', 'PENDIENTE_FACTURACION')|list|length }}</h5>
-                    <p class="card-text">Pendientes Facturación</p>
+        <div class="col-12">
+            <div class="neo-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Reporte de Notas de Entrega
+                        </h2>
+                        <p class="text-muted mb-0">Análisis y estadísticas de notas de entrega</p>
+                    </div>
+                    <div>
+                        <a href="/notas-entrega" class="neo-button neo-button-secondary me-2">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Volver a Notas
+                        </a>
+                        <button onclick="imprimirReporte()" class="neo-button neo-button-primary">
+                            <i class="fas fa-print me-2"></i>
+                            Imprimir PDF
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla de resultados -->
-    <div class="card">
-        <div class="card-header">
-            <h5>Resultados</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Número</th>
-                            <th>Fecha</th>
-                            <th>Cliente</th>
-                            <th>Modalidad</th>
-                            <th>Estado</th>
-                            <th>Total USD</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for id_nota, nota in notas.items() %}
-                        <tr>
-                            <td>{{ nota.numero }}</td>
-                            <td>{{ nota.fecha }}</td>
-                            <td>{{ nota.cliente_nombre }}</td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if nota.modalidad_pago == 'contado' else 'warning' if nota.modalidad_pago == 'credito' else 'info' }}">
-                                    {{ nota.modalidad_pago|title }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ 'secondary' if nota.estado == 'PENDIENTE_ENTREGA' else 'success' if nota.estado == 'ENTREGADO' else 'warning' if nota.estado == 'PENDIENTE_FACTURACION' else 'info' }}">
-                                    {{ nota.estado|replace('_', ' ')|title }}
-                                </span>
-                            </td>
-                            <td>${{ "%.2f"|format(nota.subtotal_usd) }}</td>
-                            <td>
-                                <a href="{{ url_for('imprimir_nota_entrega', id=id_nota) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-print"></i>
-                                </a>
-                                {% if nota.estado == 'PENDIENTE_ENTREGA' %}
-                                <a href="{{ url_for('editar_nota_entrega', id=id_nota) }}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-filter me-2"></i>
+                    Filtros de Búsqueda
+                </h5>
+                <form method="GET" action="/notas-entrega/reporte" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="mes" class="form-label">Mes</label>
+                        <select name="mes" id="mes" class="neo-input">
+                            <option value="">Todos los meses</option>
+                            {% for mes in meses %}
+                            <option value="{{ mes.valor }}" {% if mes_filtro == mes.valor %}selected{% endif %}>
+                                {{ mes.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="año" class="form-label">Año</label>
+                        <select name="año" id="año" class="neo-input">
+                            <option value="">Todos los años</option>
+                            {% for año in años %}
+                            <option value="{{ año.valor }}" {% if año_filtro == año.valor %}selected{% endif %}>
+                                {{ año.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="neo-button neo-button-primary me-2">
+                            <i class="fas fa-search me-2"></i>
+                            Filtrar
+                        </button>
+                        <a href="/notas-entrega/reporte" class="neo-button neo-button-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            Limpiar
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="text-center py-5">
-        <h4>No hay notas de entrega</h4>
-        <p>No se encontraron notas de entrega con los filtros aplicados.</p>
-    </div>
-    {% endif %}
 
-    <div class="mt-3">
-        <a href="{{ url_for('mostrar_notas_entrega') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver
-        </a>
+    <!-- Estadísticas Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ total_notas }}</h3>
+                        <p class="stat-label">Total Notas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card">
+                    <div class="stat-icon usd">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(total_usd) }}</h3>
+                        <p class="stat-label">Total USD</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card">
+                    <div class="stat-icon bs">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">Bs {{ "%.2f"|format(total_bs) }}</h3>
+                        <p class="stat-label">Total Bs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Notas -->
+    <div class="row">
+        <div class="col-12">
+            <div class="neo-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Notas de Entrega
+                        {% if mes_filtro and año_filtro %}
+                        - {{ meses[mes_filtro|int - 1].nombre }} {{ año_filtro }}
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-primary">{{ total_notas }} notas</span>
+                </div>
+                
+                {% if notas %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>N° Nota</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Modalidad</th>
+                                <th>Total USD</th>
+                                <th>Total Bs</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for numero, nota in notas.items() %}
+                            <tr>
+                                <td>
+                                    <strong>{{ nota.numero }}</strong>
+                                </td>
+                                <td>
+                                    <span class="text-muted">
+                                        {{ nota.fecha }}
+                                        {% if nota.hora %}
+                                        <br><small>{{ nota.hora }}</small>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ nota.cliente_nombre or 'Cliente no especificado' }}</strong>
+                                        {% if nota.cliente_telefono %}
+                                        <br><small class="text-muted">{{ nota.cliente_telefono }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if nota.estado == 'PENDIENTE_ENTREGA' %}
+                                        <span class="badge bg-warning">Pendiente</span>
+                                    {% elif nota.estado == 'ENTREGADO' %}
+                                        <span class="badge bg-success">Entregado</span>
+                                    {% elif nota.estado == 'ANULADO' %}
+                                        <span class="badge bg-danger">Anulado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ nota.estado }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ nota.modalidad_pago.title() if nota.modalidad_pago else 'No especificado' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong class="text-success">${{ "%.2f"|format(nota.total_usd) }}</strong>
+                                </td>
+                                <td>
+                                    <strong class="text-primary">Bs {{ "%.2f"|format(nota.total_bs) }}</strong>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/notas-entrega/{{ numero }}" class="btn btn-sm btn-outline-primary" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/notas-entrega/{{ numero }}/imprimir" class="btn btn-sm btn-outline-success" title="Imprimir">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No hay notas de entrega</h5>
+                    <p class="text-muted">
+                        {% if mes_filtro and año_filtro %}
+                        No se encontraron notas para el período seleccionado.
+                        {% else %}
+                        No hay notas de entrega registradas en el sistema.
+                        {% endif %}
+                    </p>
+                    <a href="/test-nueva-nota" class="neo-button neo-button-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Crear Primera Nota
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.neo-stat-card {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 1rem;
+}
+
+.stat-icon.usd {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+}
+
+.stat-icon.bs {
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin: 0;
+    margin-top: 0.5rem;
+}
+
+.table th {
+    background: linear-gradient(135deg, #004AAD 0%, #00897B 100%);
+    color: white;
+    font-weight: 600;
+    border: none;
+}
+
+.table td {
+    vertical-align: middle;
+    border-color: #e0e0e0;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+</style>
+
+<script>
+function imprimirReporte() {
+    const mes = document.getElementById('mes').value;
+    const año = document.getElementById('año').value;
+    
+    let url = '/notas-entrega/reporte/imprimir';
+    const params = [];
+    
+    if (mes) params.push('mes=' + mes);
+    if (año) params.push('año=' + año);
+    
+    if (params.length > 0) {
+        url += '?' + params.join('&');
+    }
+    
+    window.open(url, '_blank');
+}
+</script>
 {% endblock %}
+
+
+

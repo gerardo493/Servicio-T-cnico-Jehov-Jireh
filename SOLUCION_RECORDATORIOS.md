@@ -146,6 +146,6 @@ El sistema muestra "Preparando recordatorio..." pero no hace nada más. Esto ind
 
 ---
 
-*Documento de diagnóstico para Sistema de Recordatorios WhatsApp - KISVIC*
+*Documento de diagnóstico para Sistema de Recordatorios WhatsApp*
 *Fecha: Enero 2025*
 *Estado: 🔧 EN DIAGNÓSTICO*

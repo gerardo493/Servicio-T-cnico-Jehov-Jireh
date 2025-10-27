@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Técnico - Orden {{ orden.id }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Layout Ultra Compacto - 1-2 páginas máximo */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 10px;
+            font-weight: 600;
+        }
+
+        .page {
+            max-width: 8.5in;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            min-height: 11in;
+            overflow: hidden;
+            padding: 15px;
+        }
+
+        /* Header Ultra Compacto */
+        .header {
+            background: white;
+            color: #333;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+            background: white;
+            color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .company-info {
+            flex: 1;
+        }
+
+        .company-name {
+            font-size: 14px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 2px;
+        }
+
+        .company-details {
+            font-size: 10px;
+            color: #000;
+            line-height: 1.2;
+            font-weight: 700;
+        }
+
+        .document-info {
+            text-align: right;
+        }
+
+        .document-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 2px;
+        }
+
+        .document-number {
+            font-size: 12px;
+            font-weight: 900;
+            color: #000;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border: 1px solid #333;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        /* Layout de 2 columnas para máximo aprovechamiento */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Información Compacta */
+        .info-section {
+            background: white;
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .info-section h3 {
+            font-size: 12px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 3px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            padding: 2px 0;
+            border-bottom: 0.5px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 800;
+            color: #000;
+            flex: 1;
+            font-size: 10px;
+        }
+
+        .info-value {
+            font-weight: 700;
+            color: #000;
+            text-align: right;
+            flex: 1;
+            font-size: 10px;
+        }
+
+        /* Secciones de Contenido Compactas */
+        .content-section {
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-left: 2px solid #333;
+            padding-left: 8px;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 2px;
+        }
+
+        .content-box {
+            background: white;
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 6px;
+        }
+
+        .content-box h4 {
+            font-size: 10px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 4px;
+            margin-top: 0;
+        }
+
+        .content-box p {
+            font-size: 10px;
+            line-height: 1.2;
+            color: #000;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        /* Tabla de Accesorios Compacta */
+        .accessories-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+            font-size: 10px;
+        }
+
+        .accessories-table th {
+            background: #000;
+            color: white;
+            padding: 4px 6px;
+            text-align: left;
+            font-weight: 900;
+            font-size: 10px;
+        }
+
+        .accessories-table td {
+            padding: 4px 6px;
+            border-bottom: 0.5px solid #ddd;
+            font-size: 10px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .accessories-table tr:hover {
+            background: #f0f0f0;
+        }
+
+
+        /* Instrucciones de Impresión */
+        .print-instructions {
+            background: #f8f9fa;
+            border: 2px solid #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .print-button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .print-button:hover {
+            background: #555;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .print-button:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .print-button i {
+            margin-right: 6px;
+            font-size: 14px;
+        }
+
+        /* Estilos para impresión */
+        @media print {
+            .print-instructions {
+                display: none;
+            }
+            
+            body {
+                padding: 0;
+                background: white;
+            }
+            
+            .page {
+                box-shadow: none;
+                margin: 0;
+                padding: 10px;
+            }
+        }
+
+        /* Reglas de página para impresión */
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+    </style>
+    
+</head>
+<body>
+    <div class="print-instructions">
+        <button onclick="window.print()" class="print-button">
+            <i class="fas fa-print"></i>
+            Imprimir / Guardar PDF
+        </button>
+    </div>
+
+    <div class="page">
+        <!-- Header Compacto -->
+        <div class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <img src="/static/logo.png" alt="Logo Empresa">
+                    </div>
+                    <div class="company-info">
+                        <div class="company-name">SERVICIO TÉCNICO JEHOVÁ JIREH</div>
+                        <div class="company-details">
+                            Servicio Técnico Especializado<br>
+                            Reparación de Equipos Electrónicos<br>
+                            RIF: J-000000000 | Tel: 0000-0000000<br>
+                            Dirección: Dirección de la empresa
+                        </div>
+                    </div>
+                </div>
+                <div class="document-info">
+                    <div class="document-title">DIAGNÓSTICO TÉCNICO</div>
+                    <div class="document-number">ORDEN #{{ orden.id }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido Principal en 2 Columnas -->
+        <div class="main-content">
+            <!-- Columna Izquierda -->
+            <div class="left-column">
+                <!-- Información del Cliente -->
+                <div class="info-section">
+                    <h3>👤 Cliente</h3>
+                    <div class="info-row">
+                        <span class="info-label">Nombre:</span>
+                        <span class="info-value">{{ orden.cliente.nombre }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Teléfono:</span>
+                        <span class="info-value">{{ orden.cliente.telefono }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">{{ orden.cliente.email or 'No especificado' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Dirección:</span>
+                        <span class="info-value">{{ orden.cliente.direccion or 'No especificada' }}</span>
+                    </div>
+                </div>
+
+                <!-- Información del Equipo -->
+                <div class="info-section">
+                    <h3>📱 Equipo</h3>
+                    <div class="info-row">
+                        <span class="info-label">Marca:</span>
+                        <span class="info-value">{{ orden.equipo.marca }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Modelo:</span>
+                        <span class="info-value">{{ orden.equipo.modelo }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">IMEI:</span>
+                        <span class="info-value">{{ orden.equipo.imei }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Serial:</span>
+                        <span class="info-value">{{ orden.equipo.numero_serie }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Color:</span>
+                        <span class="info-value">{{ orden.equipo.color }}</span>
+                    </div>
+                </div>
+
+                <!-- Accesorios Entregados -->
+                <div class="content-section">
+                    <div class="section-title">📦 Accesorios Entregados</div>
+                    <div class="content-box">
+                        {% if orden.accesorios_entregados %}
+                            <table class="accessories-table">
+                                <thead>
+                                    <tr>
+                                        <th>Accesorio</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for accesorio, estado in orden.accesorios_entregados.items() %}
+                                        {% if accesorio in ['cargador', 'audifonos', 'caja', 'cable', 'tarjeta_memoria', 'sim_card'] %}
+                                            <tr>
+                                                <td>
+                                                    {% if accesorio == 'cargador' %}
+                                                        Cargador
+                                                    {% elif accesorio == 'audifonos' %}
+                                                        Audífonos
+                                                    {% elif accesorio == 'caja' %}
+                                                        Caja Original
+                                                    {% elif accesorio == 'cable' %}
+                                                        Cable USB
+                                                    {% elif accesorio == 'tarjeta_memoria' %}
+                                                        Tarjeta de Memoria
+                                                    {% elif accesorio == 'sim_card' %}
+                                                        SIM Card
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if estado == true %}
+                                                        <span style="color: #333; font-weight: bold;">✓ Entregado</span>
+                                                    {% elif estado == false %}
+                                                        <span style="color: #666; font-weight: bold;">✗ No entregado</span>
+                                                    {% else %}
+                                                        {{ estado or 'No especificado' }}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    <!-- Información adicional de memoria si existe -->
+                                    {% if orden.accesorios_entregados.tarjeta_memoria == true and orden.accesorios_entregados.capacidad_memoria %}
+                                        <tr>
+                                            <td>Capacidad de Memoria</td>
+                                            <td>{{ orden.accesorios_entregados.capacidad_memoria }}</td>
+                                        </tr>
+                                    {% endif %}
+                                    
+                                    {% if orden.accesorios_entregados.tarjeta_memoria == true and orden.accesorios_entregados.marca_memoria %}
+                                        <tr>
+                                            <td>Marca de Memoria</td>
+                                            <td>{{ orden.accesorios_entregados.marca_memoria }}</td>
+                                        </tr>
+                                    {% endif %}
+                                    
+                                    {% if orden.accesorios_entregados.sim_card == true and orden.accesorios_entregados.tipo_sim %}
+                                        <tr>
+                                            <td>Tipo de SIM</td>
+                                            <td>{{ orden.accesorios_entregados.tipo_sim }}</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p><strong>No se registraron accesorios entregados</strong></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha -->
+            <div class="right-column">
+                <!-- Información de la Orden -->
+                <div class="info-section">
+                    <h3>📋 Orden</h3>
+                    <div class="info-row">
+                        <span class="info-label">Fecha:</span>
+                        <span class="info-value">{{ orden.fecha_creacion }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Estado:</span>
+                        <span class="info-value">{{ orden.estado }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Técnico:</span>
+                        <span class="info-value">{{ orden.tecnico_asignado or 'No asignado' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Prioridad:</span>
+                        <span class="info-value">{{ orden.prioridad or 'Normal' }}</span>
+                    </div>
+                </div>
+
+                <!-- Problema Reportado -->
+                <div class="content-section">
+                    <div class="section-title">⚠️ Problema Reportado</div>
+                    <div class="content-box">
+                        <p><strong>{{ orden.problema_reportado }}</strong></p>
+                    </div>
+                </div>
+
+                <!-- Diagnóstico Técnico -->
+                <div class="content-section">
+                    <div class="section-title">🔍 Diagnóstico Técnico</div>
+                    <div class="content-box">
+                        {% if orden.diagnostico %}
+                            {% if orden.diagnostico is mapping %}
+                                <h4>Diagnóstico Realizado:</h4>
+                                {% if orden.diagnostico.descripcion_tecnica %}
+                                    <p><strong>Descripción Técnica:</strong> {{ orden.diagnostico.descripcion_tecnica }}</p>
+                                {% endif %}
+                                {% if orden.diagnostico.categoria_dano %}
+                                    <p><strong>Categoría del Daño:</strong> {{ orden.diagnostico.categoria_dano|title }}</p>
+                                {% endif %}
+                                {% if orden.diagnostico.partes_revisadas %}
+                                    <p><strong>Partes Revisadas:</strong> {{ orden.diagnostico.partes_revisadas|join(', ') }}</p>
+                                {% endif %}
+                                {% if orden.diagnostico.resultado_diagnostico %}
+                                    <p><strong>Resultado:</strong> {{ orden.diagnostico.resultado_diagnostico|title }}</p>
+                                {% endif %}
+                                {% if orden.diagnostico.tecnico_diagnostico %}
+                                    <p><strong>Técnico:</strong> {{ orden.diagnostico.tecnico_diagnostico }}</p>
+                                {% endif %}
+                                {% if orden.diagnostico.fecha_diagnostico %}
+                                    <p><strong>Fecha:</strong> {{ orden.diagnostico.fecha_diagnostico }}</p>
+                                {% endif %}
+                            {% else %}
+                                <h4>Diagnóstico Realizado:</h4>
+                                <p>{{ orden.diagnostico }}</p>
+                            {% endif %}
+                        {% else %}
+                            <p><em>Diagnóstico pendiente de realizar</em></p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Solución Propuesta -->
+                <div class="content-section">
+                    <div class="section-title">🔧 Solución Propuesta</div>
+                    <div class="content-box">
+                        {% if orden.solucion_propuesta %}
+                            <h4>Reparación Recomendada:</h4>
+                            <p>{{ orden.solucion_propuesta }}</p>
+                        {% else %}
+                            <p><em>Solución pendiente de definir</em></p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Repuestos Necesarios -->
+                <div class="content-section">
+                    <div class="section-title">🔩 Repuestos Necesarios</div>
+                    <div class="content-box">
+                        {% if orden.diagnostico and orden.diagnostico is mapping %}
+                            {% if orden.diagnostico.detalle_repuestos %}
+                                <h4>Detalle de Repuestos:</h4>
+                                <p>{{ orden.diagnostico.detalle_repuestos }}</p>
+                            {% endif %}
+                            {% if orden.diagnostico.costo_piezas %}
+                                <p><strong>Costo de Piezas:</strong> ${{ "%.2f"|format(orden.diagnostico.costo_piezas) }}</p>
+                            {% endif %}
+                            {% if orden.diagnostico.costo_mano_obra %}
+                                <p><strong>Costo de Mano de Obra:</strong> ${{ "%.2f"|format(orden.diagnostico.costo_mano_obra) }}</p>
+                            {% endif %}
+                            {% if orden.diagnostico.total_estimado %}
+                                <p><strong>Total Estimado:</strong> ${{ "%.2f"|format(orden.diagnostico.total_estimado) }}</p>
+                            {% endif %}
+                            {% if orden.diagnostico.estado_presupuesto %}
+                                <p><strong>Estado del Presupuesto:</strong> {{ orden.diagnostico.estado_presupuesto|title }}</p>
+                            {% endif %}
+                            {% if orden.diagnostico.fecha_presupuesto %}
+                                <p><strong>Fecha del Presupuesto:</strong> {{ orden.diagnostico.fecha_presupuesto }}</p>
+                            {% endif %}
+                        {% elif orden.repuestos_necesarios %}
+                            <h4>Lista de Repuestos:</h4>
+                            <p>{{ orden.repuestos_necesarios }}</p>
+                        {% else %}
+                            <p><em>No se requieren repuestos adicionales</em></p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="content-section">
+                    <div class="section-title">📝 Observaciones</div>
+                    <div class="content-box">
+                        {% if orden.observaciones %}
+                            <p>{{ orden.observaciones }}</p>
+                        {% else %}
+                            <p><em>Sin observaciones adicionales</em></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información de Garantía y Contacto -->
+        <div class="content-section">
+            <div class="section-title">📞 Información de Garantía y Contacto</div>
+            <div class="content-box">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <h4>Garantía del Servicio:</h4>
+                        <p><strong>30 días</strong> de garantía en la reparación realizada</p>
+                        <p><strong>90 días</strong> de garantía en repuestos nuevos</p>
+                        <p>La garantía cubre defectos de fabricación y mano de obra</p>
+                    </div>
+                    <div>
+                        <h4>Contacto:</h4>
+                        <p><strong>Teléfono:</strong> 0000-0000000</p>
+                        <p><strong>WhatsApp:</strong> 0000-0000000</p>
+                        <p><strong>Email:</strong> servicio@jehovajireh.com</p>
+                        <p><strong>Horario:</strong> Lunes a Viernes 8:00 AM - 6:00 PM</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

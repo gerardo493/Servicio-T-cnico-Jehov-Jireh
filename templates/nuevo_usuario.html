@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .nuevo-usuario-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card-usuario {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .neo-header-usuario {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        text-align: center;
+    }
+
+    .neo-form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .neo-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .neo-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+        transition: all 0.3s;
+    }
+
+    .neo-input:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 5px 5px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 8px 8px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+</style>
+
+<div class="nuevo-usuario-container">
+    <div class="container">
+        <div class="neo-header-usuario">
+            <h1><i class="fas fa-user-plus me-3"></i>Crear Nuevo Usuario</h1>
+            <p class="mb-0">Registra un nuevo usuario en el sistema</p>
+        </div>
+
+        <form method="POST" action="/usuarios/nuevo" class="neo-card-usuario">
+            <div class="neo-form-group">
+                <label class="neo-label">Nombre de Usuario *</label>
+                <input type="text" name="username" class="neo-input" required placeholder="Ej: juan.perez">
+            </div>
+
+            <div class="neo-form-group">
+                <label class="neo-label">Contraseña *</label>
+                <input type="password" name="password" class="neo-input" required placeholder="Mínimo 6 caracteres">
+                <small class="text-muted">La contraseña será encriptada para seguridad</small>
+            </div>
+
+            <div class="neo-form-group">
+                <label class="neo-label">Confirmar Contraseña *</label>
+                <input type="password" name="confirm_password" class="neo-input" required placeholder="Repetir contraseña">
+            </div>
+
+            <div class="neo-form-group">
+                <label class="neo-label">Rol del Usuario *</label>
+                <select name="rol" class="neo-input" required>
+                    <option value="">Seleccionar rol...</option>
+                    {% for rol in roles.get('roles_disponibles', []) %}
+                    <option value="{{ rol }}">{{ rol }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">El rol determina los permisos del usuario</small>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn-save">
+                    <i class="fas fa-save me-2"></i>Crear Usuario
+                </button>
+                <a href="/usuarios/gestion" class="btn-secondary" style="text-decoration: none; line-height: 48px;">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </a>
+            </div>
+        </form>
+
+        <!-- Información de Roles -->
+        <div class="neo-card-usuario">
+            <h3><i class="fas fa-info-circle me-2"></i>Información de Roles</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>📋 Administrador Principal</h5>
+                    <p class="text-muted">Acceso total, incluyendo configuración del sistema</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>⚙️ Administrador</h5>
+                    <p class="text-muted">Acceso completo excepto configuración</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>🔧 Técnico</h5>
+                    <p class="text-muted">Gestionar clientes, órdenes e inventario</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>💼 Vendedor</h5>
+                    <p class="text-muted">Gestionar ventas, clientes y pagos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validar que las contraseñas coincidan
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.querySelector('input[name="password"]').value;
+    const confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+    
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+        return false;
+    }
+    
+    if (password.length < 6) {
+        e.preventDefault();
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return false;
+    }
+});
+</script>
+{% endblock %}
+

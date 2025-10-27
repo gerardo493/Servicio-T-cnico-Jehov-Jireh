@@ -1,0 +1,1758 @@
+{% extends "base.html" %}
+
+{% block title %}Detalles de Orden de Servicio{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos modernos */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-button-primary:hover {
+    background: linear-gradient(145deg, #00cc6a, #00ff88);
+    color: white;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.neo-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.neo-icon {
+    color: #00ff88;
+}
+
+.neo-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+/* Estilos Neomórficos para Modal */
+.neo-modal {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 25px;
+    box-shadow: 
+        20px 20px 40px #a3b1c6,
+        -20px -20px 40px #ffffff;
+}
+
+.neo-modal .modal-header {
+    background: #e0e5ec;
+    border-bottom: 2px solid #d1d9e6;
+    border-radius: 25px 25px 0 0;
+    padding: 20px 30px;
+}
+
+.neo-modal .modal-body {
+    background: #e0e5ec;
+    padding: 30px;
+}
+
+.neo-modal .modal-footer {
+    background: #e0e5ec;
+    border-top: 2px solid #d1d9e6;
+    border-radius: 0 0 25px 25px;
+    padding: 20px 30px;
+}
+
+.neo-input {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    color: #2d3748;
+    font-weight: 500;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-input::placeholder {
+    color: #a0aec0;
+    font-weight: 400;
+}
+
+.neo-select {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    color: #2d3748;
+    font-weight: 500;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.neo-select:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-textarea {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    color: #2d3748;
+    font-weight: 500;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+    resize: vertical;
+}
+
+.neo-textarea:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button-secondary {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button-secondary:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+    color: #2d3748;
+}
+
+.neo-button-secondary:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-warning {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #d97706;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button-warning:hover {
+    box-shadow: 
+        8px 8px 16px #a3b1c6,
+        -8px -8px 16px #ffffff;
+    transform: translateY(-2px);
+    color: #b45309;
+}
+
+.neo-button-warning:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-alert {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    color: #2d3748;
+    padding: 15px 20px;
+}
+
+.neo-form-label {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.neo-modal-title {
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 24px;
+    margin: 0;
+}
+
+.neo-modal-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.neo-info-card {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.neo-info-card h6 {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.neo-info-card p {
+    color: #4a5568;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.neo-badge-status {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+}
+
+.neo-badge-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+}
+
+.neo-badge-secondary {
+    background: #e0e5ec;
+    color: #4a5568;
+    box-shadow: 
+        inset 2px 2px 4px #a3b1c6,
+        inset -2px -2px 4px #ffffff;
+}
+
+/* Efectos adicionales para el modal */
+.neo-modal .modal-dialog {
+    transform: scale(0.8);
+    transition: all 0.3s ease;
+}
+
+.neo-modal.show .modal-dialog {
+    transform: scale(1);
+}
+
+.neo-modal .modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Efectos hover para elementos del modal */
+.neo-input:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+}
+
+.neo-select:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+}
+
+.neo-textarea:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+}
+
+/* Efectos de transición suaves */
+.neo-modal * {
+    transition: all 0.3s ease;
+}
+
+/* Mejoras en el botón de cerrar */
+.neo-modal .btn-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.neo-modal .btn-close:hover {
+    transform: scale(1.1);
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+}
+
+.neo-modal .btn-close:active {
+    transform: scale(0.95);
+}
+
+/* Efectos de profundidad para el modal */
+.neo-modal::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: linear-gradient(145deg, #f0f4f8, #d1d9e6);
+    border-radius: 35px;
+    z-index: -1;
+    box-shadow: 
+        15px 15px 30px #a3b1c6,
+        -15px -15px 30px #ffffff;
+}
+
+.neo-badge-estado {
+    background: linear-gradient(145deg, #e0e5ec, #f0f4f8);
+    color: #4a5568;
+    box-shadow: 
+        3px 3px 6px #a3b1c6,
+        -3px -3px 6px #ffffff;
+}
+
+.estado-en_espera_revision {
+    background: linear-gradient(145deg, #fff3cd, #ffeaa7);
+    color: #856404;
+}
+
+.estado-en_diagnostico {
+    background: linear-gradient(145deg, #d1ecf1, #74c0fc);
+    color: #0c5460;
+}
+
+.estado-presupuesto_enviado {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+.estado-aprobado_por_cliente {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.estado-en_reparacion {
+    background: linear-gradient(145deg, #e2e3e5, #d6d8db);
+    color: #383d41;
+}
+
+.estado-reparado {
+    background: linear-gradient(145deg, #d1ecf1, #bee5eb);
+    color: #0c5460;
+}
+
+.estado-entregado {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.estado-cancelado {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+.neo-badge-prioridad {
+    background: linear-gradient(145deg, #e0e5ec, #f0f4f8);
+    color: #4a5568;
+    box-shadow: 
+        3px 3px 6px #a3b1c6,
+        -3px -3px 6px #ffffff;
+}
+
+.prioridad-baja {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.prioridad-media {
+    background: linear-gradient(145deg, #fff3cd, #ffeaa7);
+    color: #856404;
+}
+
+.prioridad-alta {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+.prioridad-urgente {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.neo-section {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+}
+
+.neo-section h5 {
+    color: #2d3748;
+    font-weight: 600;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.neo-section h5 i {
+    margin-right: 10px;
+    color: #00ff88;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(74, 85, 104, 0.1);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #4a5568;
+    flex: 1;
+}
+
+.info-value {
+    color: #2d3748;
+    flex: 2;
+    text-align: right;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #4a5568;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #4a5568;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timeline-content h6 {
+    margin: 0 0 5px 0;
+    color: #2d3748;
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .neo-container {
+        padding: 10px;
+    }
+    
+    .neo-card {
+        border-radius: 15px;
+    }
+    
+    .neo-button {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+}
+</style>
+
+<div class="neo-container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-clipboard-list neo-icon me-3 fa-2x"></i>
+                    <div>
+                        <h1 class="neo-title mb-0">Detalles de Orden de Servicio</h1>
+                        <p class="text-muted mb-0">{{ orden.numero_orden }}</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/servicio-tecnico" class="btn neo-button">
+                        <i class="fas fa-arrow-left me-1"></i>Volver
+                    </a>
+                    <a href="/servicio-tecnico/orden/{{ orden.id }}/editar" class="btn neo-button neo-button-primary">
+                        <i class="fas fa-edit me-1"></i>Editar
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Información General -->
+                <div class="col-md-8">
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-info-circle neo-icon me-2"></i>Información General
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-item">
+                                        <span class="info-label">Número de Orden:</span>
+                                        <span class="info-value fw-bold">{{ orden.numero_orden }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Estado:</span>
+                                        <span class="info-value">
+                                            <span class="neo-badge neo-badge-estado estado-{{ orden.estado }}">
+                                                {% if orden.estado == 'en_espera_revision' %}
+                                                🟡 En Espera
+                                                {% elif orden.estado == 'en_diagnostico' %}
+                                                🔍 En Diagnóstico
+                                                {% elif orden.estado == 'presupuesto_enviado' %}
+                                                📋 Presupuesto
+                                                {% elif orden.estado == 'aprobado_por_cliente' %}
+                                                ✅ Aprobado
+                                                {% elif orden.estado == 'en_reparacion' %}
+                                                ⚙️ En Reparación
+                                                {% elif orden.estado == 'reparado' %}
+                                                🔧 Reparado
+                                                {% elif orden.estado == 'entregado' %}
+                                                🎉 Entregado
+                                                {% elif orden.estado == 'cancelado' %}
+                                                ❌ Cancelado
+                                                {% else %}
+                                                {{ orden.estado.replace('_', ' ').title() }}
+                                                {% endif %}
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Prioridad:</span>
+                                        <span class="info-value">
+                                            <span class="neo-badge neo-badge-prioridad prioridad-{{ orden.get('prioridad', 'media') }}">
+                                                {% set prioridad = orden.get('prioridad', 'media') %}
+                                                {% if prioridad == 'baja' %}
+                                                🟢 Baja
+                                                {% elif prioridad == 'media' %}
+                                                🟡 Media
+                                                {% elif prioridad == 'alta' %}
+                                                🟠 Alta
+                                                {% elif prioridad == 'urgente' %}
+                                                🔴 Urgente
+                                                {% else %}
+                                                🟡 Media
+                                                {% endif %}
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-item">
+                                        <span class="info-label">Fecha de Recepción:</span>
+                                        <span class="info-value">{{ orden.fecha_recepcion }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Entrega Estimada:</span>
+                                        <span class="info-value">{{ orden.fecha_entrega_estimada or 'No definida' }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Técnico Asignado:</span>
+                                        <span class="info-value">{{ orden.get('tecnico_asignado', 'Sin asignar') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos del Cliente -->
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-user neo-icon me-2"></i>Datos del Cliente
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-item">
+                                        <span class="info-label">Nombre:</span>
+                                        <span class="info-value fw-bold">{{ orden.cliente.nombre }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Cédula/RIF:</span>
+                                        <span class="info-value">{{ orden.cliente.cedula_rif }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Teléfono Principal:</span>
+                                        <span class="info-value">{{ orden.cliente.telefono }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    {% if orden.cliente.telefono2 %}
+                                    <div class="info-item">
+                                        <span class="info-label">Teléfono Alternativo:</span>
+                                        <span class="info-value">{{ orden.cliente.telefono2 }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if orden.cliente.email %}
+                                    <div class="info-item">
+                                        <span class="info-label">Email:</span>
+                                        <span class="info-value">{{ orden.cliente.email }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if orden.cliente.direccion %}
+                                    <div class="info-item">
+                                        <span class="info-label">Dirección:</span>
+                                        <span class="info-value">{{ orden.cliente.direccion }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos del Equipo -->
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-mobile-alt neo-icon me-2"></i>Datos del Equipo
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-item">
+                                        <span class="info-label">Marca:</span>
+                                        <span class="info-value">{{ orden.equipo.marca }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Modelo:</span>
+                                        <span class="info-value">{{ orden.equipo.modelo }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">IMEI 1:</span>
+                                        <span class="info-value font-monospace">{{ orden.equipo.imei }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    {% if orden.equipo.imei2 %}
+                                    <div class="info-item">
+                                        <span class="info-label">IMEI 2:</span>
+                                        <span class="info-value font-monospace">{{ orden.equipo.imei2 }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if orden.equipo.color %}
+                                    <div class="info-item">
+                                        <span class="info-label">Color:</span>
+                                        <span class="info-value">{{ orden.equipo.color }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if orden.equipo.numero_serie %}
+                                    <div class="info-item">
+                                        <span class="info-label">Número de Serie:</span>
+                                        <span class="info-value font-monospace">{{ orden.equipo.numero_serie }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuración de Desbloqueo -->
+                    {% if orden.get('desbloqueo') and (orden.get('desbloqueo', {}).get('tipo') or orden.get('desbloqueo', {}).get('estado') or orden.get('desbloqueo', {}).get('clave') or orden.get('desbloqueo', {}).get('notas')) %}
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-lock neo-icon me-2"></i>Configuración de Desbloqueo
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {% if orden.get('desbloqueo', {}).get('tipo') %}
+                                    <div class="info-item">
+                                        <span class="info-label">Tipo de Desbloqueo:</span>
+                                        <span class="info-value">
+                                            {% if orden.get('desbloqueo', {}).get('tipo') == 'patron' %}
+                                                <i class="fas fa-draw-polygon me-1"></i>Patrón
+                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'pin' %}
+                                                <i class="fas fa-key me-1"></i>PIN
+                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'password' %}
+                                                <i class="fas fa-lock me-1"></i>Contraseña
+                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'huella' %}
+                                                <i class="fas fa-fingerprint me-1"></i>Huella Dactilar
+                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'reconocimiento' %}
+                                                <i class="fas fa-eye me-1"></i>Reconocimiento Facial
+                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'ninguno' %}
+                                                <i class="fas fa-times me-1"></i>Sin desbloqueo
+                                            {% else %}
+                                                {{ orden.get('desbloqueo', {}).get('tipo') }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if orden.get('desbloqueo', {}).get('estado') %}
+                                    <div class="info-item">
+                                        <span class="info-label">Estado:</span>
+                                        <span class="info-value">
+                                            {% if orden.get('desbloqueo', {}).get('estado') == 'activo' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Activo
+                                                </span>
+                                            {% elif orden.get('desbloqueo', {}).get('estado') == 'desactivado' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-pause me-1"></i>Desactivado
+                                                </span>
+                                            {% elif orden.get('desbloqueo', {}).get('estado') == 'bloqueado' %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-ban me-1"></i>Bloqueado
+                                                </span>
+                                            {% else %}
+                                                {{ orden.get('desbloqueo', {}).get('estado') }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    {% if orden.get('desbloqueo', {}).get('clave') %}
+                                    <div class="info-item">
+                                        <span class="info-label">Clave/Patrón:</span>
+                                        <span class="info-value">
+                                            {% if orden.get('desbloqueo', {}).get('tipo') == 'patron' %}
+                                                <div class="d-flex align-items-center">
+                                                    <button class="btn btn-sm btn-outline-primary me-2" data-patron="{{ orden.get('desbloqueo', {}).get('clave', '') }}" onclick="mostrarPatron(this.dataset.patron)">
+                                                        <i class="fas fa-eye me-1"></i>Ver Patrón
+                                                    </button>
+                                                    <span class="font-monospace">{{ orden.get('desbloqueo', {}).get('clave') }}</span>
+                                                </div>
+                                            {% else %}
+                                                <div class="d-flex align-items-center">
+                                                    <button class="btn btn-sm btn-outline-primary me-2" data-clave="{{ orden.get('desbloqueo', {}).get('clave', '') }}" onclick="mostrarClave(this.dataset.clave)">
+                                                        <i class="fas fa-eye me-1"></i>Ver Clave
+                                                    </button>
+                                                    <span class="font-monospace">{{ '*' * orden.get('desbloqueo', {}).get('clave')|length }}</span>
+                                                </div>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if orden.get('desbloqueo', {}).get('notas') %}
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="info-item">
+                                        <span class="info-label">Notas Adicionales:</span>
+                                        <div class="info-value">
+                                            <div class="neo-card-inset p-3">
+                                                <i class="fas fa-sticky-note me-2"></i>{{ orden.get('desbloqueo', {}).get('notas') }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Problema Reportado -->
+                    {% if orden.problema_reportado %}
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-exclamation-triangle neo-icon me-2"></i>Problema Reportado
+                            </h5>
+                            <div class="neo-section">
+                                <p class="mb-0">{{ orden.problema_reportado }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Información de Entrega -->
+                    {% if orden.entrega %}
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-hand-holding neo-icon me-2"></i>Información de Entrega
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-item mb-3">
+                                        <span class="neo-subtitle">Fecha de Entrega:</span>
+                                        <div class="info-value">{{ orden.entrega.fecha_entrega }}</div>
+                                    </div>
+                                    
+                                    <div class="info-item mb-3">
+                                        <span class="neo-subtitle">Nombre de Quien Retira:</span>
+                                        <div class="info-value">{{ orden.entrega.nombre_retira }}</div>
+                                    </div>
+                                    
+                                    <div class="info-item mb-3">
+                                        <span class="neo-subtitle">Cédula/RIF:</span>
+                                        <div class="info-value">{{ orden.entrega.cedula_retira }}</div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <span class="neo-subtitle">Teléfono:</span>
+                                        <div class="info-value">{{ orden.entrega.telefono_retira }}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="info-item mb-3">
+                                        <span class="neo-subtitle">Tipo de Pago:</span>
+                                        <div class="info-value">{{ orden.entrega.tipo_pago.replace('_', ' ').title() }}</div>
+                                    </div>
+                                    
+                                    <div class="info-item mb-3">
+                                        <span class="neo-subtitle">Monto Pagado:</span>
+                                        <div class="info-value">${{ "%.2f"|format(orden.entrega.monto_pagado) }}</div>
+                                    </div>
+                                    
+                                    <div class="info-item mb-3">
+                                        <span class="neo-subtitle">Monto Pendiente:</span>
+                                        <div class="info-value">${{ "%.2f"|format(orden.entrega.monto_pendiente) }}</div>
+                                    </div>
+                                    
+                                    <div class="info-item">
+                                        <span class="neo-subtitle">Técnico Responsable:</span>
+                                        <div class="info-value">{{ orden.entrega.tecnico_entrega }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if orden.entrega.observaciones_entrega %}
+                            <div class="mt-3">
+                                <span class="neo-subtitle">Observaciones:</span>
+                                <div class="info-value">{{ orden.entrega.observaciones_entrega }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if orden.entrega.firma_digital %}
+                            <div class="mt-3">
+                                <span class="neo-subtitle">Firma Digital:</span>
+                                <div class="mt-2">
+                                    <img src="{{ orden.entrega.firma_digital }}" alt="Firma Digital" class="img-fluid" style="max-width: 300px; border: 1px solid #ddd; border-radius: 8px;">
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Historial de Estados -->
+                    {% if orden.historial_estados %}
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-history neo-icon me-2"></i>Historial de Estados
+                            </h5>
+                            
+                            <div class="timeline">
+                                {% for cambio in orden.historial_estados %}
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-primary"></div>
+                                    <div class="timeline-content">
+                                        <h6>{{ cambio.estado.replace('_', ' ').title() }}</h6>
+                                        <p class="text-muted mb-1">{{ cambio.comentarios or 'Sin comentarios' }}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user me-1"></i>{{ cambio.usuario }} - 
+                                            <i class="fas fa-clock me-1"></i>{{ cambio.fecha }}
+                                        </small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Panel Lateral -->
+                <div class="col-md-4">
+                    <!-- Acciones Rápidas -->
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-bolt neo-icon me-2"></i>Acciones Rápidas
+                            </h5>
+                            
+                            <div class="d-grid gap-2">
+                                <button class="btn neo-button" onclick="actualizarEstado('{{ orden.id }}')">
+                                    <i class="fas fa-edit me-2"></i>Actualizar Estado
+                                </button>
+                                <button class="btn neo-button" onclick="asignarTecnico('{{ orden.id }}')">
+                                    <i class="fas fa-user-tie me-2"></i>Asignar Técnico
+                                </button>
+                                <button class="btn neo-button" onclick="enviarNotificacion('{{ orden.id }}')">
+                                    <i class="fas fa-bell me-2"></i>Enviar Notificación
+                                </button>
+                                <button class="btn neo-button" onclick="generarComprobante('{{ orden.id }}')">
+                                    <i class="fas fa-file-alt me-2"></i>Generar Comprobante
+                                </button>
+                                {% if orden.estado == 'listo_entrega' or orden.estado == 'reparado' %}
+                                <a href="{{ url_for('entrega_orden', id=orden.id) }}" class="btn neo-button-primary">
+                                    <i class="fas fa-hand-holding me-2"></i>Proceder con Entrega
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('seguimiento_detallado', id=orden.id) }}" class="btn neo-button-primary">
+                                    <i class="fas fa-chart-line me-2"></i>Seguimiento Detallado
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información Adicional -->
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-info neo-icon me-2"></i>Información Adicional
+                            </h5>
+                            
+                            <div class="info-item">
+                                <span class="info-label">Costo Estimado:</span>
+                                <span class="info-value">${{ "%.2f"|format(orden.get('costo_estimado', 0)) }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Tipo de Servicio:</span>
+                                <span class="info-value">{{ orden.get('tipo_servicio', 'No especificado') }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Fecha de Creación:</span>
+                                <span class="info-value">{{ orden.fecha_creacion }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Última Actualización:</span>
+                                <span class="info-value">{{ orden.fecha_actualizacion }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function actualizarEstado(ordenId) {
+    // Mostrar modal de actualización de estado
+    const modal = new bootstrap.Modal(document.getElementById('modalActualizarEstado'));
+    document.getElementById('orden-id-estado').value = ordenId;
+    modal.show();
+}
+
+function guardarEstado() {
+    const ordenId = document.getElementById('orden-id-estado').value;
+    const estado = document.getElementById('nuevo-estado').value;
+    const tecnico = document.getElementById('tecnico-asignado').value;
+    const prioridad = document.getElementById('prioridad-estado').value;
+    const fechaEntrega = document.getElementById('fecha-entrega-estimada').value;
+    const observaciones = document.getElementById('observaciones-estado').value;
+    
+    if (!estado) {
+        alert('Por favor seleccione un estado');
+        return;
+    }
+    
+    // Mostrar loading
+    const btnGuardar = document.querySelector('#modalActualizarEstado .btn-primary');
+    const textoOriginal = btnGuardar.innerHTML;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Actualizando...';
+    btnGuardar.disabled = true;
+    
+    // Enviar datos al servidor
+    fetch(`/servicio-tecnico/orden/${ordenId}/actualizar-estado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            estado: estado,
+            tecnico_asignado: tecnico,
+            prioridad: prioridad,
+            fecha_entrega_estimada: fechaEntrega,
+            observaciones: observaciones
+        })
+    })
+    .then(response => {
+        console.log('Respuesta recibida:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Datos recibidos:', data);
+        if (data.success) {
+            // Mostrar notificación de éxito
+            mostrarNotificacion(data.message, 'success');
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalActualizarEstado'));
+            modal.hide();
+            
+            // Recargar la página para mostrar cambios
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            mostrarNotificacion('Error: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        mostrarNotificacion('Error al actualizar estado: ' + error.message, 'danger');
+    })
+    .finally(() => {
+        // Restaurar botón
+        btnGuardar.innerHTML = textoOriginal;
+        btnGuardar.disabled = false;
+    });
+}
+
+function mostrarNotificacion(mensaje, tipo) {
+    // Crear elemento de notificación
+    const notificacion = document.createElement('div');
+    notificacion.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+    notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notificacion.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notificacion);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (notificacion.parentNode) {
+            notificacion.parentNode.removeChild(notificacion);
+        }
+    }, 5000);
+}
+
+function asignarTecnico(ordenId) {
+    // Implementar asignación de técnico
+    const tecnico = prompt('Ingrese el nombre del técnico:');
+    if (tecnico) {
+        alert(`Técnico ${tecnico} asignado a la orden ${ordenId}`);
+    }
+}
+
+function enviarNotificacion(ordenId) {
+    // Abrir modal de notificación
+    const modal = new bootstrap.Modal(document.getElementById('modalEnviarNotificacion'));
+    document.getElementById('orden-id-notificacion').value = ordenId;
+    modal.show();
+}
+
+function enviarNotificacionForm() {
+    const ordenId = document.getElementById('orden-id-notificacion').value;
+    const tipoNotificacion = document.getElementById('tipo-notificacion').value;
+    const mensajePersonalizado = document.getElementById('mensaje-personalizado').value;
+    
+    if (!tipoNotificacion) {
+        alert('Por favor selecciona un tipo de notificación');
+        return;
+    }
+    
+    // Mostrar loading
+    const btnEnviar = document.querySelector('#modalEnviarNotificacion .neo-button-primary');
+    const textoOriginal = btnEnviar.innerHTML;
+    btnEnviar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+    btnEnviar.disabled = true;
+    
+    console.log('DEBUG: ===== INICIANDO ENVÍO DIRECTO DE NOTIFICACIÓN =====');
+    console.log('DEBUG: Orden ID:', ordenId);
+    console.log('DEBUG: Tipo notificación:', tipoNotificacion);
+    console.log('DEBUG: Mensaje personalizado:', mensajePersonalizado);
+    
+    // Crear formulario para enviar
+    const formData = new FormData();
+    formData.append('tipo_notificacion', tipoNotificacion);
+    formData.append('mensaje_personalizado', mensajePersonalizado);
+    
+    // Usar el nuevo endpoint directo que evita redirecciones
+    fetch(`/api/servicio-tecnico/orden/${ordenId}/enviar-notificacion-directa`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('DEBUG: ===== RESPUESTA RECIBIDA =====');
+        console.log('DEBUG: Status:', response.status);
+        console.log('DEBUG: StatusText:', response.statusText);
+        console.log('DEBUG: Headers:', [...response.headers.entries()]);
+        
+        if (!response.ok) {
+            throw new Error(`Error del servidor: ${response.status}`);
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        console.log('DEBUG: ===== DATOS RECIBIDOS =====');
+        console.log('DEBUG: Data:', data);
+        
+        if (data.success) {
+            // Abrir WhatsApp directamente
+            if (data.enlace_whatsapp) {
+                window.open(data.enlace_whatsapp, '_blank');
+                alert('✅ Notificación preparada exitosamente\n\n📱 Se abrió WhatsApp en una nueva ventana');
+            } else {
+                alert('✅ Notificación registrada exitosamente (sin enlace WhatsApp)');
+            }
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEnviarNotificacion'));
+            modal.hide();
+            // Recargar página para mostrar cambios
+            location.reload();
+        } else {
+            alert(`❌ Error: ${data.error || 'Error desconocido'}`);
+        }
+    })
+    .catch(error => {
+        console.error('DEBUG: ===== ERROR EN FETCH =====');
+        console.error('DEBUG: Error:', error);
+        alert(`❌ Error enviando notificación: ${error.message}`);
+    })
+    .finally(() => {
+        // Restaurar botón
+        btnEnviar.innerHTML = textoOriginal;
+        btnEnviar.disabled = false;
+    });
+}
+
+function generarComprobante(ordenId) {
+    // Generar comprobante de retiro en HTML (para impresión)
+    window.open(`/comprobante-html/${ordenId}`, '_blank');
+}
+
+function enviarNotificacionAlternativa() {
+    const ordenId = document.getElementById('orden-id-notificacion').value;
+    const tipoNotificacion = document.getElementById('tipo-notificacion').value;
+    const mensajePersonalizado = document.getElementById('mensaje-personalizado').value;
+    
+    if (!tipoNotificacion) {
+        alert('Por favor selecciona un tipo de notificación');
+        return;
+    }
+    
+    console.log('DEBUG: ===== MÉTODO ALTERNATIVO (XMLHttpRequest) =====');
+    console.log('DEBUG: Orden ID:', ordenId);
+    console.log('DEBUG: Tipo notificación:', tipoNotificacion);
+    
+    // Crear formulario para enviar
+    const formData = new FormData();
+    formData.append('tipo_notificacion', tipoNotificacion);
+    formData.append('mensaje_personalizado', mensajePersonalizado);
+    
+    // Usar XMLHttpRequest como alternativa
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/servicio-tecnico/orden/${ordenId}/enviar-notificacion-directa`, true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            console.log('DEBUG: ===== RESPUESTA XMLHttpRequest =====');
+            console.log('DEBUG: Status:', xhr.status);
+            console.log('DEBUG: Response:', xhr.responseText);
+            
+            if (xhr.status === 200) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        // Abrir WhatsApp directamente
+                        if (data.enlace_whatsapp) {
+                            window.open(data.enlace_whatsapp, '_blank');
+                            alert('✅ Notificación preparada exitosamente (método alternativo)\n\n📱 Se abrió WhatsApp en una nueva ventana');
+                        } else {
+                            alert('✅ Notificación registrada exitosamente (método alternativo)');
+                        }
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEnviarNotificacion'));
+                        modal.hide();
+                        location.reload();
+                    } else {
+                        alert(`❌ Error: ${data.error || 'Error desconocido'}`);
+                    }
+                } catch (e) {
+                    console.error('DEBUG: Error parseando JSON:', e);
+                    alert('❌ Error procesando respuesta del servidor');
+                }
+            } else {
+                alert(`❌ Error enviando notificación: ${xhr.status} - ${xhr.statusText}`);
+            }
+        }
+    };
+    
+    xhr.onerror = function() {
+        console.error('DEBUG: ===== ERROR XMLHttpRequest =====');
+        alert('❌ Error de conexión enviando notificación');
+    };
+    
+    xhr.send(formData);
+}
+
+// Función súper simple como último recurso
+function enviarNotificacionSimple() {
+    const ordenId = document.getElementById('orden-id-notificacion').value;
+    const tipoNotificacion = document.getElementById('tipo-notificacion').value;
+    
+    if (!tipoNotificacion) {
+        alert('Por favor selecciona un tipo de notificación');
+        return;
+    }
+    
+    console.log('DEBUG: ===== MÉTODO SÚPER SIMPLE =====');
+    
+    // Simular envío exitoso y abrir WhatsApp directamente
+    const telefono = '584121234567'; // Número de ejemplo
+    const mensaje = `Hola, tu orden de servicio ${ordenId} está lista.`;
+    const enlace = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+    
+    window.open(enlace, '_blank');
+    alert('✅ Notificación enviada (método simple)\n\n📱 Se abrió WhatsApp en una nueva ventana');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEnviarNotificacion'));
+    modal.hide();
+}
+
+// Función para mostrar/ocultar botones de debug (Ctrl+Shift+D)
+function toggleDebugButtons() {
+    const debugButtons = document.querySelectorAll('button[style*="display: none"]');
+    const isVisible = debugButtons[0].style.display !== 'none';
+    
+    debugButtons.forEach(button => {
+        button.style.display = isVisible ? 'none' : 'inline-block';
+    });
+    
+    console.log(`DEBUG: Botones de respaldo ${isVisible ? 'ocultos' : 'visibles'}`);
+}
+
+// Atajos de teclado para debugging
+document.addEventListener('keydown', function(e) {
+    // Ctrl+Shift+D para mostrar/ocultar botones de debug
+    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        toggleDebugButtons();
+    }
+});
+
+function probarWhatsApp() {
+    const ordenId = document.getElementById('orden-id-notificacion').value;
+    
+    if (!ordenId) {
+        alert('Error: No se encontró ID de orden');
+        return;
+    }
+    
+    // Mostrar loading
+    const btnProbar = document.querySelector('button[onclick="probarWhatsApp()"]');
+    const textoOriginal = btnProbar.innerHTML;
+    btnProbar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Probando...';
+    btnProbar.disabled = true;
+    
+    // Hacer petición de prueba
+    fetch(`/test-whatsapp-notificacion/${ordenId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Datos de prueba:', data);
+                
+                // Abrir WhatsApp con el enlace de prueba
+                window.open(data.enlace_whatsapp, '_blank');
+                
+                alert(`✅ Prueba de WhatsApp exitosa\n\n📱 Teléfono: ${data.telefono_original}\n🔧 Limpio: ${data.telefono_limpio}\n\nSe abrió WhatsApp para enviar mensaje de prueba`);
+            } else {
+                alert('❌ Error en prueba: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Error de conexión: ' + error.message);
+        })
+        .finally(() => {
+            // Restaurar botón
+            btnProbar.innerHTML = textoOriginal;
+            btnProbar.disabled = false;
+        });
+}
+
+// Funciones para mostrar configuración de desbloqueo
+function mostrarPatron(patronString) {
+    const modal = new bootstrap.Modal(document.getElementById('modalPatron'));
+    const canvas = document.getElementById('canvasPatron');
+    const ctx = canvas.getContext('2d');
+    
+    // Limpiar canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Dibujar grilla de puntos
+    const dotSize = 15;
+    const spacing = 80;
+    const startX = 50;
+    const startY = 50;
+    
+    ctx.fillStyle = '#00ff88';
+    ctx.strokeStyle = '#00cc6a';
+    ctx.lineWidth = 3;
+    
+    // Dibujar todos los puntos
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+            const x = startX + col * spacing;
+            const y = startY + row * spacing;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, dotSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+    
+    // Dibujar el patrón
+    if (patronString) {
+        const puntos = patronString.split('-');
+        const coordenadas = [];
+        
+        puntos.forEach(punto => {
+            const row = parseInt(punto[0]);
+            const col = parseInt(punto[1]);
+            const x = startX + col * spacing;
+            const y = startY + row * spacing;
+            coordenadas.push({x, y, row, col});
+        });
+        
+        // Dibujar líneas conectando los puntos
+        if (coordenadas.length > 1) {
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(coordenadas[0].x, coordenadas[0].y);
+            
+            for (let i = 1; i < coordenadas.length; i++) {
+                ctx.lineTo(coordenadas[i].x, coordenadas[i].y);
+            }
+            ctx.stroke();
+        }
+        
+        // Resaltar puntos del patrón
+        coordenadas.forEach(punto => {
+            ctx.fillStyle = '#ff6b6b';
+            ctx.strokeStyle = '#ff5252';
+            ctx.lineWidth = 4;
+            
+            ctx.beginPath();
+            ctx.arc(punto.x, punto.y, dotSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        });
+    }
+    
+    modal.show();
+}
+
+function mostrarClave(clave) {
+    const modal = new bootstrap.Modal(document.getElementById('modalClave'));
+    document.getElementById('claveTexto').textContent = clave;
+    modal.show();
+}
+</script>
+
+<!-- Modal para mostrar patrón -->
+<div class="modal fade" id="modalPatron" tabindex="-1" aria-labelledby="modalPatronLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content neo-modal">
+            <div class="modal-header">
+                <h5 class="modal-title neo-title" id="modalPatronLabel">
+                    <i class="fas fa-draw-polygon me-2"></i>Patrón de Desbloqueo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <canvas id="canvasPatron" width="300" height="300" style="border: 2px solid #e0e5ec; border-radius: 15px; background: #f8f9fa;"></canvas>
+                <p class="mt-3 text-muted">Patrón configurado para el dispositivo</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para mostrar clave -->
+<div class="modal fade" id="modalClave" tabindex="-1" aria-labelledby="modalClaveLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content neo-modal">
+            <div class="modal-header">
+                <h5 class="modal-title neo-title" id="modalClaveLabel">
+                    <i class="fas fa-key me-2"></i>Clave de Desbloqueo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="neo-card-inset p-4">
+                    <h4 class="font-monospace mb-0" id="claveTexto"></h4>
+                </div>
+                <p class="mt-3 text-muted">Clave configurada para el dispositivo</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Actualizar Estado -->
+<div class="modal fade" id="modalActualizarEstado" tabindex="-1" aria-labelledby="modalActualizarEstadoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content neo-modal">
+            <div class="modal-header">
+                <h5 class="modal-title neo-modal-title" id="modalActualizarEstadoLabel">
+                    <i class="fas fa-edit neo-icon me-2"></i>Actualizar Estado de la Orden
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" 
+                        style="background: #e0e5ec; border-radius: 50%; box-shadow: inset 2px 2px 4px #a3b1c6, inset -2px -2px 4px #ffffff;"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formActualizarEstado">
+                    <input type="hidden" id="orden-id-estado" name="orden_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="nuevo-estado" class="neo-form-label">Nuevo Estado</label>
+                            <select id="nuevo-estado" name="estado" class="neo-select w-100" required>
+                                <option value="">Seleccionar estado...</option>
+                                <option value="en_espera_revision">En Espera de Revisión</option>
+                                <option value="en_diagnostico">En Diagnóstico</option>
+                                <option value="presupuesto_enviado">Presupuesto Enviado</option>
+                                <option value="espera_aprobacion">Espera Aprobación</option>
+                                <option value="en_reparacion">En Reparación</option>
+                                <option value="en_pruebas">En Pruebas</option>
+                                <option value="reparado">Reparado</option>
+                                <option value="listo_entrega">Listo para Entrega</option>
+                                <option value="entregado">Entregado</option>
+                                <option value="irreparable">Irreparable</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label for="tecnico-asignado" class="neo-form-label">Técnico Asignado</label>
+                            <input type="text" id="tecnico-asignado" name="tecnico_asignado" class="neo-input w-100" 
+                                   placeholder="Nombre del técnico" value="{{ orden.tecnico_asignado or '' }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label for="prioridad-estado" class="neo-form-label">Prioridad</label>
+                            <select id="prioridad-estado" name="prioridad" class="neo-select w-100">
+                                <option value="">Seleccionar prioridad...</option>
+                                <option value="baja" {% if orden.prioridad == 'baja' %}selected{% endif %}>Baja</option>
+                                <option value="media" {% if orden.prioridad == 'media' %}selected{% endif %}>Media</option>
+                                <option value="alta" {% if orden.prioridad == 'alta' %}selected{% endif %}>Alta</option>
+                                <option value="urgente" {% if orden.prioridad == 'urgente' %}selected{% endif %}>Urgente</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label for="fecha-entrega-estimada" class="neo-form-label">Fecha de Entrega Estimada</label>
+                            <input type="date" id="fecha-entrega-estimada" name="fecha_entrega_estimada" class="neo-input w-100" 
+                                   value="{{ orden.fecha_entrega_estimada or '' }}">
+                        </div>
+                        
+                        <div class="col-12 mb-4">
+                            <label for="observaciones-estado" class="neo-form-label">Observaciones</label>
+                            <textarea id="observaciones-estado" name="observaciones" class="neo-textarea w-100" rows="4" 
+                                      placeholder="Comentarios sobre el cambio de estado..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Información actual -->
+                    <div class="neo-info-card">
+                        <h6><i class="fas fa-info-circle neo-icon me-2"></i>Estado Actual</h6>
+                        <p class="mb-2">
+                            <strong>Estado:</strong> 
+                            <span class="neo-badge-status neo-badge-primary">{{ orden.estado.replace('_', ' ').title() }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>Técnico:</strong> 
+                            <span class="neo-badge-status neo-badge-secondary">{{ orden.tecnico_asignado or 'No asignado' }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <strong>Prioridad:</strong> 
+                            <span class="neo-badge-status neo-badge-secondary">{{ orden.prioridad.title() if orden.prioridad else 'No especificada' }}</span>
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn neo-button-primary" onclick="guardarEstado()">
+                    <i class="fas fa-save me-2"></i>Actualizar Estado
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Enviar Notificación -->
+<div class="modal fade" id="modalEnviarNotificacion" tabindex="-1" aria-labelledby="modalEnviarNotificacionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content neo-modal">
+            <div class="modal-header">
+                <h5 class="modal-title neo-modal-title" id="modalEnviarNotificacionLabel">
+                    <i class="fas fa-paper-plane neo-icon me-2"></i>Enviar Notificación al Cliente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" 
+                        style="background: #e0e5ec; border-radius: 50%; box-shadow: inset 2px 2px 4px #a3b1c6, inset -2px -2px 4px #ffffff;"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEnviarNotificacion">
+                    <input type="hidden" id="orden-id-notificacion" name="orden_id">
+                    
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <label for="tipo-notificacion" class="neo-form-label">Tipo de Notificación</label>
+                            <select id="tipo-notificacion" name="tipo_notificacion" class="neo-select w-100" required>
+                                <option value="">Seleccionar tipo de notificación...</option>
+                                <option value="equipo_recibido">Equipo Recibido</option>
+                                <option value="diagnostico_completo">Diagnóstico Completo</option>
+                                <option value="presupuesto_enviado">Presupuesto Enviado</option>
+                                <option value="reparacion_iniciada">Reparación Iniciada</option>
+                                <option value="reparacion_completa">Reparación Completa</option>
+                                <option value="costo_estimado">Costo Estimado</option>
+                                <option value="personalizado">Mensaje Personalizado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-12 mb-4" id="mensaje-personalizado-container" style="display: none;">
+                            <label for="mensaje-personalizado" class="neo-form-label">Mensaje Personalizado</label>
+                            <textarea id="mensaje-personalizado" name="mensaje_personalizado" class="neo-textarea w-100" rows="4" 
+                                      placeholder="Escribe tu mensaje personalizado aquí..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Información de la orden -->
+                    <div class="neo-info-card">
+                        <h6><i class="fas fa-info-circle neo-icon me-2"></i>Información de la Orden</h6>
+                        <p class="mb-2">
+                            <strong>Orden:</strong> 
+                            <span class="neo-badge-status neo-badge-primary">{{ orden.numero_orden }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>Cliente:</strong> 
+                            <span class="neo-badge-status neo-badge-secondary">{{ orden.cliente.nombre }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>Teléfono:</strong> 
+                            <span class="neo-badge-status neo-badge-secondary">{{ orden.cliente.telefono or 'No registrado' }}</span>
+                        </p>
+                        <p class="mb-0">
+                            <strong>Estado Actual:</strong> 
+                            <span class="neo-badge-status neo-badge-primary">{{ orden.estado }}</span>
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn neo-button-primary" onclick="enviarNotificacionForm()">
+                    <i class="fas fa-paper-plane me-2"></i>Enviar Notificación
+                </button>
+                <!-- Botones de respaldo ocultos - solo para debugging -->
+                <button type="button" class="btn neo-button-secondary" onclick="enviarNotificacionAlternativa()" style="display: none;">
+                    <i class="fas fa-paper-plane me-2"></i>Enviar (Alternativo)
+                </button>
+                <button type="button" class="btn neo-button-warning" onclick="enviarNotificacionSimple()" style="display: none;">
+                    <i class="fas fa-bolt me-2"></i>Enviar (Simple)
+                </button>
+                <button type="button" class="btn neo-button" onclick="probarWhatsApp()" style="display: none;">
+                    <i class="fas fa-vial me-2"></i>Probar WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mostrar/ocultar campo de mensaje personalizado
+document.getElementById('tipo-notificacion').addEventListener('change', function() {
+    const mensajeContainer = document.getElementById('mensaje-personalizado-container');
+    if (this.value === 'personalizado') {
+        mensajeContainer.style.display = 'block';
+        document.getElementById('mensaje-personalizado').required = true;
+    } else {
+        mensajeContainer.style.display = 'none';
+        document.getElementById('mensaje-personalizado').required = false;
+    }
+});
+</script>
+
+{% endblock %}

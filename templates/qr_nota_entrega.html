@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nota de Entrega {{ nota.numero }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .nota-number {
+            font-size: 18px;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .info-section {
+            margin-top: 30px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #333;
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-entregado {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status-pendiente {
+            background: #fbbf24;
+            color: white;
+        }
+        
+        .status-anulado {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 25px;
+            }
+            
+            h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📋</div>
+            <h1>Nota de Entrega</h1>
+            <div class="nota-number">{{ nota.numero }}</div>
+        </div>
+        
+        <div class="info-section">
+            <div class="info-item">
+                <span class="info-label">Cliente:</span>
+                <span class="info-value">{{ nota.cliente }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Fecha:</span>
+                <span class="info-value">{{ nota.fecha }} {{ nota.hora }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Estado:</span>
+                <span class="info-value">
+                    <span class="status status-{{ nota.estado.lower().replace('_', '-') }}">
+                        {{ nota.estado.replace('_', ' ').title() }}
+                    </span>
+                </span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Modalidad de Pago:</span>
+                <span class="info-value">{{ nota.modalidad.title() }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Productos:</span>
+                <span class="info-value">{{ nota.productos }} producto(s)</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Total USD:</span>
+                <span class="info-value">${{ "%.2f"|format(nota.total_usd) }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Tasa BCV:</span>
+                <span class="info-value">{{ "%.2f"|format(nota.tasa_bcv) }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Total Bs:</span>
+                <span class="info-value">Bs {{ "%.2f"|format(nota.total_bs) }}</span>
+            </div>
+            
+            {% if nota.observaciones %}
+            <div class="info-item">
+                <span class="info-label">Observaciones:</span>
+                <span class="info-value" style="text-align: left;">{{ nota.observaciones }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            <p>Servicio Técnico Jehová Jireh</p>
+            <p>Escaneado el {{ moment().strftime('%d/%m/%Y %H:%M') }}</p>
+        </div>
+    </div>
+</body>
+</html>
+

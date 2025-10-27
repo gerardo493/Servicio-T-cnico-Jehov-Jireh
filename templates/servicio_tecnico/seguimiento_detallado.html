@@ -1,0 +1,817 @@
+{% extends "base.html" %}
+
+{% block title %}Seguimiento Detallado - Orden {{ orden.numero_orden }}{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos modernos */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-button-primary:hover {
+    background: linear-gradient(145deg, #00cc6a, #00ff88);
+    color: white;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.neo-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.neo-icon {
+    color: #00ff88;
+}
+
+/* Timeline de seguimiento */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 30px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #00ff88, #00cc6a);
+    border-radius: 2px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 70px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 22px;
+    top: 8px;
+    width: 16px;
+    height: 16px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    z-index: 2;
+}
+
+.timeline-item.completed::before {
+    background: #28a745;
+}
+
+.timeline-item.current::before {
+    background: #ffc107;
+    animation: pulse 2s infinite;
+}
+
+.timeline-item.pending::before {
+    background: #6c757d;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.timeline-content {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    position: relative;
+}
+
+.timeline-content::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 20px;
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-right: 10px solid #e0e5ec;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.timeline-title {
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+}
+
+.timeline-date {
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.timeline-description {
+    color: #4a5568;
+    margin-bottom: 10px;
+}
+
+.timeline-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.metric-card {
+    background: #e0e5ec;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 
+        inset 3px 3px 6px #a3b1c6,
+        inset -3px -3px 6px #ffffff;
+}
+
+.metric-value {
+    font-size: 1.5em;
+    font-weight: 700;
+    color: #00ff88;
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+/* Progreso visual */
+.progress-container {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e0e5ec;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 
+        inset 3px 3px 6px #a3b1c6,
+        inset -3px -3px 6px #ffffff;
+    margin-bottom: 15px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88, #00cc6a);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Alertas y notificaciones */
+.alert-card {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    border-left: 5px solid #ffc107;
+}
+
+.alert-card.warning {
+    border-left-color: #ffc107;
+}
+
+.alert-card.danger {
+    border-left-color: #dc3545;
+}
+
+.alert-card.success {
+    border-left-color: #28a745;
+}
+
+.alert-card.info {
+    border-left-color: #17a2b8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .timeline::before {
+        left: 20px;
+    }
+    
+    .timeline-item {
+        padding-left: 50px;
+    }
+    
+    .timeline-item::before {
+        left: 12px;
+    }
+    
+    .timeline-metrics {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="neo-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="neo-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h1 class="neo-title">
+                                    <i class="fas fa-chart-line neo-icon me-2"></i>
+                                    Seguimiento Detallado
+                                </h1>
+                                <p class="neo-subtitle mb-0">Orden: {{ orden.numero_orden }}</p>
+                            </div>
+                            <div class="text-end">
+                                <a href="{{ url_for('ver_orden_servicio', id=orden.numero_orden) }}" class="neo-button me-2">
+                                    <i class="fas fa-arrow-left me-1"></i> Volver
+                                </a>
+                                <button class="neo-button-primary" onclick="actualizarSeguimiento()">
+                                    <i class="fas fa-sync-alt me-1"></i> Actualizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información General -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="neo-card">
+                    <div class="card-body">
+                        <h5 class="neo-subtitle">
+                            <i class="fas fa-info-circle neo-icon me-2"></i>
+                            Información General
+                        </h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <strong>Cliente:</strong><br>
+                                {{ orden.cliente.nombre }}
+                            </div>
+                            <div class="col-6">
+                                <strong>Equipo:</strong><br>
+                                {{ orden.equipo.marca }} {{ orden.equipo.modelo }}
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <strong>Técnico:</strong><br>
+                                {{ orden.tecnico_asignado or 'Sin asignar' }}
+                            </div>
+                            <div class="col-6">
+                                <strong>Prioridad:</strong><br>
+                                <span class="badge bg-{{ 'danger' if orden.prioridad == 'Alta' else 'warning' if orden.prioridad == 'Media' else 'success' }}">
+                                    {{ orden.prioridad or 'Normal' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="neo-card">
+                    <div class="card-body">
+                        <h5 class="neo-subtitle">
+                            <i class="fas fa-clock neo-icon me-2"></i>
+                            Tiempos
+                        </h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <strong>Fecha Inicio:</strong><br>
+                                {{ orden.fecha_creacion }}
+                            </div>
+                            <div class="col-6">
+                                <strong>Última Actualización:</strong><br>
+                                {{ orden.fecha_actualizacion or 'N/A' }}
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <strong>Entrega Estimada:</strong><br>
+                                {{ orden.fecha_entrega_estimada or 'No definida' }}
+                            </div>
+                            <div class="col-6">
+                                <strong>Tiempo Transcurrido:</strong><br>
+                                <span id="tiempoTranscurrido">Calculando...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progreso Visual -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="progress-container">
+                    <h5 class="neo-subtitle mb-3">
+                        <i class="fas fa-tasks neo-icon me-2"></i>
+                        Progreso del Servicio
+                    </h5>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: {{ progreso_porcentaje }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">0%</span>
+                        <span class="fw-bold">{{ progreso_porcentaje }}% Completado</span>
+                        <span class="text-muted">100%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas y Notificaciones -->
+        <div class="row mb-4" id="alertasContainer">
+            <!-- Las alertas se generarán dinámicamente -->
+        </div>
+
+        <!-- Timeline de Seguimiento -->
+        <div class="row">
+            <div class="col-12">
+                <div class="neo-card">
+                    <div class="card-body">
+                        <h5 class="neo-subtitle mb-4">
+                            <i class="fas fa-history neo-icon me-2"></i>
+                            Historial Detallado
+                        </h5>
+                        <div class="timeline" id="timelineContainer">
+                            <!-- El timeline se generará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas de Rendimiento -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="neo-card">
+                    <div class="card-body">
+                        <h5 class="neo-subtitle mb-4">
+                            <i class="fas fa-chart-bar neo-icon me-2"></i>
+                            Métricas de Rendimiento
+                        </h5>
+                        <div class="timeline-metrics" id="metricasContainer">
+                            <!-- Las métricas se generarán dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Datos de la orden
+const ordenData = {{ orden | to_dict | tojson }};
+const configEstados = {{ config_estados | tojson }};
+
+// Validar que los datos existen
+if (!ordenData || typeof ordenData !== 'object') {
+    console.error('ERROR: ordenData no está definido o no es un objeto');
+    alert('Error: No se pudieron cargar los datos de la orden. Por favor, recarga la página.');
+}
+
+console.log('DEBUG: ordenData:', ordenData);
+console.log('DEBUG: configEstados:', configEstados);
+
+// Función para calcular tiempo transcurrido
+function calcularTiempoTranscurrido() {
+    const fechaInicio = new Date(ordenData.fecha_creacion);
+    const ahora = new Date();
+    const diffMs = ahora - fechaInicio;
+    
+    const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const horas = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let tiempo = '';
+    if (dias > 0) tiempo += `${dias}d `;
+    if (horas > 0) tiempo += `${horas}h `;
+    if (minutos > 0) tiempo += `${minutos}m`;
+    
+    return tiempo.trim() || '0m';
+}
+
+// Función para generar alertas
+function generarAlertas() {
+    const alertas = [];
+    const estadoActual = ordenData.estado || 'desconocido';
+    const fechaEntrega = ordenData.fecha_entrega_estimada;
+    
+    console.log('DEBUG: estadoActual:', estadoActual);
+    
+    // Alerta de retraso
+    if (fechaEntrega) {
+        const fechaEntregaDate = new Date(fechaEntrega);
+        const ahora = new Date();
+        const diffDias = Math.ceil((fechaEntregaDate - ahora) / (1000 * 60 * 60 * 24));
+        
+        if (diffDias < 0) {
+            alertas.push({
+                tipo: 'danger',
+                titulo: '¡Orden Vencida!',
+                mensaje: `La orden lleva ${Math.abs(diffDias)} días de retraso`,
+                icono: 'fas fa-exclamation-triangle'
+            });
+        } else if (diffDias <= 1) {
+            alertas.push({
+                tipo: 'warning',
+                titulo: 'Vencimiento Próximo',
+                mensaje: `La orden vence en ${diffDias} día${diffDias !== 1 ? 's' : ''}`,
+                icono: 'fas fa-clock'
+            });
+        }
+    }
+    
+    // Alerta de técnico no asignado
+    if (!ordenData.tecnico_asignado) {
+        alertas.push({
+            tipo: 'warning',
+            titulo: 'Técnico No Asignado',
+            mensaje: 'Esta orden no tiene técnico asignado',
+            icono: 'fas fa-user-times'
+        });
+    }
+    
+    // Alerta de estado estancado
+    const estadosEstancados = ['en_espera_revision', 'en_diagnostico'];
+    if (estadosEstancados.includes(estadoActual)) {
+        const fechaActualizacion = new Date(ordenData.fecha_actualizacion || ordenData.fecha_creacion);
+        const diffHoras = (new Date() - fechaActualizacion) / (1000 * 60 * 60);
+        
+        if (diffHoras > 24 && estadoActual) {
+            const estadoFormateado = estadoActual.toString().replace('_', ' ');
+            alertas.push({
+                tipo: 'info',
+                titulo: 'Estado Estancado',
+                mensaje: `La orden lleva ${Math.floor(diffHoras)} horas en estado "${estadoFormateado}"`,
+                icono: 'fas fa-pause-circle'
+            });
+        }
+    }
+    
+    return alertas;
+}
+
+// Función para generar timeline
+function generarTimeline() {
+    const historial = ordenData.historial_estados || [];
+    const estados = Object.keys(configEstados.estados_servicio);
+    const timeline = [];
+    
+    // Agregar estados del historial
+    historial.forEach((entry, index) => {
+        if (!entry || !entry.estado) return; // Saltar entradas inválidas
+        
+        const estadoInfo = configEstados.estados_servicio[entry.estado] || {};
+        const isCurrent = index === historial.length - 1;
+        const isCompleted = index < historial.length - 1;
+        
+        const estadoFormateado = entry.estado ? entry.estado.toString().replace('_', ' ').toUpperCase() : 'DESCONOCIDO';
+        
+        timeline.push({
+            estado: entry.estado,
+            titulo: estadoInfo.nombre || estadoFormateado,
+            descripcion: estadoInfo.descripcion || '',
+            fecha: entry.fecha,
+            usuario: entry.usuario,
+            comentarios: entry.comentarios,
+            clase: isCurrent ? 'current' : isCompleted ? 'completed' : 'pending',
+            icono: estadoInfo.icono || 'fas fa-circle'
+        });
+    });
+    
+    return timeline;
+}
+
+// Función para generar métricas
+function generarMetricas() {
+    const fechaInicio = new Date(ordenData.fecha_creacion);
+    const ahora = new Date();
+    const diffMs = ahora - fechaInicio;
+    
+    const diasTranscurridos = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const horasTranscurridas = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    const historial = ordenData.historial_estados || [];
+    const cambiosEstado = historial.length;
+    
+    const tiempoPromedioPorEstado = cambiosEstado > 0 ? Math.floor(horasTranscurridas / cambiosEstado) : 0;
+    
+    return [
+        {
+            valor: diasTranscurridos,
+            etiqueta: 'Días Transcurridos',
+            icono: 'fas fa-calendar-day'
+        },
+        {
+            valor: cambiosEstado,
+            etiqueta: 'Cambios de Estado',
+            icono: 'fas fa-exchange-alt'
+        },
+        {
+            valor: `${tiempoPromedioPorEstado}h`,
+            etiqueta: 'Tiempo Promedio/Estado',
+            icono: 'fas fa-stopwatch'
+        },
+        {
+            valor: ordenData.prioridad || 'Normal',
+            etiqueta: 'Prioridad',
+            icono: 'fas fa-flag'
+        }
+    ];
+}
+
+// Función para renderizar alertas
+function renderizarAlertas() {
+    const alertas = generarAlertas();
+    const container = document.getElementById('alertasContainer');
+    
+    if (alertas.length === 0) {
+        container.innerHTML = '<div class="col-12"><div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>No hay alertas pendientes</div></div>';
+        return;
+    }
+    
+    container.innerHTML = alertas.map(alerta => `
+        <div class="col-md-6 mb-3">
+            <div class="alert-card ${alerta.tipo}">
+                <div class="d-flex align-items-center">
+                    <i class="${alerta.icono} me-3"></i>
+                    <div>
+                        <h6 class="mb-1">${alerta.titulo}</h6>
+                        <p class="mb-0">${alerta.mensaje}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Función para renderizar timeline
+function renderizarTimeline() {
+    const timeline = generarTimeline();
+    const container = document.getElementById('timelineContainer');
+    
+    if (timeline.length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay historial disponible</p>';
+        return;
+    }
+    
+    container.innerHTML = timeline.map(item => `
+        <div class="timeline-item ${item.clase}">
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <h6 class="timeline-title">
+                        <i class="${item.icono} me-2"></i>
+                        ${item.titulo}
+                    </h6>
+                    <span class="timeline-date">${item.fecha}</span>
+                </div>
+                <div class="timeline-description">${item.descripcion}</div>
+                ${item.comentarios ? `<div class="text-muted"><small><strong>Comentarios:</strong> ${item.comentarios}</small></div>` : ''}
+                <div class="text-muted"><small><strong>Usuario:</strong> ${item.usuario}</small></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Función para renderizar métricas
+function renderizarMetricas() {
+    const metricas = generarMetricas();
+    const container = document.getElementById('metricasContainer');
+    
+    container.innerHTML = metricas.map(metrica => `
+        <div class="metric-card">
+            <div class="metric-value">
+                <i class="${metrica.icono} me-2"></i>
+                ${metrica.valor}
+            </div>
+            <div class="metric-label">${metrica.etiqueta}</div>
+        </div>
+    `).join('');
+}
+
+// Función para actualizar seguimiento
+function actualizarSeguimiento() {
+    // Mostrar indicador de carga
+    const btnActualizar = document.querySelector('button[onclick="actualizarSeguimiento()"]');
+    const iconoOriginal = btnActualizar.innerHTML;
+    btnActualizar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Actualizando...';
+    btnActualizar.disabled = true;
+    
+    // Hacer petición a la API
+    const ordenId = ordenData.id || ordenData.numero_orden;
+    console.log('DEBUG: Actualizando seguimiento para orden:', ordenId);
+    fetch(`/api/servicio-tecnico/orden/${ordenId}/seguimiento`)
+        .then(response => {
+            console.log('DEBUG: Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('DEBUG: Data received:', data);
+            if (data.success) {
+                // Actualizar datos
+                ordenData.metricas = data.data;
+                
+                // Actualizar tiempo transcurrido
+                document.getElementById('tiempoTranscurrido').textContent = calcularTiempoTranscurrido();
+                
+                // Actualizar barra de progreso
+                const progressFill = document.getElementById('progressFill');
+                if (progressFill && data.data.progreso_porcentaje !== undefined) {
+                    progressFill.style.width = `${data.data.progreso_porcentaje}%`;
+                }
+                
+                // Re-renderizar componentes
+                renderizarAlertas();
+                renderizarTimeline();
+                renderizarMetricas();
+                
+                // Mostrar notificación
+                showNotification('Seguimiento actualizado', 'success');
+            } else {
+                showNotification(`Error: ${data.error || 'Error desconocido'}`, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('DEBUG: Error en fetch:', error);
+            showNotification(`Error de conexión: ${error.message}`, 'danger');
+        })
+        .finally(() => {
+            // Restaurar botón
+            btnActualizar.innerHTML = iconoOriginal;
+            btnActualizar.disabled = false;
+        });
+}
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DEBUG: Página cargada, inicializando seguimiento detallado');
+    console.log('DEBUG: Datos de orden:', ordenData);
+    
+    // Actualizar tiempo transcurrido cada minuto
+    setInterval(() => {
+        const elemento = document.getElementById('tiempoTranscurrido');
+        if (elemento) {
+            elemento.textContent = calcularTiempoTranscurrido();
+        }
+    }, 60000);
+    
+    // Renderizar componentes iniciales
+    try {
+        renderizarAlertas();
+        renderizarTimeline();
+        renderizarMetricas();
+        
+        // Actualizar tiempo transcurrido inicial
+        const elemento = document.getElementById('tiempoTranscurrido');
+        if (elemento) {
+            elemento.textContent = calcularTiempoTranscurrido();
+        }
+        
+        console.log('DEBUG: Componentes iniciales renderizados');
+    } catch (error) {
+        console.error('DEBUG: Error renderizando componentes iniciales:', error);
+    }
+    
+    // Mostrar notificación de inicio
+    showNotification('Seguimiento detallado cargado correctamente', 'info');
+});
+</script>
+{% endblock %}

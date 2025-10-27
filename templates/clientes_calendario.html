@@ -1,0 +1,813 @@
+{% extends "base.html" %}
+
+{% block title %}Calendario de Actividades{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos para calendario */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-button.active {
+    background: linear-gradient(145deg, #4CAF50, #45a049);
+    color: white;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.neo-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #a3b1c6;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+}
+
+.dia-header {
+    background: #e0e5ec;
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+    color: #2d3748;
+    border-bottom: 1px solid #a3b1c6;
+}
+
+.dia-celda {
+    background: #e0e5ec;
+    min-height: 150px;
+    padding: 10px;
+    border-right: 1px solid #a3b1c6;
+    border-bottom: 1px solid #a3b1c6;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.dia-celda:hover {
+    background: #f0f4f8;
+    transform: scale(1.02);
+}
+
+.dia-numero {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.dia-actual {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.dia-vacio {
+    background: #f7fafc;
+    color: #a0aec0;
+}
+
+.mes-navegacion {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.mes-titulo {
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 1.5rem;
+    text-align: center;
+    flex: 1;
+}
+
+.estadisticas-mes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.estadistica-item {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    transition: all 0.3s ease;
+}
+
+.estadistica-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 16px #a3b1c6,
+        -8px -8px 16px #ffffff;
+}
+
+.estadistica-numero {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #00ff88;
+    margin-bottom: 5px;
+}
+
+.estadistica-label {
+    color: #4a5568;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.evento-item {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 4px solid;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.evento-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.evento-cliente {
+    border-left-color: #4CAF50;
+}
+
+.evento-orden {
+    border-left-color: #FF9800;
+}
+
+.evento-entrega {
+    border-left-color: #2196F3;
+}
+
+.evento-diagnostico {
+    border-left-color: #9C27B0;
+}
+
+.evento-icono {
+    margin-right: 4px;
+    font-size: 0.6rem;
+}
+
+.evento-nombre {
+    font-weight: 600;
+    color: #2d3748;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.evento-hora {
+    color: #6b7280;
+    font-size: 0.6rem;
+    margin-top: 2px;
+}
+
+.filtros-container {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.filtro-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.filtro-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+}
+
+.filtro-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.filtro-button.active {
+    background: linear-gradient(145deg, #4CAF50, #45a049);
+    color: white;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+}
+
+.leyenda-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.leyenda-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 
+        2px 2px 4px #a3b1c6,
+        -2px -2px 4px #ffffff;
+}
+
+.leyenda-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 10px;
+    border-left: 4px solid;
+}
+
+.leyenda-texto {
+    font-weight: 600;
+    color: #4a5568;
+}
+
+/* Modal para detalles del evento */
+.modal-eventos {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: #e0e5ec;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 
+        20px 20px 40px #a3b1c6,
+        -20px -20px 40px #ffffff;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    padding: 20px;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.close {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.close:hover {
+    transform: scale(1.1);
+}
+
+.evento-detalle {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 
+        2px 2px 4px #a3b1c6,
+        -2px -2px 4px #ffffff;
+}
+
+.detalle-campo {
+    margin-bottom: 10px;
+}
+
+.detalle-label {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 5px;
+}
+
+.detalle-valor {
+    color: #4a5568;
+    background: white;
+    padding: 8px;
+    border-radius: 5px;
+    border-left: 3px solid #00ff88;
+}
+
+@media (max-width: 768px) {
+    .calendario-grid {
+        font-size: 0.8rem;
+    }
+    
+    .dia-celda {
+        min-height: 100px;
+        padding: 5px;
+    }
+    
+    .evento-item {
+        font-size: 0.6rem;
+        padding: 4px 6px;
+    }
+    
+    .mes-navegacion {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .filtro-buttons {
+        justify-content: center;
+    }
+}
+</style>
+
+<div class="neo-container">
+    <!-- Header -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="neo-title mb-2">
+                        <i class="fas fa-calendar-alt" style="color: #00ff88;"></i>
+                        Calendario de Actividades
+                    </h2>
+                    <p class="text-muted mb-0">Visualiza clientes, órdenes de servicio y diagnósticos por fecha</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/clientes" class="btn neo-button">
+                        <i class="fas fa-arrow-left me-2"></i>Volver a Clientes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-container">
+        <h6 class="neo-subtitle mb-3">
+            <i class="fas fa-filter me-2"></i>Filtrar por Tipo de Actividad
+        </h6>
+        <div class="filtro-buttons">
+            <button class="filtro-button {% if filtro_tipo == 'todos' %}active{% endif %}" 
+                    onclick="filtrarCalendario('todos')">
+                <i class="fas fa-list me-2"></i>Todos
+            </button>
+            <button class="filtro-button {% if filtro_tipo == 'clientes' %}active{% endif %}" 
+                    onclick="filtrarCalendario('clientes')">
+                <i class="fas fa-user-plus me-2"></i>Clientes
+            </button>
+            <button class="filtro-button {% if filtro_tipo == 'ordenes' %}active{% endif %}" 
+                    onclick="filtrarCalendario('ordenes')">
+                <i class="fas fa-tools me-2"></i>Órdenes
+            </button>
+            <button class="filtro-button {% if filtro_tipo == 'diagnosticos' %}active{% endif %}" 
+                    onclick="filtrarCalendario('diagnosticos')">
+                <i class="fas fa-stethoscope me-2"></i>Diagnósticos
+            </button>
+        </div>
+    </div>
+
+    <!-- Navegación del Mes -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <div class="mes-navegacion">
+                <a href="/clientes/calendario?mes={{ mes - 1 if mes > 1 else 12 }}&año={{ año - 1 if mes == 1 else año }}&tipo={{ filtro_tipo }}" 
+                   class="btn neo-button">
+                    <i class="fas fa-chevron-left me-2"></i>Mes Anterior
+                </a>
+                <h3 class="mes-titulo mb-0">
+                    {{ ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][mes - 1] }} {{ año }}
+                </h3>
+                <a href="/clientes/calendario?mes={{ mes + 1 if mes < 12 else 1 }}&año={{ año + 1 if mes == 12 else año }}&tipo={{ filtro_tipo }}" 
+                   class="btn neo-button">
+                    Mes Siguiente<i class="fas fa-chevron-right ms-2"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas del Mes -->
+    <div class="estadisticas-mes">
+        <div class="estadistica-item">
+            <div class="estadistica-numero">{{ calendario|length }}</div>
+            <div class="estadistica-label">Días con Actividades</div>
+        </div>
+        <div class="estadistica-item">
+            <div class="estadistica-numero">
+                {% set total_eventos = 0 %}
+                {% for dia, eventos_dia in calendario.items() %}
+                    {% set total_eventos = total_eventos + eventos_dia|length %}
+                {% endfor %}
+                {{ total_eventos }}
+            </div>
+            <div class="estadistica-label">Total Eventos</div>
+        </div>
+        <div class="estadistica-item">
+            <div class="estadistica-numero">
+                {% set clientes_count = 0 %}
+                {% for dia, eventos_dia in calendario.items() %}
+                    {% for evento in eventos_dia %}
+                        {% if evento.tipo == 'registro_cliente' %}
+                            {% set clientes_count = clientes_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {{ clientes_count }}
+            </div>
+            <div class="estadistica-label">Nuevos Clientes</div>
+        </div>
+        <div class="estadistica-item">
+            <div class="estadistica-numero">
+                {% set ordenes_count = 0 %}
+                {% for dia, eventos_dia in calendario.items() %}
+                    {% for evento in eventos_dia %}
+                        {% if evento.tipo in ['orden_recepcion', 'orden_entrega'] %}
+                            {% set ordenes_count = ordenes_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {{ ordenes_count }}
+            </div>
+            <div class="estadistica-label">Órdenes de Servicio</div>
+        </div>
+    </div>
+
+    <!-- Calendario -->
+    <div class="neo-card">
+        <div class="card-body p-0">
+            <div class="calendario-grid">
+                <!-- Días de la semana -->
+                <div class="dia-header">Lun</div>
+                <div class="dia-header">Mar</div>
+                <div class="dia-header">Mié</div>
+                <div class="dia-header">Jue</div>
+                <div class="dia-header">Vie</div>
+                <div class="dia-header">Sáb</div>
+                <div class="dia-header">Dom</div>
+                
+                <!-- Días del mes -->
+                {% set primer_dia = datetime(año, mes, 1).weekday() %}
+                {% set dias_mes = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1] %}
+                {% if mes == 2 and año % 4 == 0 and (año % 100 != 0 or año % 400 == 0) %}
+                    {% set dias_mes = 29 %}
+                {% endif %}
+                
+                <!-- Días vacíos del mes anterior -->
+                {% for i in range(primer_dia) %}
+                    <div class="dia-celda dia-vacio"></div>
+                {% endfor %}
+                
+                <!-- Días del mes actual -->
+                {% for dia in range(1, dias_mes + 1) %}
+                    <div class="dia-celda">
+                        <div class="{% if dia == datetime.now().day and mes == datetime.now().month and año == datetime.now().year %}dia-actual{% else %}dia-numero{% endif %}">
+                            {{ dia }}
+                        </div>
+                        
+                        {% if dia in calendario %}
+                            {% for evento in calendario[dia] %}
+                                <div class="evento-item evento-{{ evento.tipo.split('_')[0] }}" 
+                                     onclick="verDetalleEvento({{ evento|tojson }})"
+                                     title="{{ evento.descripcion }}">
+                                    <div class="evento-nombre">
+                                        <i class="{{ evento.icono }} evento-icono"></i>
+                                        {{ evento.nombre[:20] }}{% if evento.nombre|length > 20 %}...{% endif %}
+                                    </div>
+                                    <div class="evento-hora">{{ evento.hora }}</div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <h6 class="neo-subtitle mb-3">
+                <i class="fas fa-info-circle me-2"></i>Leyenda de Actividades
+            </h6>
+            <div class="leyenda-container">
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="border-left-color: #4CAF50;"></div>
+                    <div class="leyenda-texto">Nuevo Cliente Registrado</div>
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="border-left-color: #FF9800;"></div>
+                    <div class="leyenda-texto">Orden de Servicio Recibida</div>
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="border-left-color: #2196F3;"></div>
+                    <div class="leyenda-texto">Entrega Estimada</div>
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="border-left-color: #9C27B0;"></div>
+                    <div class="leyenda-texto">Diagnóstico Realizado</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles del evento -->
+<div id="modalEventos" class="modal-eventos">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="mb-0" id="modalTitulo">Detalles del Evento</h5>
+            <span class="close" onclick="cerrarModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalCuerpo">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para filtrar calendario
+function filtrarCalendario(tipo) {
+    const url = new URL(window.location);
+    url.searchParams.set('tipo', tipo);
+    window.location.href = url.toString();
+}
+
+// Función para ver detalles del evento
+function verDetalleEvento(evento) {
+    const modal = document.getElementById('modalEventos');
+    const titulo = document.getElementById('modalTitulo');
+    const cuerpo = document.getElementById('modalCuerpo');
+    
+    // Configurar título
+    titulo.innerHTML = `<i class="${evento.icono} me-2"></i>${evento.nombre}`;
+    
+    // Configurar contenido
+    let contenido = `
+        <div class="evento-detalle">
+            <div class="detalle-campo">
+                <div class="detalle-label">Tipo de Actividad:</div>
+                <div class="detalle-valor">${evento.descripcion}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Hora:</div>
+                <div class="detalle-valor">${evento.hora}</div>
+            </div>
+    `;
+    
+    // Agregar campos específicos según el tipo
+    if (evento.tipo === 'registro_cliente') {
+        contenido += `
+            <div class="detalle-campo">
+                <div class="detalle-label">Cliente:</div>
+                <div class="detalle-valor">${evento.nombre}</div>
+            </div>
+        `;
+    } else if (evento.tipo === 'orden_recepcion') {
+        contenido += `
+            <div class="detalle-campo">
+                <div class="detalle-label">Cliente:</div>
+                <div class="detalle-valor">${evento.cliente || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Problema Reportado:</div>
+                <div class="detalle-valor">${evento.problema || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Tiempo Estimado de Reparación:</div>
+                <div class="detalle-valor">${evento.tiempo_estimado || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Estado:</div>
+                <div class="detalle-valor">${evento.estado || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Prioridad:</div>
+                <div class="detalle-valor">${evento.prioridad || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Técnico Asignado:</div>
+                <div class="detalle-valor">${evento.tecnico || 'Sin asignar'}</div>
+            </div>
+        `;
+    } else if (evento.tipo === 'orden_entrega') {
+        contenido += `
+            <div class="detalle-campo">
+                <div class="detalle-label">Cliente:</div>
+                <div class="detalle-valor">${evento.cliente || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Descripción:</div>
+                <div class="detalle-valor">${evento.descripcion}</div>
+            </div>
+        `;
+    } else if (evento.tipo === 'diagnostico') {
+        contenido += `
+            <div class="detalle-campo">
+                <div class="detalle-label">Cliente:</div>
+                <div class="detalle-valor">${evento.cliente || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Problema Encontrado:</div>
+                <div class="detalle-valor">${evento.descripcion || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Solución Propuesta:</div>
+                <div class="detalle-valor">${evento.solucion_propuesta || 'No especificado'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Costo Estimado:</div>
+                <div class="detalle-valor">$${evento.costo_estimado || '0'}</div>
+            </div>
+            <div class="detalle-campo">
+                <div class="detalle-label">Tiempo Estimado:</div>
+                <div class="detalle-valor">${evento.tiempo_estimado || 'No especificado'}</div>
+            </div>
+        `;
+    }
+    
+    contenido += `</div>`;
+    
+    cuerpo.innerHTML = contenido;
+    modal.style.display = 'block';
+}
+
+// Función para cerrar modal
+function cerrarModal() {
+    document.getElementById('modalEventos').style.display = 'none';
+}
+
+// Cerrar modal al hacer clic fuera de él
+window.onclick = function(event) {
+    const modal = document.getElementById('modalEventos');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Animaciones suaves
+document.addEventListener('DOMContentLoaded', function() {
+    // Animar cards al cargar
+    const cards = document.querySelectorAll('.neo-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Animar estadísticas
+    const estadisticas = document.querySelectorAll('.estadistica-item');
+    estadisticas.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            item.style.transition = 'all 0.5s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'scale(1)';
+        }, (index * 100) + 200);
+    });
+    
+    // Animar celdas del calendario
+    const celdas = document.querySelectorAll('.dia-celda');
+    celdas.forEach((celda, index) => {
+        celda.style.opacity = '0';
+        celda.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            celda.style.transition = 'all 0.3s ease';
+            celda.style.opacity = '1';
+            celda.style.transform = 'scale(1)';
+        }, (index * 50) + 400);
+    });
+    
+    // Animar eventos
+    const eventos = document.querySelectorAll('.evento-item');
+    eventos.forEach((evento, index) => {
+        evento.style.opacity = '0';
+        evento.style.transform = 'translateX(-10px)';
+        setTimeout(() => {
+            evento.style.transition = 'all 0.3s ease';
+            evento.style.opacity = '1';
+            evento.style.transform = 'translateX(0)';
+        }, (index * 100) + 600);
+    });
+});
+</script>
+{% endblock %}

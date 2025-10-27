@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistema de Facturación{% endblock %}</title>
+    <title>{% block title %}Sistema de Reparaciones{% endblock %}</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='LOGO-KISVIC.ico') }}">
+    <!-- Neomorphic CSS -->
+    <link href="{{ url_for('static', filename='css/neomorphic.css') }}" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
     <style>
         :root {
@@ -18,6 +20,28 @@
         }
         body {
             background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .main-wrapper {
+            min-height: calc(100vh - 80px);
+            padding-bottom: 20px;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 1000;
+            background-color: transparent;
+            border: none;
+            padding: 10px 0;
+        }
+        /* Asegurar que el contenido no se superponga con el footer */
+        .main-content {
+            padding-bottom: 50px;
         }
         .sidebar {
             position: fixed;
@@ -25,17 +49,18 @@
             left: -220px;
             height: 100vh;
             width: var(--sidebar-width);
-            background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
             color: #fff;
             z-index: 1040;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding-top: 2rem;
-            box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+            box-shadow: 2px 0 12px rgba(0, 255, 136, 0.2);
             transition: left 0.35s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
             max-height: 100vh;
             overflow-y: auto;
+            border-right: 3px solid #00ff88;
         }
         .sidebar.visible {
             left: 0;
@@ -48,15 +73,16 @@
             transform: translateY(-50%);
             width: 32px;
             height: 90px;
-            background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-            color: #fff;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            color: #00ff88;
             border-radius: 0 20px 20px 0;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1050;
             cursor: pointer;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.10);
+            box-shadow: 2px 0 8px rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
         }
         .sidebar-tab i {
             font-size: 1.5rem;
@@ -65,6 +91,10 @@
             width: 80px;
             margin-bottom: 2rem;
             transition: transform 0.3s;
+        }
+        .logo-container img:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 15px 40px rgba(26,35,126,0.4), 0 8px 20px rgba(0,0,0,0.15);
         }
         .sidebar .nav {
             width: 100%;
@@ -87,15 +117,15 @@
             transition: transform 0.3s, color 0.3s;
         }
         .sidebar .nav-link.active, .sidebar .nav-link:hover {
-            background: linear-gradient(90deg, #0d47a1 60%, #42a5f5 100%);
-            color: #fff;
+            background: linear-gradient(90deg, #00ff88 60%, #00cc6a 100%);
+            color: #1a1a1a;
             transform: translateX(8px) scale(1.04);
-            box-shadow: 2px 4px 16px rgba(66,165,245,0.08);
+            box-shadow: 2px 4px 16px rgba(0, 255, 136, 0.3);
         }
         .sidebar .nav-link.active .fa, .sidebar .nav-link:hover .fa {
-            color: #ffd600;
+            color: #1a1a1a;
             transform: scale(1.2) rotate(-10deg);
-            filter: drop-shadow(0 0 6px #ffd60088);
+            filter: drop-shadow(0 0 6px rgba(26, 26, 26, 0.5));
         }
         .sidebar .logout {
             margin-top: auto;
@@ -171,25 +201,36 @@
     <div class="sidebar-tab" id="sidebarTab" title="Mostrar menú"><i class="fas fa-angle-right"></i></div>
     <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
     <aside class="sidebar" id="sidebar">
-        <div class="logo user-logo" style="
-            width: 80px; height: 80px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem; box-shadow: 0 4px 16px rgba(26,35,126,0.10); border: 2px solid #b8c1ec;">
-            <span style="font-size:2.5rem; font-weight:800; color:#1A237E; text-transform:uppercase; letter-spacing:1px;">
-                {{ session.get('nombre', 'U')[0] }}{{ session.get('apellido', 'S')[0] }}
-            </span>
+        <div class="logo-container" style="text-align: center; margin-bottom: 1.5rem;">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo Empresa" style="
+                width: 120px; 
+                height: 120px; 
+                border-radius: 50%; 
+                box-shadow: 0 10px 30px rgba(26,35,126,0.3), 0 4px 15px rgba(0,0,0,0.1); 
+                object-fit: cover;
+                background: transparent;
+                border: none;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                cursor: pointer;">
         </div>
-        <div style="color:#fff; font-weight:600; font-size:1.1rem; margin-bottom:2rem; text-align:center; word-break:break-word;">
+        <div style="color:#fff; font-weight:700; font-size:1.2rem; margin-bottom:0.5rem; text-align:center; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+            {{ empresa.nombre.split(' - ')[0] if empresa and empresa.nombre else 'TECNICEL' }}
+        </div>
+        <div style="color:#b8c1ec; font-weight:500; font-size:0.9rem; margin-bottom:2rem; text-align:center; word-break:break-word;">
             {{ session['usuario'] }}
         </div>
         <nav class="nav flex-column">
             <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/"><i class="fas fa-home"></i> Inicio</a>
+            <a class="nav-link {% if '/servicio-tecnico' in request.path %}active{% endif %}" href="/servicio-tecnico"><i class="fas fa-tools"></i> Servicio Técnico</a>
             <a class="nav-link {% if '/clientes' in request.path %}active{% endif %}" href="/clientes"><i class="fas fa-users"></i> Clientes</a>
             <a class="nav-link {% if '/inventario' in request.path %}active{% endif %}" href="/inventario"><i class="fas fa-box"></i> Inventario</a>
-            <a class="nav-link {% if '/facturas' in request.path %}active{% endif %}" href="/facturas"><i class="fas fa-file-invoice"></i> Facturas</a>
-            <a class="nav-link {% if '/cotizaciones' in request.path %}active{% endif %}" href="/cotizaciones"><i class="fas fa-file-alt"></i> Cotizaciones</a>
-            <a class="nav-link {% if '/notas-entrega' in request.path %}active{% endif %}" href="/notas-entrega"><i class="fas fa-truck"></i> Notas de Entrega</a>
+            <a class="nav-link {% if '/notas-entrega' in request.path %}active{% endif %}" href="/notas-entrega"><i class="fas fa-clipboard-list"></i> Notas de Entrega</a>
+            <a class="nav-link {% if '/notas-entrega/reporte' in request.path %}active{% endif %}" href="/notas-entrega/reporte"><i class="fas fa-chart-line"></i> Reporte Notas</a>
             <a class="nav-link {% if '/cuentas-por-cobrar' in request.path %}active{% endif %}" href="/cuentas-por-cobrar"><i class="fas fa-money-bill-wave"></i> Cuentas por Cobrar</a>
             <a class="nav-link {% if '/pagos-recibidos' in request.path %}active{% endif %}" href="/pagos-recibidos"><i class="fas fa-cash-register"></i> Pagos Recibidos</a>
             <a class="nav-link {% if '/bitacora' in request.path %}active{% endif %}" href="/bitacora"><i class="fas fa-book"></i> Bitácora</a>
+            <a class="nav-link {% if '/configuracion' in request.path %}active{% endif %}" href="/configuracion" id="nav-configuracion"><i class="fas fa-cog"></i> Configuración</a>
+            <a class="nav-link {% if '/usuarios/gestion' in request.path %}active{% endif %}" href="/usuarios/gestion"><i class="fas fa-users-cog"></i> Usuarios</a>
         </nav>
         <div class="logout">
             {% if session['usuario'] %}
@@ -197,22 +238,24 @@
             {% endif %}
         </div>
     </aside>
-    <div class="main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
+    <div class="main-wrapper">
+        <div class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
     </div>
-    <footer class="footer mt-5 py-3 bg-light">
-        <div class="container text-center">
-            <span class="text-muted">© 2025 Kisvic 1045 C.A . Todos los derechos reservados.</span>
+    <footer class="footer">
+        <div class="text-center">
+            <span class="text-muted" style="font-size: 12px; color: #6c757d;">© 2025 {{ empresa.nombre if empresa else 'TECNICEL - Servicio de Reparación' }}. Todos los derechos reservados.</span>
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -278,5 +321,23 @@
         });
     </script>
     {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Verificar permisos de configuración
+        fetch('/api/mi-rol')
+            .then(response => response.json())
+            .then(data => {
+                if (data.rol !== 'Administrador Principal') {
+                    const navConfig = document.getElementById('nav-configuracion');
+                    if (navConfig) {
+                        navConfig.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => console.error('Error verificando rol:', error));
+    </script>
+    
+    <!-- Incluir calculadoras completas -->
+    {% include 'partials/calculadoras_completas.html' %}
 </body>
 </html> 

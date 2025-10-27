@@ -1,4 +1,4 @@
-# 🚀 Sistema de Recordatorios WhatsApp - KISVIC
+# 🚀 Sistema de Recordatorios WhatsApp
 
 ## ✨ Características Implementadas
 
@@ -201,7 +201,7 @@
 
 ---
 
-*Sistema desarrollado para KISVIC - Gestión Fiscal y Contable*
+*Sistema de Gestión Fiscal y Contable*
 *Versión: 2.0 - Sistema WhatsApp Funcional*
 *Fecha: Enero 2025*
 *Estado: ✅ COMPLETAMENTE OPERATIVO*

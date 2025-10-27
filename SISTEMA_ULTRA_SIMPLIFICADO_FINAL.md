@@ -154,6 +154,6 @@ El sistema de recordatorios está **completamente simplificado** como solicitast
 
 ---
 
-*Sistema ultra simplificado para KISVIC - Gestión Fiscal y Contable*
+*Sistema ultra simplificado - Gestión Fiscal y Contable*
 *Fecha: Enero 2025*
 *Estado: ✅ SISTEMA ULTRA SIMPLIFICADO - SOLO WHATSAPP*

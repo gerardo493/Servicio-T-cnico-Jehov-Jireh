@@ -1,0 +1,829 @@
+/* Estilos Neomórficos Mejorados para el Reporte de Inventario */
+
+/* Reset y estilos base */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
+}
+
+/* Sobrescribir estilos de Bootstrap */
+.card, .card-body, .card-header, .card-footer {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        20px 20px 60px #d1d9e6,
+        -20px -20px 60px #ffffff !important;
+}
+
+.btn {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    color: #2d3748 !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+}
+
+.btn:active {
+    transform: translateY(0) !important;
+    box-shadow: 
+        4px 4px 8px #d1d9e6,
+        -4px -4px 8px #ffffff !important;
+}
+
+/* Estilos mejorados para tablas neomórficas */
+.table {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+    overflow: hidden !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.table th, .table td {
+    border: none !important;
+    background: transparent !important;
+    padding: 1.2rem 1rem !important;
+    text-align: left !important;
+    vertical-align: middle !important;
+    position: relative !important;
+}
+
+.table th {
+    background: linear-gradient(135deg, #e0e0e3 0%, #d1d9e6 100%) !important;
+    color: #2d3748 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.5px !important;
+    border-bottom: 3px solid #667eea !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+}
+
+.table th:first-child {
+    border-top-left-radius: 20px !important;
+}
+
+.table th:last-child {
+    border-top-right-radius: 20px !important;
+}
+
+.table tbody tr {
+    background: #f0f0f3 !important;
+    transition: all 0.3s ease !important;
+    position: relative !important;
+}
+
+.table tbody tr:nth-child(even) {
+    background: #f8f9fa !important;
+}
+
+.table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        8px 8px 16px rgba(102, 126, 234, 0.2),
+        -8px -8px 16px rgba(255, 255, 255, 0.8) !important;
+    z-index: 1 !important;
+}
+
+.table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 20px !important;
+}
+
+.table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 20px !important;
+}
+
+/* Separadores visuales mejorados */
+.table tbody tr:not(:last-child)::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, transparent 0%, #d1d9e6 20%, #d1d9e6 80%, transparent 100%) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+}
+
+/* Separadores entre columnas */
+.table th:not(:last-child)::after,
+.table td:not(:last-child)::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 20% !important;
+    right: 0 !important;
+    width: 1px !important;
+    height: 60% !important;
+    background: linear-gradient(180deg, transparent 0%, #d1d9e6 20%, #d1d9e6 80%, transparent 100%) !important;
+    box-shadow: 1px 0 2px rgba(0,0,0,0.1) !important;
+}
+
+/* Mejoras en las celdas */
+.table td {
+    font-weight: 500 !important;
+    color: #4a5568 !important;
+    border-left: 2px solid transparent !important;
+    transition: all 0.3s ease !important;
+}
+
+.table td:hover {
+    border-left-color: #667eea !important;
+    background: rgba(102, 126, 234, 0.05) !important;
+}
+
+/* Estilos específicos para columnas numéricas */
+.table td:nth-child(2),
+.table td:nth-child(3),
+.table td:nth-child(4),
+.table td:nth-child(5),
+.table td:nth-child(6) {
+    text-align: right !important;
+    font-family: 'Courier New', monospace !important;
+    font-weight: 600 !important;
+}
+
+/* Estilos para la primera columna (nombre del producto) */
+.table td:first-child {
+    font-weight: 600 !important;
+    color: #2d3748 !important;
+    text-align: left !important;
+}
+
+/* Estilo Neomórfico para Reporte */
+.reporte-container {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.reporte-header {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+    text-align: center !important;
+}
+
+.reporte-title {
+    color: #2d3748 !important;
+    font-size: 3rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 1rem !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.reporte-date {
+    color: #718096 !important;
+    font-size: 1.2rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.reporte-tasa {
+    color: #4a5568 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+.reporte-actions {
+    display: flex !important;
+    gap: 1.5rem !important;
+    margin-bottom: 3rem !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+}
+
+.neo-btn {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 1rem 2rem !important;
+    box-shadow: 
+        10px 10px 20px #d1d9e6,
+        -10px -10px 20px #ffffff !important;
+    color: #2d3748 !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.neo-btn:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    color: #2d3748 !important;
+    text-decoration: none !important;
+}
+
+.neo-btn:active {
+    transform: translateY(-1px) !important;
+    box-shadow: 
+        5px 5px 10px #d1d9e6,
+        -5px -5px 10px #ffffff !important;
+}
+
+.neo-btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    box-shadow: 
+        10px 10px 20px rgba(102, 126, 234, 0.3),
+        -10px -10px 20px rgba(118, 75, 162, 0.3) !important;
+}
+
+.neo-btn-secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    box-shadow: 
+        10px 10px 20px rgba(240, 147, 251, 0.3),
+        -10px -10px 20px rgba(245, 87, 108, 0.3) !important;
+}
+
+.resumen-general {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.section-title {
+    color: #2d3748 !important;
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 2rem !important;
+    text-align: center !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.resumen-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+    gap: 2rem !important;
+    margin-top: 2rem !important;
+}
+
+.resumen-item {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    text-align: center !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    transition: all 0.3s ease !important;
+}
+
+.resumen-item:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        20px 20px 40px #d1d9e6,
+        -20px -20px 40px #ffffff !important;
+}
+
+.resumen-icon {
+    font-size: 3rem !important;
+    color: #667eea !important;
+    margin-bottom: 1rem !important;
+}
+
+.resumen-label {
+    color: #718096 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.resumen-value {
+    color: #2d3748 !important;
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.tipo-section {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.tipo-summary {
+    display: flex !important;
+    gap: 1rem !important;
+    margin-bottom: 2rem !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+}
+
+.badge {
+    background: #f0f0f3 !important;
+    border-radius: 15px !important;
+    padding: 0.8rem 1.5rem !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    color: #2d3748 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+}
+
+.neo-badge-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 16px rgba(79, 172, 254, 0.3),
+        -8px -8px 16px rgba(0, 242, 254, 0.3) !important;
+}
+
+.neo-badge-success {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 16px rgba(67, 233, 123, 0.3),
+        -8px -8px 16px rgba(56, 249, 215, 0.3) !important;
+}
+
+.categoria-section {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+}
+
+.category-title {
+    color: #2d3748 !important;
+    font-size: 1.8rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.5rem !important;
+    text-align: center !important;
+}
+
+.categoria-summary {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 1rem !important;
+    margin-bottom: 2rem !important;
+}
+
+.categoria-stat {
+    background: #f0f0f3 !important;
+    border-radius: 15px !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    color: #4a5568 !important;
+    font-weight: 600 !important;
+}
+
+.productos-table {
+    width: 100% !important;
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    overflow: hidden !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+}
+
+.no-productos {
+    text-align: center !important;
+    color: #718096 !important;
+    font-style: italic !important;
+    padding: 2rem !important;
+    background: #f0f0f3 !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+}
+
+.total-general-footer {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-top: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.no-productos-inventario {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 4rem !important;
+    text-align: center !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+/* Estilos para Pestañas Neomórficas */
+.tabs-container {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 2rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.neo-tabs {
+    border: none !important;
+    margin-bottom: 2rem !important;
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    padding: 0.5rem !important;
+    box-shadow: 
+        inset 5px 5px 10px #d1d9e6,
+        inset -5px -5px 10px #ffffff !important;
+}
+
+.neo-tab-link {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 1rem 1.5rem !important;
+    margin: 0.2rem !important;
+    color: #4a5568 !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    position: relative !important;
+}
+
+.neo-tab-link:hover {
+    background: #f0f0f3 !important;
+    color: #2d3748 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        5px 5px 10px #d1d9e6,
+        -5px -5px 10px #ffffff !important;
+}
+
+.neo-tab-link.active {
+    background: #f0f0f3 !important;
+    color: #2d3748 !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+.neo-badge-count {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    padding: 0.3rem 0.6rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    box-shadow: 
+        3px 3px 6px rgba(102, 126, 234, 0.3),
+        -3px -3px 6px rgba(118, 75, 162, 0.3) !important;
+}
+
+.neo-tab-content {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+.tipo-summary-card {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    text-align: center !important;
+}
+
+.tipo-title {
+    color: #2d3748 !important;
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.5rem !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.tipo-summary {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 1.5rem !important;
+    margin-top: 1rem !important;
+}
+
+.summary-item {
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    box-shadow: 
+        inset 3px 3px 6px #d1d9e6,
+        inset -3px -3px 6px #ffffff !important;
+    transition: all 0.3s ease !important;
+}
+
+.summary-item:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        5px 5px 10px #d1d9e6,
+        -5px -5px 10px #ffffff !important;
+}
+
+.summary-item i {
+    font-size: 2rem !important;
+    color: #667eea !important;
+    margin-bottom: 0.5rem !important;
+    display: block !important;
+}
+
+.summary-label {
+    color: #718096 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    display: block !important;
+    margin-bottom: 0.3rem !important;
+}
+
+.summary-value {
+    color: #2d3748 !important;
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+    display: block !important;
+}
+
+.category-title {
+    color: #2d3748 !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+}
+
+.category-badge {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        3px 3px 6px rgba(67, 233, 123, 0.3),
+        -3px -3px 6px rgba(56, 249, 215, 0.3) !important;
+}
+
+.categoria-summary {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-around !important;
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+    padding: 1rem !important;
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        inset 2px 2px 5px #d1d9e6,
+        inset -2px -2px 5px #ffffff !important;
+}
+
+.categoria-stat {
+    text-align: center !important;
+    color: #4a5568 !important;
+    font-size: 0.9rem !important;
+}
+
+.categoria-stat strong {
+    display: block !important;
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    color: #2d3748 !important;
+    margin-bottom: 0.2rem !important;
+}
+
+.no-productos {
+    text-align: center !important;
+    color: #718096 !important;
+    padding: 2rem !important;
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        inset 2px 2px 5px #d1d9e6,
+        inset -2px -2px 5px #ffffff !important;
+    font-style: italic !important;
+}
+
+/* Mejoras adicionales para organización */
+.tipo-summary-card {
+    margin-bottom: 2rem !important;
+}
+
+.categoria-section {
+    margin-bottom: 1.5rem !important;
+}
+
+.categoria-section:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Mejoras en las tablas */
+.productos-table {
+    margin-top: 1rem !important;
+}
+
+.productos-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+}
+
+/* Mejoras en responsive */
+@media (max-width: 992px) {
+    .tipo-summary {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .categoria-summary {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .tipo-summary {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .categoria-summary {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .neo-tab-link {
+        padding: 0.8rem 1rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .neo-badge-count {
+        font-size: 0.7rem !important;
+        padding: 0.2rem 0.4rem !important;
+    }
+}
+
+/* Animaciones suaves */
+.tab-pane {
+    transition: opacity 0.3s ease-in-out !important;
+}
+
+.neo-tab-link {
+    transition: all 0.3s ease !important;
+}
+
+/* Mejoras en la visualización de datos */
+.resumen-value {
+    word-break: break-word !important;
+}
+
+.summary-value {
+    word-break: break-word !important;
+}
+
+/* Estilos para impresión */
+@media print {
+    .neo-btn {
+        display: none !important;
+    }
+    
+    .tabs-container {
+        box-shadow: none !important;
+    }
+    
+    .neo-tabs {
+        display: none !important;
+    }
+    
+    .tab-content {
+        display: block !important;
+    }
+    
+    .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem !important;
+    }
+    
+    .reporte-title {
+        font-size: 2rem !important;
+    }
+    
+    .section-title {
+        font-size: 1.8rem !important;
+    }
+    
+    .resumen-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .reporte-actions {
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    
+    .neo-btn {
+        width: 100% !important;
+        max-width: 300px !important;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.reporte-container > * {
+    animation: fadeInUp 0.6s ease-out !important;
+}
+
+.reporte-container > *:nth-child(2) {
+    animation-delay: 0.1s !important;
+}
+
+.reporte-container > *:nth-child(3) {
+    animation-delay: 0.2s !important;
+}
+
+.reporte-container > *:nth-child(4) {
+    animation-delay: 0.3s !important;
+}

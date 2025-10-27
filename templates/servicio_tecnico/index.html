@@ -1,0 +1,2205 @@
+{% extends "base.html" %}
+
+{% block title %}Servicio Técnico{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos modernos */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(1px);
+    color: #2d3748;
+}
+
+.neo-button:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(2px);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: #000;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff,
+        0 0 15px rgba(0, 255, 136, 0.4);
+    font-weight: 700;
+}
+
+.neo-button-primary:hover {
+    background: linear-gradient(145deg, #00e639, #00b359);
+    color: #000;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff,
+        0 0 25px rgba(0, 255, 136, 0.6);
+}
+
+.neo-input {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    color: #4a5568;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.neo-badge {
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-weight: 600;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    border: none;
+}
+
+.neo-table {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    overflow: hidden;
+}
+
+.neo-table th {
+    background: linear-gradient(145deg, #f7fafc, #edf2f7);
+    border: none;
+    color: #4a5568;
+    font-weight: 700;
+    padding: 20px 15px;
+}
+
+.neo-table td {
+    border: none;
+    padding: 15px;
+    background: #e0e5ec;
+    transition: all 0.3s ease;
+}
+
+.neo-table tbody tr:hover td {
+    background: #d1d9e6;
+}
+
+.neo-stats-card {
+    background: #e0e5ec;
+    border-radius: 25px;
+    box-shadow: 
+        15px 15px 30px #a3b1c6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        inset -2px -2px 4px rgba(163, 177, 198, 0.1);
+    border: none;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    overflow: hidden;
+    position: relative;
+}
+
+.neo-stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.05) 100%);
+    border-radius: 25px;
+    pointer-events: none;
+}
+
+.neo-stats-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 
+        20px 20px 40px #a3b1c6,
+        -20px -20px 40px #ffffff,
+        inset 3px 3px 6px rgba(255, 255, 255, 0.2),
+        inset -3px -3px 6px rgba(163, 177, 198, 0.2);
+}
+
+.neo-stats-card:active {
+    transform: translateY(-2px) scale(0.98);
+    box-shadow: 
+        8px 8px 16px #a3b1c6,
+        -8px -8px 16px #ffffff,
+        inset 4px 4px 8px rgba(163, 177, 198, 0.3),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.3);
+}
+
+.neo-stats-primary {
+    background: linear-gradient(145deg, #00ff88 0%, #00cc6a 50%, #00b359 100%);
+    color: #000;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        15px 15px 30px #a3b1c6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        inset -2px -2px 4px rgba(0, 255, 136, 0.2),
+        0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+.neo-stats-primary::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+    animation: shimmer 3s infinite;
+    pointer-events: none;
+}
+
+.neo-stats-warning {
+    background: linear-gradient(145deg, #39ff14 0%, #32e600 50%, #2bcc00 100%);
+    color: #000;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        15px 15px 30px #a3b1c6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        inset -2px -2px 4px rgba(57, 255, 20, 0.2),
+        0 0 20px rgba(57, 255, 20, 0.3);
+}
+
+.neo-stats-warning::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+    animation: shimmer 3s infinite 0.5s;
+    pointer-events: none;
+}
+
+.neo-stats-success {
+    background: linear-gradient(145deg, #00ff41 0%, #00e639 50%, #00cc32 100%);
+    color: #000;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        15px 15px 30px #a3b1c6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        inset -2px -2px 4px rgba(0, 255, 65, 0.2),
+        0 0 20px rgba(0, 255, 65, 0.3);
+}
+
+.neo-stats-success::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+    animation: shimmer 3s infinite 1s;
+    pointer-events: none;
+}
+
+.neo-stats-info {
+    background: linear-gradient(145deg, #7fff00 0%, #6bcc00 50%, #5bb300 100%);
+    color: #000;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 
+        15px 15px 30px #a3b1c6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+        inset -2px -2px 4px rgba(127, 255, 0, 0.2),
+        0 0 20px rgba(127, 255, 0, 0.3);
+}
+
+.neo-stats-info::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+    animation: shimmer 3s infinite 1.5s;
+    pointer-events: none;
+}
+
+.neo-title {
+    color: #4a5568;
+    font-weight: 800;
+    text-shadow: 2px 2px 4px rgba(163, 177, 198, 0.3);
+}
+
+.neo-subtitle {
+    color: #718096;
+    font-weight: 600;
+}
+
+.neo-icon {
+    filter: drop-shadow(2px 2px 4px rgba(163, 177, 198, 0.3));
+}
+
+.neo-stats-card .card-body {
+    position: relative;
+    z-index: 2;
+}
+
+.neo-stats-card .card-title {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.neo-stats-card .card-text {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.neo-stats-card .neo-icon {
+    filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+}
+
+.neo-stats-card:hover .neo-icon {
+    transform: scale(1.1) rotate(5deg);
+    filter: drop-shadow(4px 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+.neo-modal {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        20px 20px 40px #a3b1c6,
+        -20px -20px 40px #ffffff;
+    border: none;
+}
+
+.neo-modal-header {
+    background: linear-gradient(145deg, #f7fafc, #edf2f7);
+    border-radius: 20px 20px 0 0;
+    border: none;
+}
+
+.neo-modal-body {
+    background: #e0e5ec;
+    border-radius: 0 0 20px 20px;
+}
+
+.neo-btn-group .btn {
+    margin: 0 5px;
+    border-radius: 12px;
+}
+
+.neo-filters {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    padding: 25px;
+}
+
+.neo-filters .form-label {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* Efectos adicionales para neomorfismo */
+.neo-container {
+    background: linear-gradient(145deg, #e0e5ec, #d1d9e6);
+}
+
+.neo-card-inset:hover {
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+}
+
+.neo-button:focus {
+    outline: none;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff,
+        0 0 0 3px rgba(0, 255, 136, 0.3);
+}
+
+.btn-eliminar {
+    background: linear-gradient(145deg, #ff6b6b, #ff5252) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: 3px 3px 6px #ff5252, -3px -3px 6px #ff6b6b;
+    transition: all 0.3s ease;
+}
+
+.btn-eliminar:hover {
+    background: linear-gradient(145deg, #ff5252, #ff1744) !important;
+    transform: translateY(-2px);
+    box-shadow: 5px 5px 10px #ff5252, -5px -5px 10px #ff6b6b;
+}
+
+.btn-eliminar:active {
+    transform: translateY(0);
+    box-shadow: 2px 2px 4px #ff5252, -2px -2px 4px #ff6b6b;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff,
+        0 0 0 3px rgba(0, 255, 136, 0.3);
+}
+
+/* Estilos para tabla mejorada */
+.neo-table-header {
+    background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid #00ff88;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+.sortable:hover {
+    background: rgba(0, 255, 136, 0.1);
+    transform: translateY(-1px);
+}
+
+.orden-row {
+    transition: all 0.3s ease;
+}
+
+.orden-row:hover {
+    background: rgba(0, 255, 136, 0.05);
+    transform: translateX(5px);
+}
+
+/* Badges de estado con colores dinámicos */
+.neo-badge-estado {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.estado-en_espera_revision {
+    background: linear-gradient(145deg, #ffc107, #ff8f00);
+    color: #000;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.estado-en_diagnostico {
+    background: linear-gradient(145deg, #17a2b8, #138496);
+    color: white;
+    box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+}
+
+.estado-presupuesto_enviado {
+    background: linear-gradient(145deg, #6f42c1, #5a32a3);
+    color: white;
+    box-shadow: 0 2px 8px rgba(111, 66, 193, 0.3);
+}
+
+.estado-aprobado_por_cliente {
+    background: linear-gradient(145deg, #28a745, #1e7e34);
+    color: white;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.estado-en_reparacion {
+    background: linear-gradient(145deg, #fd7e14, #e55a00);
+    color: white;
+    box-shadow: 0 2px 8px rgba(253, 126, 20, 0.3);
+}
+
+.estado-reparado {
+    background: linear-gradient(145deg, #20c997, #1a9d7a);
+    color: white;
+    box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3);
+}
+
+.estado-entregado {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: #000;
+    box-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
+}
+
+.estado-cancelado {
+    background: linear-gradient(145deg, #dc3545, #c82333);
+    color: white;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Badges de prioridad */
+.neo-badge-prioridad {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-weight: 600;
+}
+
+.prioridad-baja {
+    background: linear-gradient(145deg, #28a745, #1e7e34);
+    color: white;
+}
+
+.prioridad-media {
+    background: linear-gradient(145deg, #ffc107, #ff8f00);
+    color: #000;
+}
+
+.prioridad-alta {
+    background: linear-gradient(145deg, #fd7e14, #e55a00);
+    color: white;
+}
+
+.prioridad-urgente {
+    background: linear-gradient(145deg, #dc3545, #c82333);
+    color: white;
+    animation: pulseUrgente 2s infinite;
+}
+
+.neo-badge-urgente {
+    background: linear-gradient(145deg, #dc3545, #c82333);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 10px;
+    animation: pulseUrgente 1.5s infinite;
+}
+
+@keyframes pulseUrgente {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+/* Información de fechas */
+.fecha-info, .fecha-entrega {
+    font-size: 0.9rem;
+}
+
+.fecha-entrega .text-danger {
+    font-weight: bold;
+    animation: blink 1s infinite;
+}
+
+.fecha-entrega .text-warning {
+    font-weight: 600;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.5; }
+}
+
+/* Información de técnico */
+.tecnico-info {
+    font-size: 0.9rem;
+}
+
+.tecnico-info .btn-link {
+    color: #00ff88;
+    text-decoration: none;
+    font-size: 0.8rem;
+}
+
+.tecnico-info .btn-link:hover {
+    color: #00cc6a;
+    text-decoration: underline;
+}
+
+/* Información de cliente y equipo */
+.cliente-info, .equipo-info {
+    font-size: 0.9rem;
+}
+
+.cliente-info .fw-bold, .equipo-info .fw-bold {
+    color: #2c3e50;
+    margin-bottom: 0.2rem;
+}
+
+/* Botones de acción mejorados */
+.btn-group .btn {
+    margin: 0 1px;
+    transition: all 0.3s ease;
+}
+
+.btn-group .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Modo oscuro */
+.dark-mode {
+    background: #1a1a1a;
+    color: #e0e0e0;
+}
+
+.dark-mode .neo-card {
+    background: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.dark-mode .neo-table-header {
+    background: linear-gradient(145deg, #3d3d3d, #2d2d2d);
+    color: #e0e0e0;
+}
+
+.dark-mode .orden-row:hover {
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.dark-mode .cliente-info .fw-bold,
+.dark-mode .equipo-info .fw-bold {
+    color: #e0e0e0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .neo-badge-estado,
+    .neo-badge-prioridad {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+}
+
+/* Animaciones suaves */
+@keyframes neoFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { 
+        box-shadow: 
+            15px 15px 30px #a3b1c6,
+            -15px -15px 30px #ffffff,
+            inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+            inset -2px -2px 4px rgba(0, 255, 136, 0.2);
+    }
+    50% { 
+        box-shadow: 
+            15px 15px 30px #a3b1c6,
+            -15px -15px 30px #ffffff,
+            inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+            inset -2px -2px 4px rgba(0, 255, 136, 0.2),
+            0 0 30px rgba(0, 255, 136, 0.6),
+            0 0 60px rgba(0, 255, 136, 0.3);
+    }
+}
+
+.neo-stats-card:hover {
+    animation: neoFloat 2s ease-in-out infinite;
+}
+
+.neo-stats-card {
+    animation: pulseGlow 4s ease-in-out infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .neo-container {
+        padding: 10px;
+    }
+    
+    .neo-card {
+        border-radius: 15px;
+    }
+    
+    .neo-button {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Timeline para seguimiento */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #4a5568;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #4a5568;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timeline-content h6 {
+    margin: 0 0 5px 0;
+    color: #2d3748;
+    font-weight: 600;
+}
+</style>
+
+<div class="neo-container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-5">
+                <h1 class="neo-title">
+                    <i class="fas fa-tools neo-icon me-3"></i>Servicio Técnico
+                </h1>
+                <div>
+                    <a href="/servicio-tecnico/nueva-orden" class="btn neo-button neo-button-primary">
+                        <i class="fas fa-plus me-2"></i>Nueva Orden
+                    </a>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="row mb-5">
+                <div class="col-md-3 mb-4">
+                    <div class="card neo-stats-card neo-stats-primary">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="card-title mb-1 fw-bold">{{ total_ordenes or ordenes|length }}</h2>
+                                    <p class="card-text mb-0 opacity-90">Total Órdenes</p>
+                                </div>
+                                <div class="neo-icon">
+                                    <i class="fas fa-clipboard-list fa-3x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card neo-stats-card neo-stats-warning">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="card-title mb-1 fw-bold">{{ ordenes_pendientes or 0 }}</h2>
+                                    <p class="card-text mb-0 opacity-90">Pendientes</p>
+                                </div>
+                                <div class="neo-icon">
+                                    <i class="fas fa-clock fa-3x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card neo-stats-card neo-stats-success">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="card-title mb-1 fw-bold">{{ ordenes_completadas or 0 }}</h2>
+                                    <p class="card-text mb-0 opacity-90">Completadas</p>
+                                </div>
+                                <div class="neo-icon">
+                                    <i class="fas fa-check-circle fa-3x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card neo-stats-card neo-stats-info">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="card-title mb-1 fw-bold">{{ ordenes.values()|selectattr('estado', 'in', ['en_diagnostico', 'en_reparacion'])|list|length }}</h2>
+                                    <p class="card-text mb-0 opacity-90">En Proceso</p>
+                                </div>
+                                <div class="neo-icon">
+                                    <i class="fas fa-cogs fa-3x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Borradores -->
+            {% set borradores = ordenes.values()|selectattr('es_borrador', 'equalto', true)|list %}
+            {% if borradores %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-file-alt neo-icon me-2"></i>Borradores Guardados ({{ borradores|length }})
+                            </h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="neo-table-header">
+                                        <tr>
+                                            <th>Orden</th>
+                                            <th>Cliente</th>
+                                            <th>Equipo</th>
+                                            <th>Fecha Creación</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for borrador in borradores %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <strong class="me-2">{{ borrador.numero_orden }}</strong>
+                                                    <span class="badge neo-badge-estado" style="background: linear-gradient(145deg, #e2e3e5, #d6d8db); color: #383d41;">
+                                                        📝 Borrador
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">{{ borrador.cliente.nombre }}</div>
+                                                <small class="text-muted">{{ borrador.cliente.telefono }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">{{ borrador.equipo.marca }} {{ borrador.equipo.modelo }}</div>
+                                                <small class="text-muted">{{ borrador.equipo.imei }}</small>
+                                            </td>
+                                            <td>{{ borrador.fecha_creacion }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="/servicio-tecnico/orden/{{ borrador.id }}/editar" class="btn neo-button btn-sm" title="Continuar editando">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <button class="btn neo-button btn-sm" onclick="completarBorrador('{{ borrador.id }}')" title="Completar orden">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    <a href="{{ url_for('seguimiento_detallado', id=borrador.id) }}" class="btn neo-button-primary btn-sm" 
+                                                       title="Seguimiento detallado">
+                                                        <i class="fas fa-chart-line"></i>
+                                                    </a>
+                                                    <button class="btn btn-eliminar btn-sm" onclick="eliminarBorrador('{{ borrador.id }}')" title="Eliminar borrador">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Filtros Avanzados -->
+            <div class="card neo-filters mb-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-filter neo-icon me-3 fa-lg"></i>
+                        <h5 class="neo-title mb-0">Filtros de Búsqueda Avanzados</h5>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/servicio-tecnico/nueva-orden" class="btn neo-button neo-button-primary" title="Crear nueva orden">
+                            <i class="fas fa-plus me-1"></i>Nueva Orden
+                        </a>
+                        <button class="btn neo-button" onclick="guardarFiltros()" title="Guardar filtros actuales">
+                            <i class="fas fa-save me-1"></i>Guardar
+                        </button>
+                        <button class="btn neo-button" onclick="cargarFiltros()" title="Cargar filtros guardados">
+                            <i class="fas fa-upload me-1"></i>Cargar
+                        </button>
+                        <button class="btn neo-button" onclick="exportarResultados()" title="Exportar resultados">
+                            <i class="fas fa-download me-1"></i>Exportar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filtros Básicos -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label for="filtro-cliente" class="form-label">
+                            <i class="fas fa-user me-1"></i>Cliente:
+                        </label>
+                        <input type="text" id="filtro-cliente" class="form-control neo-input" 
+                               placeholder="Buscar cliente..." onkeyup="aplicarFiltrosTiempoReal()">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filtro-estado" class="form-label">
+                            <i class="fas fa-tasks me-1"></i>Estado:
+                        </label>
+                        <select id="filtro-estado" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                            <option value="">Todos</option>
+                            <option value="en_espera_revision">🟡 En Espera</option>
+                            <option value="en_diagnostico">🔍 En Diagnóstico</option>
+                            <option value="presupuesto_enviado">📋 Presupuesto Enviado</option>
+                            <option value="aprobado_por_cliente">✅ Aprobado</option>
+                            <option value="en_reparacion">⚙️ En Reparación</option>
+                            <option value="reparado">🔧 Reparado</option>
+                            <option value="entregado">🎉 Entregado</option>
+                            <option value="cancelado">❌ Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filtro-tecnico" class="form-label">
+                            <i class="fas fa-user-tie me-1"></i>Técnico:
+                        </label>
+                        <select id="filtro-tecnico" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                            <option value="">Todos</option>
+                            <option value="tecnico1">Técnico 1</option>
+                            <option value="tecnico2">Técnico 2</option>
+                            <option value="sin_asignar">Sin Asignar</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filtro-prioridad" class="form-label">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Prioridad:
+                        </label>
+                        <select id="filtro-prioridad" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                            <option value="">Todas</option>
+                            <option value="baja">🟢 Baja</option>
+                            <option value="media">🟡 Media</option>
+                            <option value="alta">🟠 Alta</option>
+                            <option value="urgente">🔴 Urgente</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filtro-dispositivo" class="form-label">
+                            <i class="fas fa-mobile-alt me-1"></i>Dispositivo:
+                        </label>
+                        <select id="filtro-dispositivo" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                            <option value="">Todos</option>
+                            <option value="telefono">📱 Teléfono</option>
+                            <option value="tablet">📱 Tablet</option>
+                            <option value="laptop">💻 Laptop</option>
+                            <option value="desktop">🖥️ Desktop</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filtros Avanzados -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label for="filtro-fecha-desde" class="form-label">
+                            <i class="fas fa-calendar-alt me-1"></i>Desde:
+                        </label>
+                        <input type="date" id="filtro-fecha-desde" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filtro-fecha-hasta" class="form-label">
+                            <i class="fas fa-calendar-alt me-1"></i>Hasta:
+                        </label>
+                        <input type="date" id="filtro-fecha-hasta" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filtro-estado-combinado" class="form-label">
+                            <i class="fas fa-layer-group me-1"></i>Estados Combinados:
+                        </label>
+                        <select id="filtro-estado-combinado" class="form-control neo-input" onchange="aplicarFiltrosTiempoReal()">
+                            <option value="">Personalizado</option>
+                            <option value="pendientes">Pendientes (Espera + Diagnóstico)</option>
+                            <option value="en_proceso">En Proceso (Reparación + Aprobado)</option>
+                            <option value="finalizados">Finalizados (Reparado + Entregado)</option>
+                            <option value="cancelados">Cancelados</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn neo-button me-2" onclick="limpiarFiltros()">
+                            <i class="fas fa-times me-1"></i>Limpiar
+                        </button>
+                        <button class="btn neo-button" onclick="toggleModoOscuro()" title="Alternar modo oscuro">
+                            <i class="fas fa-moon me-1"></i>Modo Oscuro
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contador de Resultados -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="neo-subtitle">
+                                <i class="fas fa-list me-1"></i>
+                                Mostrando <span id="contador-resultados">0</span> de <span id="total-ordenes">0</span> órdenes
+                            </span>
+                            <div class="d-flex gap-2">
+                                <button class="btn neo-button btn-sm" onclick="actualizarAutomatico()" title="Actualización automática">
+                                    <i class="fas fa-sync-alt me-1"></i>Auto-actualizar
+                                </button>
+                                <span class="badge neo-badge" id="estado-actualizacion">Manual</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Órdenes -->
+            <div class="card neo-card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="tabla-ordenes-principal">
+                            <thead class="neo-table-header">
+                                <tr>
+                                    <th onclick="ordenarTabla(0)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Orden
+                                    </th>
+                                    <th onclick="ordenarTabla(1)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Cliente
+                                    </th>
+                                    <th onclick="ordenarTabla(2)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Equipo
+                                    </th>
+                                    <th onclick="ordenarTabla(3)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Estado
+                                    </th>
+                                    <th onclick="ordenarTabla(4)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Prioridad
+                                    </th>
+                                    <th onclick="ordenarTabla(5)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Fecha Recepción
+                                    </th>
+                                    <th onclick="ordenarTabla(6)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Entrega Estimada
+                                    </th>
+                                    <th onclick="ordenarTabla(7)" class="sortable">
+                                        <i class="fas fa-sort me-1"></i>Técnico
+                                    </th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-ordenes">
+                                {% if ordenes %}
+                                    {% for orden_id, orden in ordenes.items() %}
+                                    <tr class="orden-row" data-estado="{{ orden.estado }}" data-prioridad="{{ orden.get('prioridad', 'media') }}" data-dispositivo="{{ orden.equipo.get('tipo', 'telefono') }}" data-orden-id="{{ orden_id }}">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <strong class="me-2">{{ orden.numero_orden }}</strong>
+                                                {% if orden.get('urgente', false) %}
+                                                <span class="badge neo-badge-urgente">URGENTE</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if orden.nota_entrega_generada %}
+                                                <br><small class="text-muted">NE: {{ orden.nota_entrega_generada }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="cliente-info">
+                                                <div class="fw-bold">{{ orden.cliente.nombre }}</div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-phone me-1"></i>{{ orden.cliente.telefono }}
+                                                </small>
+                                                {% if orden.cliente.email %}
+                                                <br><small class="text-muted">
+                                                    <i class="fas fa-envelope me-1"></i>{{ orden.cliente.email }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="equipo-info">
+                                                <div class="fw-bold">
+                                                    <i class="fas fa-{{ 'mobile-alt' if orden.equipo.get('tipo', 'telefono') == 'telefono' else 'tablet' if orden.equipo.get('tipo') == 'tablet' else 'laptop' if orden.equipo.get('tipo') == 'laptop' else 'desktop' }} me-1"></i>
+                                                    {{ orden.equipo.marca }} {{ orden.equipo.modelo }}
+                                                </div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-fingerprint me-1"></i>{{ orden.equipo.imei }}
+                                                </small>
+                                                {% if orden.equipo.color %}
+                                                <br><small class="text-muted">
+                                                    <i class="fas fa-palette me-1"></i>{{ orden.equipo.color }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge neo-badge-estado estado-{{ orden.estado }}" data-bs-toggle="tooltip" title="{{ orden.estado.replace('_', ' ').title() }}">
+                                                {% if orden.estado == 'en_espera_revision' %}
+                                                🟡 En Espera
+                                                {% elif orden.estado == 'en_diagnostico' %}
+                                                🔍 En Diagnóstico
+                                                {% elif orden.estado == 'presupuesto_enviado' %}
+                                                📋 Presupuesto
+                                                {% elif orden.estado == 'aprobado_por_cliente' %}
+                                                ✅ Aprobado
+                                                {% elif orden.estado == 'en_reparacion' %}
+                                                ⚙️ En Reparación
+                                                {% elif orden.estado == 'reparado' %}
+                                                🔧 Reparado
+                                                {% elif orden.estado == 'entregado' %}
+                                                🎉 Entregado
+                                                {% elif orden.estado == 'cancelado' %}
+                                                ❌ Cancelado
+                                                {% else %}
+                                                {{ orden.estado.replace('_', ' ').title() }}
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge neo-badge-prioridad prioridad-{{ orden.get('prioridad', 'media') }}">
+                                                {% set prioridad = orden.get('prioridad', 'media') %}
+                                                {% if prioridad == 'baja' %}
+                                                🟢 Baja
+                                                {% elif prioridad == 'media' %}
+                                                🟡 Media
+                                                {% elif prioridad == 'alta' %}
+                                                🟠 Alta
+                                                {% elif prioridad == 'urgente' %}
+                                                🔴 Urgente
+                                                {% else %}
+                                                🟡 Media
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="fecha-info">
+                                                <div>{{ orden.fecha_recepcion }}</div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-clock me-1"></i>
+                                                    {{ orden.get('dias_transcurridos', 0) }} días
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="fecha-entrega">
+                                                <div class="{% if orden.get('fecha_vencida') %}text-danger{% elif orden.get('fecha_proxima') %}text-warning{% endif %}">
+                                                    {{ orden.fecha_entrega_estimada or 'No definida' }}
+                                                </div>
+                                                {% if orden.fecha_entrega_estimada %}
+                                                <small class="text-muted">
+                                                    {% if orden.get('fecha_vencida') %}
+                                                    <i class="fas fa-exclamation-triangle text-danger me-1"></i>Vencida
+                                                    {% elif orden.get('fecha_proxima') %}
+                                                    <i class="fas fa-clock text-warning me-1"></i>{{ orden.get('dias_restantes', 0) }} días
+                                                    {% else %}
+                                                    <i class="fas fa-calendar me-1"></i>{{ orden.get('dias_restantes', 0) }} días
+                                                    {% endif %}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="tecnico-info">
+                                                {% set tecnico = orden.get('tecnico_asignado', 'Sin asignar') %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-user-tie me-2"></i>
+                                                    <span>{{ tecnico }}</span>
+                                                </div>
+                                                <button class="btn btn-link btn-sm p-0" onclick="cambiarTecnico('{{ orden_id }}')" title="Cambiar técnico">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn neo-button btn-sm" onclick="verDetalles('{{ orden_id }}')" 
+                                                        data-bs-toggle="tooltip" title="Ver detalles completos">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn neo-button btn-sm" onclick="editarOrden('{{ orden_id }}')" 
+                                                        data-bs-toggle="tooltip" title="Editar orden">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <a href="{{ url_for('seguimiento_detallado', id=orden_id) }}" class="btn neo-button-primary btn-sm" 
+                                                   data-bs-toggle="tooltip" title="Seguimiento detallado">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </a>
+                                                <button class="btn neo-button btn-sm" onclick="diagnosticoOrden('{{ orden_id }}')" 
+                                                        data-bs-toggle="tooltip" title="Realizar diagnóstico">
+                                                    <i class="fas fa-stethoscope"></i>
+                                                </button>
+                        <button class="btn neo-button btn-sm" onclick="reparacionOrden('{{ orden_id }}')" 
+                                data-bs-toggle="tooltip" title="Reparación">
+                            <i class="fas fa-tools"></i>
+                        </button>
+                        <button class="btn neo-button btn-sm" onclick="entregaOrden('{{ orden_id }}')" 
+                                data-bs-toggle="tooltip" title="Entrega del Equipo">
+                            <i class="fas fa-hand-holding"></i>
+                        </button>
+                                                <button class="btn btn-eliminar btn-sm" onclick="eliminarOrden('{{ orden_id }}')" 
+                                                        data-bs-toggle="tooltip" title="Eliminar orden">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4">
+                                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No hay órdenes de servicio registradas</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Actualizar Estado -->
+<div class="modal fade" id="modalActualizarEstado" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content neo-modal">
+            <div class="modal-header neo-modal-header">
+                <h5 class="modal-title neo-title">
+                    <i class="fas fa-edit neo-icon me-2"></i>Actualizar Estado
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body neo-modal-body p-4">
+                <form id="formActualizarEstado">
+                    <input type="hidden" id="orden-id-estado">
+                    <div class="mb-4">
+                        <label for="nuevo-estado" class="form-label neo-subtitle">Nuevo Estado:</label>
+                        <select class="form-control neo-input" id="nuevo-estado" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="en_espera_revision">En Espera de Revisión</option>
+                            <option value="en_diagnostico">En Diagnóstico</option>
+                            <option value="presupuesto_enviado">Presupuesto Enviado</option>
+                            <option value="aprobado_por_cliente">Aprobado por Cliente</option>
+                            <option value="en_reparacion">En Reparación</option>
+                            <option value="reparado">Reparado</option>
+                            <option value="entregado">Entregado</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="observaciones-estado" class="form-label neo-subtitle">Observaciones:</label>
+                        <textarea class="form-control neo-input" id="observaciones-estado" rows="3" placeholder="Agregar comentarios sobre el cambio de estado..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer neo-modal-body p-4">
+                <button type="button" class="btn neo-button" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn neo-button neo-button-primary" onclick="guardarEstado()">
+                    <i class="fas fa-save me-2"></i>Actualizar Estado
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables globales
+    let autoUpdateInterval = null;
+    let isDarkMode = false;
+    let currentSort = { column: -1, direction: 'asc' };
+    let savedFilters = JSON.parse(localStorage.getItem('servicio_tecnico_filters') || '{}');
+
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarFiltrosGuardados();
+        inicializarTooltips();
+        actualizarContadorResultados();
+        cargarModoOscuro();
+    });
+
+    // Funciones de filtros avanzados
+    function aplicarFiltrosTiempoReal() {
+        const filtros = {
+            cliente: document.getElementById('filtro-cliente').value.toLowerCase(),
+            estado: document.getElementById('filtro-estado').value,
+            tecnico: document.getElementById('filtro-tecnico').value,
+            prioridad: document.getElementById('filtro-prioridad').value,
+            dispositivo: document.getElementById('filtro-dispositivo').value,
+            fechaDesde: document.getElementById('filtro-fecha-desde').value,
+            fechaHasta: document.getElementById('filtro-fecha-hasta').value,
+            estadoCombinado: document.getElementById('filtro-estado-combinado').value
+        };
+
+        const filas = document.querySelectorAll('.orden-row');
+        let visibleCount = 0;
+
+        filas.forEach(fila => {
+            let mostrar = true;
+
+            // Filtro por cliente
+            if (filtros.cliente) {
+                const nombreCliente = fila.querySelector('.cliente-info .fw-bold').textContent.toLowerCase();
+                if (!nombreCliente.includes(filtros.cliente)) {
+                    mostrar = false;
+                }
+            }
+
+            // Filtro por estado
+            if (filtros.estado) {
+                const estado = fila.getAttribute('data-estado');
+                if (estado !== filtros.estado) {
+                    mostrar = false;
+                }
+            }
+
+            // Filtro por prioridad
+            if (filtros.prioridad) {
+                const prioridad = fila.getAttribute('data-prioridad');
+                if (prioridad !== filtros.prioridad) {
+                    mostrar = false;
+                }
+            }
+
+            // Filtro por dispositivo
+            if (filtros.dispositivo) {
+                const dispositivo = fila.getAttribute('data-dispositivo');
+                if (dispositivo !== filtros.dispositivo) {
+                    mostrar = false;
+                }
+            }
+
+            // Filtro por estado combinado
+            if (filtros.estadoCombinado) {
+                const estado = fila.getAttribute('data-estado');
+                let estadosCombinados = [];
+                
+                switch(filtros.estadoCombinado) {
+                    case 'pendientes':
+                        estadosCombinados = ['en_espera_revision', 'en_diagnostico'];
+                        break;
+                    case 'en_proceso':
+                        estadosCombinados = ['en_reparacion', 'aprobado_por_cliente'];
+                        break;
+                    case 'finalizados':
+                        estadosCombinados = ['reparado', 'entregado'];
+                        break;
+                    case 'cancelados':
+                        estadosCombinados = ['cancelado'];
+                        break;
+                }
+                
+                if (!estadosCombinados.includes(estado)) {
+                    mostrar = false;
+                }
+            }
+
+            // Mostrar/ocultar fila
+            fila.style.display = mostrar ? '' : 'none';
+            if (mostrar) visibleCount++;
+        });
+
+        actualizarContadorResultados(visibleCount);
+    }
+
+    function limpiarFiltros() {
+        document.getElementById('filtro-cliente').value = '';
+        document.getElementById('filtro-estado').value = '';
+        document.getElementById('filtro-tecnico').value = '';
+        document.getElementById('filtro-prioridad').value = '';
+        document.getElementById('filtro-dispositivo').value = '';
+        document.getElementById('filtro-fecha-desde').value = '';
+        document.getElementById('filtro-fecha-hasta').value = '';
+        document.getElementById('filtro-estado-combinado').value = '';
+        
+        aplicarFiltrosTiempoReal();
+    }
+
+    function guardarFiltros() {
+        const filtros = {
+            cliente: document.getElementById('filtro-cliente').value,
+            estado: document.getElementById('filtro-estado').value,
+            tecnico: document.getElementById('filtro-tecnico').value,
+            prioridad: document.getElementById('filtro-prioridad').value,
+            dispositivo: document.getElementById('filtro-dispositivo').value,
+            fechaDesde: document.getElementById('filtro-fecha-desde').value,
+            fechaHasta: document.getElementById('filtro-fecha-hasta').value,
+            estadoCombinado: document.getElementById('filtro-estado-combinado').value
+        };
+        
+        localStorage.setItem('servicio_tecnico_filters', JSON.stringify(filtros));
+        mostrarNotificacion('Filtros guardados correctamente', 'success');
+    }
+
+    function cargarFiltros() {
+        if (Object.keys(savedFilters).length > 0) {
+            document.getElementById('filtro-cliente').value = savedFilters.cliente || '';
+            document.getElementById('filtro-estado').value = savedFilters.estado || '';
+            document.getElementById('filtro-tecnico').value = savedFilters.tecnico || '';
+            document.getElementById('filtro-prioridad').value = savedFilters.prioridad || '';
+            document.getElementById('filtro-dispositivo').value = savedFilters.dispositivo || '';
+            document.getElementById('filtro-fecha-desde').value = savedFilters.fechaDesde || '';
+            document.getElementById('filtro-fecha-hasta').value = savedFilters.fechaHasta || '';
+            document.getElementById('filtro-estado-combinado').value = savedFilters.estadoCombinado || '';
+            
+            aplicarFiltrosTiempoReal();
+            mostrarNotificacion('Filtros cargados correctamente', 'success');
+        } else {
+            mostrarNotificacion('No hay filtros guardados', 'info');
+        }
+    }
+
+    function cargarFiltrosGuardados() {
+        if (Object.keys(savedFilters).length > 0) {
+            cargarFiltros();
+        }
+    }
+
+    // Funciones de ordenamiento
+    function ordenarTabla(columna) {
+        const tabla = document.getElementById('tabla-ordenes-principal');
+        const tbody = tabla.querySelector('tbody');
+        const filas = Array.from(tbody.querySelectorAll('.orden-row'));
+        
+        const esAscendente = currentSort.column === columna && currentSort.direction === 'asc';
+        currentSort.direction = esAscendente ? 'desc' : 'asc';
+        currentSort.column = columna;
+
+        filas.sort((a, b) => {
+            let valorA, valorB;
+            
+            switch(columna) {
+                case 0: // Orden
+                    valorA = a.cells[0].querySelector('strong').textContent;
+                    valorB = b.cells[0].querySelector('strong').textContent;
+                    break;
+                case 1: // Cliente
+                    valorA = a.cells[1].querySelector('.fw-bold').textContent.toLowerCase();
+                    valorB = b.cells[1].querySelector('.fw-bold').textContent.toLowerCase();
+                    break;
+                case 2: // Equipo
+                    valorA = a.cells[2].querySelector('.fw-bold').textContent.toLowerCase();
+                    valorB = b.cells[2].querySelector('.fw-bold').textContent.toLowerCase();
+                    break;
+                case 3: // Estado
+                    valorA = a.getAttribute('data-estado');
+                    valorB = b.getAttribute('data-estado');
+                    break;
+                case 4: // Prioridad
+                    valorA = a.getAttribute('data-prioridad');
+                    valorB = b.getAttribute('data-prioridad');
+                    break;
+                case 5: // Fecha Recepción
+                    valorA = new Date(a.cells[5].querySelector('div').textContent);
+                    valorB = new Date(b.cells[5].querySelector('div').textContent);
+                    break;
+                case 6: // Entrega Estimada
+                    valorA = a.cells[6].querySelector('div').textContent;
+                    valorB = b.cells[6].querySelector('div').textContent;
+                    if (valorA === 'No definida') valorA = new Date(0);
+                    if (valorB === 'No definida') valorB = new Date(0);
+                    valorA = new Date(valorA);
+                    valorB = new Date(valorB);
+                    break;
+                case 7: // Técnico
+                    valorA = a.cells[7].querySelector('span').textContent.toLowerCase();
+                    valorB = b.cells[7].querySelector('span').textContent.toLowerCase();
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valorA < valorB) return currentSort.direction === 'asc' ? -1 : 1;
+            if (valorA > valorB) return currentSort.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Reordenar filas en la tabla
+        filas.forEach(fila => tbody.appendChild(fila));
+        
+        // Actualizar iconos de ordenamiento
+        actualizarIconosOrdenamiento();
+    }
+
+    function actualizarIconosOrdenamiento() {
+        const headers = document.querySelectorAll('.sortable');
+        headers.forEach((header, index) => {
+            const icon = header.querySelector('i');
+            if (index === currentSort.column) {
+                icon.className = currentSort.direction === 'asc' ? 'fas fa-sort-up me-1' : 'fas fa-sort-down me-1';
+            } else {
+                icon.className = 'fas fa-sort me-1';
+            }
+        });
+    }
+
+    // Funciones de actualización automática
+    function actualizarAutomatico() {
+        if (autoUpdateInterval) {
+            clearInterval(autoUpdateInterval);
+            autoUpdateInterval = null;
+            document.getElementById('estado-actualizacion').textContent = 'Manual';
+            mostrarNotificacion('Actualización automática desactivada', 'info');
+        } else {
+            autoUpdateInterval = setInterval(() => {
+                actualizarDatos();
+            }, 30000); // Actualizar cada 30 segundos
+            document.getElementById('estado-actualizacion').textContent = 'Auto (30s)';
+            mostrarNotificacion('Actualización automática activada', 'success');
+        }
+    }
+
+    function actualizarDatos() {
+        // Simular actualización de datos
+        console.log('Actualizando datos...');
+        mostrarNotificacion('Datos actualizados', 'info');
+    }
+
+    // Funciones de modo oscuro
+    function toggleModoOscuro() {
+        isDarkMode = !isDarkMode;
+        document.body.classList.toggle('dark-mode', isDarkMode);
+        localStorage.setItem('servicio_tecnico_dark_mode', isDarkMode);
+        
+        const icono = document.querySelector('[onclick="toggleModoOscuro()"] i');
+        icono.className = isDarkMode ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+        
+        mostrarNotificacion(`Modo ${isDarkMode ? 'oscuro' : 'claro'} activado`, 'success');
+    }
+
+    function cargarModoOscuro() {
+        const modoGuardado = localStorage.getItem('servicio_tecnico_dark_mode') === 'true';
+        if (modoGuardado) {
+            toggleModoOscuro();
+        }
+    }
+
+    // Funciones de exportación
+    function exportarResultados() {
+        const filasVisibles = Array.from(document.querySelectorAll('.orden-row:not([style*="display: none"])'));
+        
+        if (filasVisibles.length === 0) {
+            mostrarNotificacion('No hay datos para exportar', 'warning');
+            return;
+        }
+
+        // Crear datos para exportar
+        const datos = filasVisibles.map(fila => ({
+            orden: fila.cells[0].querySelector('strong').textContent,
+            cliente: fila.cells[1].querySelector('.fw-bold').textContent,
+            equipo: fila.cells[2].querySelector('.fw-bold').textContent,
+            estado: fila.cells[3].querySelector('.badge').textContent.trim(),
+            prioridad: fila.cells[4].querySelector('.badge').textContent.trim(),
+            fechaRecepcion: fila.cells[5].querySelector('div').textContent,
+            fechaEntrega: fila.cells[6].querySelector('div').textContent,
+            tecnico: fila.cells[7].querySelector('span').textContent
+        }));
+
+        // Exportar como CSV
+        const csv = convertirACSV(datos);
+        descargarArchivo(csv, 'ordenes_servicio_tecnico.csv', 'text/csv');
+        
+        mostrarNotificacion(`Exportados ${datos.length} registros`, 'success');
+    }
+
+    function convertirACSV(datos) {
+        const headers = ['Orden', 'Cliente', 'Equipo', 'Estado', 'Prioridad', 'Fecha Recepción', 'Fecha Entrega', 'Técnico'];
+        const csvContent = [
+            headers.join(','),
+            ...datos.map(fila => Object.values(fila).map(valor => `"${valor}"`).join(','))
+        ].join('\n');
+        
+        return csvContent;
+    }
+
+    function descargarArchivo(contenido, nombreArchivo, tipoMIME) {
+        const blob = new Blob([contenido], { type: tipoMIME });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombreArchivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    }
+
+    // Funciones de acciones
+    function verDetalles(ordenId) {
+        // Redirigir a la página de detalles de la orden
+        window.location.href = `/servicio-tecnico/orden/${ordenId}`;
+    }
+
+    function editarOrden(ordenId) {
+        // Redirigir a la página de edición de la orden
+        window.location.href = `/servicio-tecnico/orden/${ordenId}/editar`;
+    }
+
+    function seguimientoOrden(ordenId) {
+        // Mostrar modal de seguimiento o redirigir
+        mostrarModalSeguimiento(ordenId);
+    }
+
+    function diagnosticoOrden(ordenId) {
+        // Redirigir a la página de diagnóstico
+        window.location.href = `/servicio-tecnico/orden/${ordenId}/diagnostico`;
+    }
+
+function reparacionOrden(ordenId) {
+    // Redirigir a la página de reparación
+    window.location.href = `/servicio-tecnico/orden/${ordenId}/reparacion`;
+}
+
+function entregaOrden(ordenId) {
+    // Redirigir a la página de entrega
+    if (confirm('¿Proceder con la entrega del equipo?')) {
+        window.location.href = `/servicio-tecnico/orden/${ordenId}/entrega`;
+    }
+}
+
+    function eliminarOrden(ordenId) {
+        if (confirm('¿Estás seguro de que quieres eliminar esta orden? Esta acción no se puede deshacer.')) {
+            fetch(`/servicio-tecnico/orden/${ordenId}/eliminar`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarNotificacion('Orden eliminada correctamente', 'success');
+                    // Recargar la página para actualizar la lista
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    mostrarNotificacion(data.message || 'Error al eliminar la orden', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarNotificacion('Error al eliminar la orden', 'danger');
+            });
+        }
+    }
+
+    function cambiarTecnico(ordenId) {
+        console.log('DEBUG: Abriendo modal para orden:', ordenId);
+        
+        // Verificar que el modal existe
+        const modalElement = document.getElementById('modalAsignarTecnico');
+        if (!modalElement) {
+            console.error('Modal no encontrado');
+            alert('Error: Modal no encontrado');
+            return;
+        }
+        
+        // Configurar el formulario
+        document.getElementById('orden-id-tecnico').value = ordenId;
+        
+        // Cargar información de la orden
+        cargarInfoOrdenModal(ordenId);
+        
+        // Limpiar formulario
+        document.getElementById('formAsignarTecnico').reset();
+        document.getElementById('orden-id-tecnico').value = ordenId;
+        
+        // Crear y mostrar el modal
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        
+        console.log('DEBUG: Mostrando modal');
+        modal.show();
+    }
+
+    function mostrarModalSeguimiento(ordenId) {
+        // Crear modal dinámico para seguimiento
+        const modalHtml = `
+            <div class="modal fade" id="modalSeguimiento" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content neo-modal">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-route me-2"></i>Seguimiento de Orden ${ordenId}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                                <p>Cargando historial de seguimiento...</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn neo-button" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remover modal existente si existe
+        const existingModal = document.getElementById('modalSeguimiento');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Agregar nuevo modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('modalSeguimiento'));
+        modal.show();
+        
+        // Aquí podrías cargar datos reales del seguimiento
+        setTimeout(() => {
+            const modalBody = document.querySelector('#modalSeguimiento .modal-body');
+            modalBody.innerHTML = `
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6>Orden Creada</h6>
+                            <p class="text-muted">La orden fue creada y está en espera de revisión</p>
+                            <small class="text-muted">Hace 2 días</small>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-content">
+                            <h6>En Diagnóstico</h6>
+                            <p class="text-muted">El técnico está evaluando el problema</p>
+                            <small class="text-muted">Hace 1 día</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }, 1000);
+    }
+
+    // Funciones para manejar borradores
+    function completarBorrador(ordenId) {
+        if (confirm('¿Estás seguro de que quieres completar este borrador y convertirlo en una orden activa?')) {
+            fetch(`/servicio-tecnico/orden/${ordenId}/completar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarNotificacion('Borrador completado correctamente', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    mostrarNotificacion(data.message || 'Error al completar el borrador', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarNotificacion('Error al completar el borrador', 'danger');
+            });
+        }
+    }
+
+    function eliminarBorrador(ordenId) {
+        if (confirm('¿Estás seguro de que quieres eliminar este borrador? Esta acción no se puede deshacer.')) {
+            fetch(`/servicio-tecnico/orden/${ordenId}/eliminar`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarNotificacion('Borrador eliminado correctamente', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    mostrarNotificacion(data.message || 'Error al eliminar el borrador', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarNotificacion('Error al eliminar el borrador', 'danger');
+            });
+        }
+    }
+
+    // Funciones de utilidad
+    function actualizarContadorResultados(visibleCount = null) {
+        const total = document.querySelectorAll('.orden-row').length;
+        const visible = visibleCount !== null ? visibleCount : document.querySelectorAll('.orden-row:not([style*="display: none"])').length;
+        
+        document.getElementById('contador-resultados').textContent = visible;
+        document.getElementById('total-ordenes').textContent = total;
+    }
+
+    function inicializarTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    function mostrarNotificacion(mensaje, tipo = 'info') {
+        // Crear notificación
+        const notificacion = document.createElement('div');
+        notificacion.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+        notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notificacion.innerHTML = `
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notificacion);
+        
+        // Auto-remover después de 3 segundos
+        setTimeout(() => {
+            if (notificacion.parentNode) {
+                notificacion.remove();
+            }
+        }, 3000);
+    }
+
+    // Funciones básicas del servicio técnico (mantener compatibilidad)
+    function aplicarFiltros() {
+        aplicarFiltrosTiempoReal();
+    }
+
+    function actualizarEstado(ordenId) {
+        document.getElementById('orden-id-estado').value = ordenId;
+        const modal = new bootstrap.Modal(document.getElementById('modalActualizarEstado'));
+        modal.show();
+    }
+
+function guardarEstado() {
+    const ordenId = document.getElementById('orden-id-estado').value;
+    const nuevoEstado = document.getElementById('nuevo-estado').value;
+    const observaciones = document.getElementById('observaciones-estado').value;
+    
+    if (!nuevoEstado) {
+        alert('Por favor seleccione un estado');
+        return;
+    }
+    
+    // Enviar datos al servidor
+    fetch(`/servicio-tecnico/orden/${ordenId}/actualizar-estado`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            estado: nuevoEstado,
+            observaciones: observaciones
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Estado actualizado exitosamente');
+            location.reload();
+        } else {
+            alert('Error al actualizar el estado: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al actualizar el estado');
+    });
+}
+
+function generarReporte(ordenId) {
+    window.open(`/servicio-tecnico/orden/${ordenId}/reporte`, '_blank');
+}
+
+// Función para guardar asignación de técnico
+function guardarAsignacionTecnico() {
+    console.log('DEBUG: Guardando asignación de técnico');
+    
+    const ordenId = document.getElementById('orden-id-tecnico').value;
+    const tecnicoNombre = document.getElementById('tecnico-nombre').value;
+    const tecnicoEspecialidad = document.getElementById('tecnico-especialidad').value;
+    const tecnicoTelefono = document.getElementById('tecnico-telefono').value;
+    const tecnicoEmail = document.getElementById('tecnico-email').value;
+    const observaciones = document.getElementById('tecnico-observaciones').value;
+    
+    console.log('DEBUG: Datos del formulario:', { ordenId, tecnicoNombre, tecnicoEspecialidad });
+    
+    if (!tecnicoNombre.trim()) {
+        alert('El nombre del técnico es requerido');
+        return;
+    }
+    
+    // Mostrar loading
+    const btnGuardar = document.querySelector('#modalAsignarTecnico .btn-primary');
+    const textoOriginal = btnGuardar.innerHTML;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Asignando...';
+    btnGuardar.disabled = true;
+    
+    // Enviar datos al servidor
+    fetch(`/servicio-tecnico/orden/${ordenId}/asignar-tecnico`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            tecnico_nombre: tecnicoNombre,
+            tecnico_especialidad: tecnicoEspecialidad,
+            tecnico_telefono: tecnicoTelefono,
+            tecnico_email: tecnicoEmail,
+            observaciones: observaciones
+        })
+    })
+    .then(response => {
+        console.log('Respuesta recibida:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Datos recibidos:', data);
+        if (data.success) {
+            // Mostrar notificación de éxito
+            alert('Técnico asignado exitosamente: ' + data.message);
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAsignarTecnico'));
+            modal.hide();
+            
+            // Recargar la página para mostrar cambios
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        alert('Error al asignar técnico: ' + error.message);
+    })
+    .finally(() => {
+        // Restaurar botón
+        btnGuardar.innerHTML = textoOriginal;
+        btnGuardar.disabled = false;
+    });
+}
+
+// Función para cargar información de la orden en el modal
+function cargarInfoOrdenModal(ordenId) {
+    console.log('DEBUG: Cargando información para orden:', ordenId);
+    
+    // Obtener datos de la orden desde la tabla
+    const ordenRows = document.querySelectorAll('.orden-row');
+    let ordenRow = null;
+    
+    // Buscar la fila que contiene el ID de la orden
+    ordenRows.forEach(row => {
+        const numeroOrdenElement = row.querySelector('.numero-orden');
+        if (numeroOrdenElement && numeroOrdenElement.textContent.includes(ordenId)) {
+            ordenRow = row;
+        }
+    });
+    
+    if (ordenRow) {
+        const numeroOrden = ordenRow.querySelector('.numero-orden')?.textContent || `#${ordenId}`;
+        const cliente = ordenRow.querySelector('.cliente-nombre')?.textContent || 'No disponible';
+        const equipo = ordenRow.querySelector('.equipo-info')?.textContent || 'No disponible';
+        const estado = ordenRow.querySelector('.estado-badge')?.textContent || 'No disponible';
+        
+        document.getElementById('info-numero-orden').textContent = numeroOrden;
+        document.getElementById('info-cliente').textContent = cliente;
+        document.getElementById('info-equipo').textContent = equipo;
+        document.getElementById('info-estado').textContent = estado;
+        
+        console.log('DEBUG: Información cargada:', { numeroOrden, cliente, equipo, estado });
+    } else {
+        // Fallback si no se encuentra la fila
+        document.getElementById('info-numero-orden').textContent = `#${ordenId}`;
+        document.getElementById('info-cliente').textContent = 'Cargando...';
+        document.getElementById('info-equipo').textContent = 'Cargando...';
+        document.getElementById('info-estado').textContent = 'Cargando...';
+        
+        console.log('DEBUG: Usando información de fallback');
+    }
+}
+
+// Función para buscar clientes en el modal
+function buscarClientesModal(query) {
+    const listaClientes = document.getElementById('lista-clientes-modal');
+    
+    if (query.length < 2) {
+        listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-search me-2"></i>Escriba para buscar clientes existentes</div>';
+        return;
+    }
+    
+    fetch(`/api/buscar-clientes?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            listaClientes.innerHTML = '';
+            
+            if (data.clientes && data.clientes.length > 0) {
+                data.clientes.forEach(cliente => {
+                    const item = document.createElement('div');
+                    item.className = 'list-group-item list-group-item-action';
+                    item.style.cursor = 'pointer';
+                    item.innerHTML = `
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${cliente.nombre}</h6>
+                        </div>
+                        <p class="mb-1"><i class="fas fa-id-card me-2"></i>${cliente.rif || cliente.cedula_rif || 'Sin cédula'}</p>
+                        <small><i class="fas fa-phone me-2"></i>${cliente.telefono || 'Sin teléfono'}</small>
+                    `;
+                    item.addEventListener('click', function() {
+                        seleccionarClienteModal(cliente);
+                    });
+                    listaClientes.appendChild(item);
+                });
+            } else {
+                listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-exclamation-circle me-2"></i>No se encontraron clientes</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error buscando clientes:', error);
+            listaClientes.innerHTML = '<div class="list-group-item text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error al buscar clientes</div>';
+        });
+}
+
+// Función para seleccionar un cliente del modal
+function seleccionarClienteModal(cliente) {
+    // Mostrar información del cliente seleccionado
+    document.getElementById('nombre-cliente-seleccionado').textContent = cliente.nombre;
+    document.getElementById('info-cliente-seleccionado').style.display = 'block';
+    
+    // Actualizar el badge de cliente en la pestaña de detalles
+    document.getElementById('info-cliente').textContent = cliente.nombre;
+    
+    // Mostrar notificación
+    mostrarNotificacion(`Cliente "${cliente.nombre}" seleccionado`, 'success');
+}
+</script>
+
+<!-- Modal Asignar Técnico -->
+<div class="modal fade" id="modalAsignarTecnico" tabindex="-1" aria-labelledby="modalAsignarTecnicoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAsignarTecnicoLabel">
+                    <i class="fas fa-user-tie me-2"></i>Asignar Técnico
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Pestañas -->
+                <ul class="nav nav-tabs mb-3" id="pestañas-asignar-tecnico" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-detalles-tecnico" data-bs-toggle="tab" data-bs-target="#pestana-detalles-tecnico" 
+                                type="button" role="tab" aria-selected="true">
+                            <i class="fas fa-user-tie me-2"></i>Detalles del Técnico
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-seleccionar-cliente" data-bs-toggle="tab" data-bs-target="#pestana-seleccionar-cliente" 
+                                type="button" role="tab" aria-selected="false">
+                            <i class="fas fa-users me-2"></i>Seleccionar Cliente
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Contenido de pestañas -->
+                <div class="tab-content" id="contenido-pestanas">
+                    <!-- Pestaña 1: Detalles del Técnico -->
+                    <div class="tab-pane fade show active" id="pestana-detalles-tecnico" role="tabpanel">
+                        <form id="formAsignarTecnico">
+                            <input type="hidden" id="orden-id-tecnico" name="orden_id">
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="tecnico-nombre" class="form-label">Nombre del Técnico</label>
+                                    <input type="text" id="tecnico-nombre" name="tecnico_nombre" class="form-control" 
+                                           placeholder="Ingrese el nombre completo del técnico" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="tecnico-especialidad" class="form-label">Especialidad</label>
+                                    <select id="tecnico-especialidad" name="tecnico_especialidad" class="form-control">
+                                        <option value="">Seleccionar especialidad...</option>
+                                        <option value="general">Técnico General</option>
+                                        <option value="smartphones">Smartphones y Tablets</option>
+                                        <option value="laptops">Laptops y Computadoras</option>
+                                        <option value="audio">Audio y Sonido</option>
+                                        <option value="video">Video y Televisión</option>
+                                        <option value="electrodomesticos">Electrodomésticos</option>
+                                        <option value="gaming">Gaming y Consolas</option>
+                                        <option value="redes">Redes y Comunicaciones</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="tecnico-telefono" class="form-label">Teléfono de Contacto</label>
+                                    <input type="tel" id="tecnico-telefono" name="tecnico_telefono" class="form-control" 
+                                           placeholder="Número de teléfono del técnico">
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="tecnico-email" class="form-label">Email de Contacto</label>
+                                    <input type="email" id="tecnico-email" name="tecnico_email" class="form-control" 
+                                           placeholder="Email del técnico">
+                                </div>
+                                
+                                <div class="col-12 mb-3">
+                                    <label for="tecnico-observaciones" class="form-label">Observaciones</label>
+                                    <textarea id="tecnico-observaciones" name="tecnico_observaciones" class="form-control" rows="3" 
+                                              placeholder="Notas adicionales sobre la asignación del técnico..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Información de la orden -->
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Información de la Orden</h6>
+                                <p class="mb-2">
+                                    <strong>Orden:</strong> 
+                                    <span class="badge bg-primary" id="info-numero-orden">-</span>
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Cliente:</strong> 
+                                    <span class="badge bg-secondary" id="info-cliente">-</span>
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Equipo:</strong> 
+                                    <span class="badge bg-secondary" id="info-equipo">-</span>
+                                </p>
+                                <p class="mb-0">
+                                    <strong>Estado Actual:</strong> 
+                                    <span class="badge bg-primary" id="info-estado">-</span>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Pestaña 2: Seleccionar Cliente -->
+                    <div class="tab-pane fade" id="pestana-seleccionar-cliente" role="tabpanel">
+                        <div class="mb-3">
+                            <label for="buscar-cliente-modal" class="form-label">
+                                <i class="fas fa-search me-2"></i>Buscar Cliente
+                            </label>
+                            <input type="text" id="buscar-cliente-modal" class="form-control" 
+                                   placeholder="Escriba para buscar clientes..." 
+                                   onkeyup="buscarClientesModal(this.value)">
+                        </div>
+                        
+                        <div id="lista-clientes-modal" class="list-group" style="max-height: 300px; overflow-y: auto;">
+                            <div class="list-group-item text-center text-muted">
+                                <i class="fas fa-search me-2"></i>
+                                Escriba para buscar clientes existentes
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3" id="info-cliente-seleccionado" style="display: none;">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Cliente seleccionado:</strong> <span id="nombre-cliente-seleccionado"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="guardarAsignacionTecnico()">
+                    <i class="fas fa-user-check me-2"></i>Asignar Técnico
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,1295 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Inventario Neomórfico{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporte_neomorfico_mejorado.css') }}?v=2.0">
+<style>
+/* Estilos Neomórficos para el Reporte */
+body {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
+}
+
+/* Reset y estilos base */
+* {
+    box-sizing: border-box;
+}
+
+/* Sobrescribir estilos de Bootstrap */
+.card, .card-body, .card-header, .card-footer {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        20px 20px 60px #d1d9e6,
+        -20px -20px 60px #ffffff !important;
+}
+
+.btn {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    color: #2d3748 !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+}
+
+.btn:active {
+    transform: translateY(0) !important;
+    box-shadow: 
+        4px 4px 8px #d1d9e6,
+        -4px -4px 8px #ffffff !important;
+}
+
+.table {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+    overflow: hidden !important;
+}
+
+.table th, .table td {
+    border: none !important;
+    background: transparent !important;
+    padding: 1rem !important;
+}
+
+.table th {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    color: #2d3748 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.5px !important;
+}
+
+.table tbody tr:hover {
+    background: rgba(102, 126, 234, 0.1) !important;
+    transform: translateY(-2px) !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Estilo Neomórfico para Reporte */
+.reporte-container {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.reporte-header {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+    text-align: center !important;
+}
+
+.reporte-title {
+    color: #2d3748 !important;
+    font-size: 3rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 1rem !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.reporte-date {
+    color: #718096 !important;
+    font-size: 1.2rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.reporte-tasa {
+    color: #4a5568 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+.reporte-actions {
+    display: flex !important;
+    gap: 1.5rem !important;
+    margin-bottom: 3rem !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+}
+
+.neo-btn {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 1rem 2rem !important;
+    box-shadow: 
+        10px 10px 20px #d1d9e6,
+        -10px -10px 20px #ffffff !important;
+    color: #2d3748 !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.neo-btn:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    color: #2d3748 !important;
+    text-decoration: none !important;
+}
+
+.neo-btn:active {
+    transform: translateY(-1px) !important;
+    box-shadow: 
+        5px 5px 10px #d1d9e6,
+        -5px -5px 10px #ffffff !important;
+}
+
+.neo-btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    box-shadow: 
+        10px 10px 20px rgba(102, 126, 234, 0.3),
+        -10px -10px 20px rgba(118, 75, 162, 0.3) !important;
+}
+
+.neo-btn-secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    box-shadow: 
+        10px 10px 20px rgba(240, 147, 251, 0.3),
+        -10px -10px 20px rgba(245, 87, 108, 0.3) !important;
+}
+
+.resumen-general {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.section-title {
+    color: #2d3748 !important;
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 2rem !important;
+    text-align: center !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.resumen-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+    gap: 2rem !important;
+    margin-top: 2rem !important;
+}
+
+.resumen-item {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    text-align: center !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    transition: all 0.3s ease !important;
+}
+
+.resumen-item:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        20px 20px 40px #d1d9e6,
+        -20px -20px 40px #ffffff !important;
+}
+
+.resumen-icon {
+    font-size: 3rem !important;
+    color: #667eea !important;
+    margin-bottom: 1rem !important;
+}
+
+.resumen-label {
+    color: #718096 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.resumen-value {
+    color: #2d3748 !important;
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.tipo-section {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.tipo-summary {
+    display: flex !important;
+    gap: 1rem !important;
+    margin-bottom: 2rem !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+}
+
+.badge {
+    background: #f0f0f3 !important;
+    border-radius: 15px !important;
+    padding: 0.8rem 1.5rem !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    color: #2d3748 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+}
+
+.neo-badge-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 16px rgba(79, 172, 254, 0.3),
+        -8px -8px 16px rgba(0, 242, 254, 0.3) !important;
+}
+
+.neo-badge-success {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 16px rgba(67, 233, 123, 0.3),
+        -8px -8px 16px rgba(56, 249, 215, 0.3) !important;
+}
+
+.categoria-section {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+}
+
+.category-title {
+    color: #2d3748 !important;
+    font-size: 1.8rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.5rem !important;
+    text-align: center !important;
+}
+
+.categoria-summary {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 1rem !important;
+    margin-bottom: 2rem !important;
+}
+
+.categoria-stat {
+    background: #f0f0f3 !important;
+    border-radius: 15px !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    color: #4a5568 !important;
+    font-weight: 600 !important;
+}
+
+.productos-table {
+    width: 100% !important;
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    overflow: hidden !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+}
+
+.no-productos {
+    text-align: center !important;
+    color: #718096 !important;
+    font-style: italic !important;
+    padding: 2rem !important;
+    background: #f0f0f3 !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+}
+
+.total-general-footer {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-top: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.no-productos-inventario {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 4rem !important;
+    text-align: center !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem !important;
+    }
+    
+    .reporte-title {
+        font-size: 2rem !important;
+    }
+    
+    .section-title {
+        font-size: 1.8rem !important;
+    }
+    
+    .resumen-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .reporte-actions {
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    
+    .neo-btn {
+        width: 100% !important;
+        max-width: 300px !important;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.reporte-container > * {
+    animation: fadeInUp 0.6s ease-out !important;
+}
+
+.reporte-container > *:nth-child(2) {
+    animation-delay: 0.1s !important;
+}
+
+.reporte-container > *:nth-child(3) {
+    animation-delay: 0.2s !important;
+}
+
+.reporte-container > *:nth-child(4) {
+    animation-delay: 0.3s !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<style>
+/* Estilos críticos inline para forzar aplicación */
+body {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.container {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
+}
+
+.reporte-container {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.reporte-header {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+    text-align: center !important;
+}
+
+.reporte-title {
+    color: #2d3748 !important;
+    font-size: 3rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 1rem !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.neo-btn {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 1rem 2rem !important;
+    box-shadow: 
+        10px 10px 20px #d1d9e6,
+        -10px -10px 20px #ffffff !important;
+    color: #2d3748 !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.neo-btn:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    color: #2d3748 !important;
+    text-decoration: none !important;
+}
+
+.neo-btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    box-shadow: 
+        10px 10px 20px rgba(102, 126, 234, 0.3),
+        -10px -10px 20px rgba(118, 75, 162, 0.3) !important;
+}
+
+.neo-btn-secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    box-shadow: 
+        10px 10px 20px rgba(240, 147, 251, 0.3),
+        -10px -10px 20px rgba(245, 87, 108, 0.3) !important;
+}
+
+.resumen-general {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.section-title {
+    color: #2d3748 !important;
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 2rem !important;
+    text-align: center !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.resumen-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+    gap: 2rem !important;
+    margin-top: 2rem !important;
+}
+
+.resumen-item {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    text-align: center !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    transition: all 0.3s ease !important;
+}
+
+.resumen-item:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        20px 20px 40px #d1d9e6,
+        -20px -20px 40px #ffffff !important;
+}
+
+.resumen-icon {
+    font-size: 3rem !important;
+    color: #667eea !important;
+    margin-bottom: 1rem !important;
+}
+
+.resumen-label {
+    color: #718096 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.resumen-value {
+    color: #2d3748 !important;
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.tipo-section {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 3rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.table {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+    overflow: hidden !important;
+}
+
+.table th, .table td {
+    border: none !important;
+    background: transparent !important;
+    padding: 1rem !important;
+}
+
+.table th {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    color: #2d3748 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.5px !important;
+}
+
+.table tbody tr:hover {
+    background: rgba(102, 126, 234, 0.1) !important;
+    transform: translateY(-2px) !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Estilos para Pestañas Neomórficas */
+.tabs-container {
+    background: #f0f0f3 !important;
+    border-radius: 25px !important;
+    padding: 2rem !important;
+    margin-bottom: 3rem !important;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff !important;
+}
+
+.neo-tabs {
+    border: none !important;
+    margin-bottom: 2rem !important;
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    padding: 0.5rem !important;
+    box-shadow: 
+        inset 5px 5px 10px #d1d9e6,
+        inset -5px -5px 10px #ffffff !important;
+}
+
+.neo-tab-link {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 1rem 1.5rem !important;
+    margin: 0.2rem !important;
+    color: #4a5568 !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    position: relative !important;
+}
+
+.neo-tab-link:hover {
+    background: #f0f0f3 !important;
+    color: #2d3748 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        5px 5px 10px #d1d9e6,
+        -5px -5px 10px #ffffff !important;
+}
+
+.neo-tab-link.active {
+    background: #f0f0f3 !important;
+    color: #2d3748 !important;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+.neo-badge-count {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    padding: 0.3rem 0.6rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    box-shadow: 
+        3px 3px 6px rgba(102, 126, 234, 0.3),
+        -3px -3px 6px rgba(118, 75, 162, 0.3) !important;
+}
+
+.neo-tab-content {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+.tipo-summary-card {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff !important;
+    text-align: center !important;
+}
+
+.tipo-title {
+    color: #2d3748 !important;
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.5rem !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.tipo-summary {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 1.5rem !important;
+    margin-top: 1rem !important;
+}
+
+.summary-item {
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    box-shadow: 
+        inset 3px 3px 6px #d1d9e6,
+        inset -3px -3px 6px #ffffff !important;
+    transition: all 0.3s ease !important;
+}
+
+.summary-item:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        5px 5px 10px #d1d9e6,
+        -5px -5px 10px #ffffff !important;
+}
+
+.summary-item i {
+    font-size: 2rem !important;
+    color: #667eea !important;
+    margin-bottom: 0.5rem !important;
+    display: block !important;
+}
+
+.summary-label {
+    color: #718096 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    display: block !important;
+    margin-bottom: 0.3rem !important;
+}
+
+.summary-value {
+    color: #2d3748 !important;
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1) !important;
+    display: block !important;
+}
+
+.categoria-section {
+    background: #f0f0f3 !important;
+    border-radius: 20px !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 
+        12px 12px 24px #d1d9e6,
+        -12px -12px 24px #ffffff !important;
+}
+
+.category-title {
+    color: #2d3748 !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+}
+
+.category-badge {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        3px 3px 6px rgba(67, 233, 123, 0.3),
+        -3px -3px 6px rgba(56, 249, 215, 0.3) !important;
+}
+
+.categoria-summary {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-around !important;
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+    padding: 1rem !important;
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        inset 2px 2px 5px #d1d9e6,
+        inset -2px -2px 5px #ffffff !important;
+}
+
+.categoria-stat {
+    text-align: center !important;
+    color: #4a5568 !important;
+    font-size: 0.9rem !important;
+}
+
+.categoria-stat strong {
+    display: block !important;
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    color: #2d3748 !important;
+    margin-bottom: 0.2rem !important;
+}
+
+.no-productos {
+    text-align: center !important;
+    color: #718096 !important;
+    padding: 2rem !important;
+    background: #e0e0e3 !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        inset 2px 2px 5px #d1d9e6,
+        inset -2px -2px 5px #ffffff !important;
+    font-style: italic !important;
+}
+
+/* Mejoras adicionales para organización */
+.tipo-summary-card {
+    margin-bottom: 2rem !important;
+}
+
+.categoria-section {
+    margin-bottom: 1.5rem !important;
+}
+
+.categoria-section:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Mejoras en las tablas */
+.productos-table {
+    margin-top: 1rem !important;
+}
+
+.productos-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+}
+
+/* Mejoras en responsive */
+@media (max-width: 992px) {
+    .tipo-summary {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .categoria-summary {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .tipo-summary {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .categoria-summary {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .neo-tab-link {
+        padding: 0.8rem 1rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .neo-badge-count {
+        font-size: 0.7rem !important;
+        padding: 0.2rem 0.4rem !important;
+    }
+}
+
+/* Animaciones suaves */
+.tab-pane {
+    transition: opacity 0.3s ease-in-out !important;
+}
+
+.neo-tab-link {
+    transition: all 0.3s ease !important;
+}
+
+/* Mejoras en la visualización de datos */
+.resumen-value {
+    word-break: break-word !important;
+}
+
+.summary-value {
+    word-break: break-word !important;
+}
+
+/* Estilos para impresión */
+@media print {
+    .neo-btn {
+        display: none !important;
+    }
+    
+    .tabs-container {
+        box-shadow: none !important;
+    }
+    
+    .neo-tabs {
+        display: none !important;
+    }
+    
+    .tab-content {
+        display: block !important;
+    }
+    
+    .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+}
+</style>
+
+<div class="reporte-container">
+    <div class="container">
+        <!-- Header, Date, BCV Rate -->
+        <div class="reporte-header">
+            <h1 class="reporte-title">📊 Reporte de Inventario</h1>
+            <p class="reporte-date">📅 Fecha del Reporte: {{ fecha_reporte }}</p>
+            <p class="reporte-tasa">💱 Tasa BCV: <strong>{{ "%.4f"|format(tasa_bcv) }} Bs/USD</strong></p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="reporte-actions">
+            <a href="{{ url_for('mostrar_inventario') }}" class="neo-btn neo-btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al Inventario
+            </a>
+            <button class="neo-btn neo-btn-primary" onclick="window.print()">
+                <i class="fas fa-print"></i> Imprimir Reporte
+            </button>
+            <button class="neo-btn neo-btn-primary" onclick="exportarReporte()">
+                <i class="fas fa-download"></i> Exportar JSON
+            </button>
+        </div>
+
+        <!-- Campo de búsqueda -->
+        <div class="search-container" style="margin-bottom: 2rem; text-align: center;">
+            <div class="search-box" style="background: #f0f0f3; border-radius: 20px; padding: 1rem; box-shadow: 10px 10px 20px #d1d9e6, -10px -10px 20px #ffffff; max-width: 400px; margin: 0 auto;">
+                <div class="input-group">
+                    <span class="input-group-text" style="background: transparent; border: none; color: #667eea;">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" 
+                           class="form-control" 
+                           id="searchInput" 
+                           placeholder="Buscar productos..." 
+                           onkeyup="filtrarProductos(this.value)"
+                           style="background: transparent; border: none; color: #2d3748; font-weight: 500;">
+                </div>
+            </div>
+        </div>
+
+        <!-- General Summary Section -->
+        <div class="resumen-general">
+            <h2 class="section-title">📈 Resumen General</h2>
+            <div class="resumen-grid">
+                <div class="resumen-item">
+                    <i class="fas fa-box-open resumen-icon"></i>
+                    <p class="resumen-label">Total Productos</p>
+                    <p class="resumen-value">{{ total_general.total_productos }}</p>
+                </div>
+                <div class="resumen-item">
+                    <i class="fas fa-cubes resumen-icon"></i>
+                    <p class="resumen-label">Total en Stock</p>
+                    <p class="resumen-value">{{ total_general.total_stock }}</p>
+                </div>
+                <div class="resumen-item">
+                    <i class="fas fa-dollar-sign resumen-icon"></i>
+                    <p class="resumen-label">Valor Total USD</p>
+                    <p class="resumen-value">${{ "%.2f"|format(total_general.total_valor_usd) }}</p>
+                </div>
+                <div class="resumen-item">
+                    <i class="fas fa-money-bill-wave resumen-icon"></i>
+                    <p class="resumen-label">Valor Total Bs</p>
+                    <p class="resumen-value">{{ "%.2f"|format(total_general.total_valor_bs) }} Bs</p>
+                </div>
+            </div>
+        </div>
+
+         <!-- Pestañas por Tipo -->
+         <div class="tabs-container">
+             <ul class="nav nav-tabs neo-tabs" id="tipoTabs" role="tablist">
+                 {% set tipos_con_productos = [] %}
+                 {% for tipo, tipo_datos in reporte_por_tipo.items() %}
+                     {% if tipo_datos.total_productos > 0 %}
+                         {% set _ = tipos_con_productos.append(tipo) %}
+                     {% endif %}
+                 {% endfor %}
+                 
+                 {% for tipo in tipos_con_productos %}
+                 {% set tipo_datos = reporte_por_tipo[tipo] %}
+                 <li class="nav-item" role="presentation">
+                     <button class="nav-link neo-tab-link {% if loop.first %}active{% endif %}" 
+                             id="{{ tipo }}-tab" 
+                             data-bs-toggle="tab" 
+                             data-bs-target="#{{ tipo }}-pane" 
+                             type="button" 
+                             role="tab" 
+                             aria-controls="{{ tipo }}-pane" 
+                             aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+                         <i class="{{ tipo_datos.icono }} me-2"></i>
+                         {{ tipo_datos.nombre }}
+                         <span class="badge neo-badge-count">{{ tipo_datos.total_productos }}</span>
+                     </button>
+                 </li>
+                 {% endfor %}
+             </ul>
+
+             <div class="tab-content neo-tab-content" id="tipoTabsContent">
+                 {% for tipo in tipos_con_productos %}
+                 {% set tipo_datos = reporte_por_tipo[tipo] %}
+                 <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                      id="{{ tipo }}-pane" 
+                      role="tabpanel" 
+                      aria-labelledby="{{ tipo }}-tab">
+                     
+                     <!-- Resumen del Tipo -->
+                     <div class="tipo-summary-card">
+                         <h3 class="tipo-title">
+                             <i class="{{ tipo_datos.icono }} me-2"></i>{{ tipo_datos.nombre }}
+                         </h3>
+                         <div class="tipo-summary">
+                             <div class="summary-item">
+                                 <i class="fas fa-box-open"></i>
+                                 <span class="summary-label">Productos</span>
+                                 <span class="summary-value">{{ tipo_datos.total_productos }}</span>
+                             </div>
+                             <div class="summary-item">
+                                 <i class="fas fa-cubes"></i>
+                                 <span class="summary-label">Unidades</span>
+                                 <span class="summary-value">{{ tipo_datos.total_stock }}</span>
+                             </div>
+                             <div class="summary-item">
+                                 <i class="fas fa-dollar-sign"></i>
+                                 <span class="summary-label">Valor USD</span>
+                                 <span class="summary-value">${{ "%.2f"|format(tipo_datos.total_valor_usd) }}</span>
+                             </div>
+                             <div class="summary-item">
+                                 <i class="fas fa-money-bill-wave"></i>
+                                 <span class="summary-label">Valor Bs</span>
+                                 <span class="summary-value">{{ "%.2f"|format(tipo_datos.total_valor_bs) }} Bs</span>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Categorías dentro del Tipo -->
+                     {% set categorias_con_productos = [] %}
+                     {% for categoria, cat_datos in tipo_datos.categorias.items() %}
+                         {% if cat_datos.total_productos > 0 %}
+                             {% set _ = categorias_con_productos.append(categoria) %}
+                         {% endif %}
+                     {% endfor %}
+                     
+                     {% if categorias_con_productos %}
+                         {% for categoria in categorias_con_productos %}
+                         {% set cat_datos = tipo_datos.categorias[categoria] %}
+                         <div class="categoria-section">
+                             <h4 class="category-title">
+                                 <i class="fas fa-folder me-2"></i>{{ categoria }}
+                                 <span class="category-badge">{{ cat_datos.total_productos }} productos</span>
+                             </h4>
+
+                             <!-- Tabla de Productos -->
+                             {% if cat_datos.productos %}
+                             <div class="table-responsive">
+                                 <table class="productos-table">
+                                     <thead>
+                                         <tr>
+                                             <th>Producto</th>
+                                             <th>Stock</th>
+                                             <th>Precio USD</th>
+                                             <th>Precio Bs</th>
+                                             <th>Valor Total USD</th>
+                                             <th>Valor Total Bs</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody>
+                                         {% for producto in cat_datos.productos %}
+                                         <tr>
+                                             <td>{{ producto.nombre }}</td>
+                                             <td>{{ producto.cantidad }}</td>
+                                             <td>${{ "%.2f"|format(producto.precio_usd) }}</td>
+                                             <td>{{ "%.2f"|format(producto.precio_bs) }} Bs</td>
+                                             <td>${{ "%.2f"|format(producto.valor_total_usd) }}</td>
+                                             <td>{{ "%.2f"|format(producto.valor_total_bs) }} Bs</td>
+                                         </tr>
+                                         {% endfor %}
+                                     </tbody>
+                                 </table>
+                             </div>
+                             {% else %}
+                             <div class="no-productos">
+                                 <p>No hay productos en esta categoría.</p>
+                             </div>
+                             {% endif %}
+                         </div>
+                         {% endfor %}
+                     {% else %}
+                         <div class="no-productos">
+                             <p>No hay categorías con productos en este tipo.</p>
+                         </div>
+                     {% endif %}
+                 </div>
+                 {% endfor %}
+             </div>
+         </div>
+
+        <!-- Total General Footer -->
+        <div class="total-general-footer">
+            <h2 class="section-title">🎯 Totales Generales del Inventario</h2>
+            <div class="resumen-grid">
+                <div class="resumen-item">
+                    <i class="fas fa-boxes resumen-icon"></i>
+                    <p class="resumen-label">Total Productos</p>
+                    <p class="resumen-value">{{ total_general.total_productos }}</p>
+                </div>
+                <div class="resumen-item">
+                    <i class="fas fa-warehouse resumen-icon"></i>
+                    <p class="resumen-label">Total Unidades</p>
+                    <p class="resumen-value">{{ total_general.total_stock }}</p>
+                </div>
+                <div class="resumen-item">
+                    <i class="fas fa-dollar-sign resumen-icon"></i>
+                    <p class="resumen-label">Valor Total USD</p>
+                    <p class="resumen-value">${{ "%.2f"|format(total_general.total_valor_usd) }}</p>
+                </div>
+                <div class="resumen-item">
+                    <i class="fas fa-money-bill-wave resumen-icon"></i>
+                    <p class="resumen-label">Valor Total Bs</p>
+                    <p class="resumen-value">{{ "%.2f"|format(total_general.total_valor_bs) }} Bs</p>
+                </div>
+            </div>
+        </div>
+
+        {% if not reporte_por_tipo or total_general.total_productos == 0 %}
+        <div class="no-productos-inventario">
+            <h3 style="color: #718096; margin-bottom: 1rem;">📦 No hay productos en el inventario</h3>
+            <p style="color: #718096;">Comienza agregando productos al inventario para generar reportes</p>
+            <a href="{{ url_for('nuevo_producto') }}" class="neo-btn neo-btn-primary" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> Agregar Producto
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Funcionalidad mejorada para las pestañas
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar pestañas de Bootstrap
+    var triggerTabList = [].slice.call(document.querySelectorAll('#tipoTabs button'));
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl);
+        
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault();
+            tabTrigger.show();
+        });
+    });
+    
+    // Agregar efectos visuales adicionales
+    const tabLinks = document.querySelectorAll('.neo-tab-link');
+    tabLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            // Remover clase active de todos los enlaces
+            tabLinks.forEach(l => l.classList.remove('active'));
+            // Agregar clase active al enlace clickeado
+            this.classList.add('active');
+        });
+    });
+    
+    // Mejorar la experiencia de impresión
+    const printBtn = document.querySelector('button[onclick="window.print()"]');
+    if (printBtn) {
+        printBtn.addEventListener('click', function() {
+            // Mostrar todas las pestañas para impresión
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            tabPanes.forEach(pane => {
+                pane.classList.add('show', 'active');
+            });
+            
+            // Esperar un momento antes de imprimir
+            setTimeout(() => {
+                window.print();
+            }, 100);
+        });
+    }
+    
+    // Agregar tooltips a los elementos informativos
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Mejorar la accesibilidad
+    const tabButtons = document.querySelectorAll('.neo-tab-link');
+    tabButtons.forEach((button, index) => {
+        button.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    });
+    
+    // Manejar navegación con teclado
+    tabButtons.forEach(button => {
+        button.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const currentIndex = Array.from(tabButtons).indexOf(this);
+                let nextIndex;
+                
+                if (e.key === 'ArrowRight') {
+                    nextIndex = (currentIndex + 1) % tabButtons.length;
+                } else {
+                    nextIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+                }
+                
+                tabButtons[currentIndex].setAttribute('tabindex', '-1');
+                tabButtons[nextIndex].setAttribute('tabindex', '0');
+                tabButtons[nextIndex].focus();
+                tabButtons[nextIndex].click();
+            }
+        });
+    });
+});
+
+// Función para exportar datos del reporte
+function exportarReporte() {
+    const reporteData = {
+        fecha: document.querySelector('.reporte-date').textContent,
+        tasa_bcv: document.querySelector('.reporte-tasa').textContent,
+        totales: {
+            productos: document.querySelector('.resumen-item:nth-child(1) .resumen-value').textContent,
+            stock: document.querySelector('.resumen-item:nth-child(2) .resumen-value').textContent,
+            valor_usd: document.querySelector('.resumen-item:nth-child(3) .resumen-value').textContent,
+            valor_bs: document.querySelector('.resumen-item:nth-child(4) .resumen-value').textContent
+        }
+    };
+    
+    const dataStr = JSON.stringify(reporteData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reporte_inventario_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+// Función para filtrar productos en tiempo real
+function filtrarProductos(termino) {
+    const tablas = document.querySelectorAll('.productos-table tbody');
+    tablas.forEach(tabla => {
+        const filas = tabla.querySelectorAll('tr');
+        filas.forEach(fila => {
+            const texto = fila.textContent.toLowerCase();
+            if (texto.includes(termino.toLowerCase())) {
+                fila.style.display = '';
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+    });
+}
+</script>
+{% endblock %}

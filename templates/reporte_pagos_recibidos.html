@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Estilo Neomórfico para Reporte de Pagos */
+    .reporte-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #d1d9e6,
+            -20px -20px 60px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .neo-card:hover {
+        box-shadow: 
+            25px 25px 70px #d1d9e6,
+            -25px -25px 70px #ffffff;
+        transform: translateY(-2px);
+    }
+
+    .neo-header {
+        background: linear-gradient(135deg, #e8e8e8 0%, #d1d1d1 100%);
+        border-radius: 25px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #c4c4c4,
+            -20px -20px 60px #ffffff,
+            inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+            inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+        color: #2d3748;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .neo-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+        color: #1a202c;
+        text-shadow: 
+            0 2px 4px rgba(0, 0, 0, 0.1),
+            0 0 20px rgba(0, 255, 136, 0.3);
+        background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .neo-subtitle {
+        font-size: 1.1rem;
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
+        color: #4a5568;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .neo-header .fas {
+        font-size: 2rem;
+        color: #00ff88;
+        text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        position: relative;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 
+            20px 20px 40px #d1d9e6,
+            -20px -20px 40px #ffffff;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #00ff88;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    }
+
+    .stat-label {
+        color: #718096;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.9rem;
+    }
+
+    .filters-section {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .neo-button {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 24px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 
+            6px 6px 12px #d1d9e6,
+            -6px -6px 12px #ffffff;
+        color: #4a5568;
+        cursor: pointer;
+    }
+
+    .neo-button:hover {
+        box-shadow: 
+            8px 8px 16px #d1d9e6,
+            -8px -8px 16px #ffffff;
+        transform: translateY(-1px);
+        text-decoration: none;
+        color: #4a5568;
+    }
+
+    .neo-button:active {
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        transform: translateY(0);
+    }
+
+    .neo-button-primary {
+        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+        color: #000;
+        box-shadow: 
+            0 0 20px rgba(0, 255, 136, 0.5),
+            6px 6px 12px rgba(0, 255, 136, 0.3),
+            -6px -6px 12px rgba(0, 204, 106, 0.3);
+        border: 1px solid #00ff88;
+    }
+
+    .neo-button-primary:hover {
+        box-shadow: 
+            0 0 30px rgba(0, 255, 136, 0.8),
+            8px 8px 16px rgba(0, 255, 136, 0.4),
+            -8px -8px 16px rgba(0, 204, 106, 0.4);
+        color: #000;
+    }
+
+    .neo-button-secondary {
+        background: #f0f0f3;
+        color: #4a5568;
+        box-shadow: 
+            4px 4px 8px #d1d9e6,
+            -4px -4px 8px #ffffff;
+    }
+
+    .neo-input {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 16px;
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        color: #4a5568;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .neo-input:focus {
+        outline: none;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff,
+            0 0 0 3px rgba(0, 255, 136, 0.2);
+    }
+
+    .pagos-table {
+        background: #f0f0f3;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .pagos-table th {
+        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+        color: #000;
+        font-weight: 700;
+        padding: 15px 10px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .pagos-table td {
+        border: 1px solid #e0e0e0;
+        padding: 12px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #2d3748;
+    }
+
+    .pagos-table tr:nth-child(even) {
+        background: #f8f9fa;
+    }
+
+    .pagos-table tr:nth-child(odd) {
+        background: white;
+    }
+
+    .pagos-table tr:hover {
+        background: #e3f2fd;
+    }
+
+    .metodo-badge {
+        padding: 4px 8px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .metodo-efectivo {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+
+    .metodo-transferencia {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+    }
+
+    .metodo-pago-movil {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+    }
+
+    .metodo-zelle {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+
+    .metodo-divisas {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+
+    .estadisticas-metodo {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 2rem;
+        border-left: 4px solid #2196f3;
+    }
+
+    .estadisticas-metodo h3 {
+        color: #1976d2;
+        font-weight: 700;
+        margin-bottom: 15px;
+        font-size: 16px;
+    }
+
+    .metodo-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(33, 150, 243, 0.2);
+    }
+
+    .metodo-item:last-child {
+        border-bottom: none;
+    }
+
+    .metodo-name {
+        font-weight: 600;
+        color: #1976d2;
+    }
+
+    .metodo-stats {
+        color: #424242;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #718096;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        color: #cbd5e0;
+    }
+
+    .empty-state h3 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: #4a5568;
+    }
+
+    .empty-state p {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .reporte-container {
+            padding: 1rem 0;
+        }
+        
+        .neo-card {
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .neo-header {
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .pagos-table {
+            font-size: 0.8rem;
+        }
+        
+        .pagos-table th,
+        .pagos-table td {
+            padding: 8px 6px;
+        }
+    }
+</style>
+
+<div class="reporte-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="neo-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="neo-title">
+                        <i class="fas fa-chart-line me-3"></i>
+                        Reporte de Pagos Recibidos
+                    </h1>
+                    <p class="neo-subtitle">Análisis y estadísticas de pagos recibidos</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/pagos-recibidos/exportar?{{ request.query_string.decode() }}" class="neo-button neo-button-secondary me-2">
+                        <i class="fas fa-download me-2"></i>
+                        Exportar CSV
+                    </a>
+                    <a href="/pagos-recibidos" class="neo-button neo-button-primary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas Generales -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <i class="fas fa-receipt stat-icon"></i>
+                <div class="stat-number">{{ total_pagos }}</div>
+                <div class="stat-label">Total Pagos</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-dollar-sign stat-icon"></i>
+                <div class="stat-number">${{ total_usd|money }}</div>
+                <div class="stat-label">Total USD</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-coins stat-icon"></i>
+                <div class="stat-number">Bs {{ total_bs|money }}</div>
+                <div class="stat-label">Total Bs</div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-section">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Desde</label>
+                    <input type="date" name="fecha_desde" class="neo-input" value="{{ fecha_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Hasta</label>
+                    <input type="date" name="fecha_hasta" class="neo-input" value="{{ fecha_hasta }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Método de Pago</label>
+                    <select name="metodo" class="neo-input">
+                        <option value="">Todos los métodos</option>
+                        {% for metodo in metodos_pago %}
+                        <option value="{{ metodo }}" {% if metodo_filtro == metodo %}selected{% endif %}>{{ metodo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Cliente</label>
+                    <select name="cliente" class="neo-input">
+                        <option value="">Todos los clientes</option>
+                        {% for id, cliente in clientes.items() %}
+                        <option value="{{ cliente.nombre }}" {% if cliente_filtro == cliente.nombre %}selected{% endif %}>{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="neo-button neo-button-primary">
+                            <i class="fas fa-search me-2"></i>
+                            Aplicar Filtros
+                        </button>
+                        <a href="/pagos-recibidos/reporte" class="neo-button neo-button-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            Limpiar Filtros
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Estadísticas por Método -->
+        {% if estadisticas_metodo %}
+        <div class="estadisticas-metodo">
+            <h3><i class="fas fa-chart-pie me-2"></i>Estadísticas por Método de Pago</h3>
+            {% for metodo, stats in estadisticas_metodo.items() %}
+            <div class="metodo-item">
+                <span class="metodo-name">{{ metodo }}</span>
+                <span class="metodo-stats">
+                    {{ stats.cantidad }} pagos | 
+                    ${{ "%.2f"|format(stats.total_usd) }} USD | 
+                    Bs {{ "%.2f"|format(stats.total_bs) }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Tabla de Pagos -->
+        {% if pagos %}
+        <div class="neo-card">
+            <h3><i class="fas fa-list me-2"></i>Lista de Pagos</h3>
+            <div class="table-responsive">
+                <table class="table pagos-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Monto USD</th>
+                            <th>Monto Bs</th>
+                            <th>Método</th>
+                            <th>Referencia</th>
+                            <th>Fecha</th>
+                            <th>Nota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for id, pago in pagos.items() %}
+                        <tr>
+                            <td>{{ pago.id[:8] }}...</td>
+                            <td>{{ pago.cliente }}</td>
+                            <td>${{ pago.monto_usd|money }}</td>
+                            <td>Bs {{ pago.monto_bs|money }}</td>
+                            <td>
+                                <span class="metodo-badge metodo-{{ pago.metodo_pago.lower().replace(' ', '-') }}">
+                                    {{ pago.metodo_pago }}
+                                </span>
+                            </td>
+                            <td>{{ pago.numero_referencia or '-' }}</td>
+                            <td>{{ pago.fecha }}</td>
+                            <td>{{ pago.numero_nota or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="neo-card">
+            <div class="empty-state">
+                <i class="fas fa-chart-line"></i>
+                <h3>No hay pagos para mostrar</h3>
+                <p>No se encontraron pagos con los filtros aplicados</p>
+                <a href="/pagos-recibidos" class="neo-button neo-button-primary">
+                    <i class="fas fa-list me-2"></i>
+                    Ver Todos los Pagos
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Auto-submit del formulario de filtros
+    document.querySelectorAll('select[name="metodo"], select[name="cliente"]').forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+</script>
+{% endblock %}
+
+

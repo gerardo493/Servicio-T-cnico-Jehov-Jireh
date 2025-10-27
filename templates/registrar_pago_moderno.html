@@ -1,0 +1,687 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Pago - Sistema Moderno{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Estilo Neomórfico Moderno para Registro de Pagos */
+    .pago-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #d1d9e6,
+            -20px -20px 60px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .neo-card:hover {
+        box-shadow: 
+            25px 25px 70px #d1d9e6,
+            -25px -25px 70px #ffffff;
+        transform: translateY(-2px);
+    }
+
+    .neo-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 25px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px rgba(102, 126, 234, 0.3),
+            -20px -20px 60px rgba(118, 75, 162, 0.3);
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .neo-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.3;
+    }
+
+    .neo-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .neo-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-section {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .section-title i {
+        font-size: 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #4a5568;
+    }
+
+    .info-value {
+        font-weight: 500;
+        color: #2d3748;
+    }
+
+    .form-section {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .neo-input {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 15px 20px;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff;
+        color: #2d3748;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 1rem;
+    }
+
+    .neo-input:focus {
+        outline: none;
+        box-shadow: 
+            inset 8px 8px 16px #d1d9e6,
+            inset -8px -8px 16px #ffffff;
+    }
+
+    .neo-select {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 15px 20px;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff;
+        color: #2d3748;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .neo-select:focus {
+        outline: none;
+        box-shadow: 
+            inset 8px 8px 16px #d1d9e6,
+            inset -8px -8px 16px #ffffff;
+    }
+
+    .neo-textarea {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 15px 20px;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff;
+        color: #2d3748;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+        font-size: 1rem;
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .neo-textarea:focus {
+        outline: none;
+        box-shadow: 
+            inset 8px 8px 16px #d1d9e6,
+            inset -8px -8px 16px #ffffff;
+    }
+
+    .neo-button {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 15px 30px;
+        box-shadow: 
+            6px 6px 12px #d1d9e6,
+            -6px -6px 12px #ffffff;
+        color: #4a5568;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1rem;
+        text-decoration: none;
+    }
+
+    .neo-button:hover {
+        box-shadow: 
+            8px 8px 16px #d1d9e6,
+            -8px -8px 16px #ffffff;
+        transform: translateY(-1px);
+        text-decoration: none;
+        color: #4a5568;
+    }
+
+    .neo-button:active {
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        transform: translateY(0);
+    }
+
+    .neo-button-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 
+            6px 6px 12px rgba(102, 126, 234, 0.3),
+            -6px -6px 12px rgba(118, 75, 162, 0.3);
+    }
+
+    .neo-button-primary:hover {
+        box-shadow: 
+            8px 8px 16px rgba(102, 126, 234, 0.4),
+            -8px -8px 16px rgba(118, 75, 162, 0.4);
+        color: white;
+    }
+
+    .neo-button-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 
+            6px 6px 12px rgba(16, 185, 129, 0.3),
+            -6px -6px 12px rgba(5, 150, 105, 0.3);
+    }
+
+    .neo-button-success:hover {
+        box-shadow: 
+            8px 8px 16px rgba(16, 185, 129, 0.4),
+            -8px -8px 16px rgba(5, 150, 105, 0.4);
+        color: white;
+    }
+
+    .neo-button-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        box-shadow: 
+            6px 6px 12px rgba(239, 68, 68, 0.3),
+            -6px -6px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    .neo-button-danger:hover {
+        box-shadow: 
+            8px 8px 16px rgba(239, 68, 68, 0.4),
+            -8px -8px 16px rgba(220, 38, 38, 0.4);
+        color: white;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .resumen-pago {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            15px 15px 30px rgba(102, 126, 234, 0.3),
+            -15px -15px 30px rgba(118, 75, 162, 0.3);
+        color: white;
+    }
+
+    .resumen-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .resumen-item:last-child {
+        border-bottom: none;
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+
+    .resumen-label {
+        font-weight: 500;
+    }
+
+    .resumen-value {
+        font-weight: 600;
+    }
+
+    .pagos-historial {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            15px 15px 30px #d1d9e6,
+            -15px -15px 30px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .pago-item {
+        background: #f0f0f3;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 
+            8px 8px 16px #d1d9e6,
+            -8px -8px 16px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .pago-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .pago-fecha {
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .pago-monto {
+        font-weight: 700;
+        color: #10b981;
+        font-size: 1.1rem;
+    }
+
+    .pago-metodo {
+        color: #718096;
+        font-size: 0.9rem;
+    }
+
+    .pago-observaciones {
+        color: #4a5568;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .pago-container {
+            padding: 1rem 0;
+        }
+        
+        .neo-card {
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .neo-header {
+            padding: 2rem;
+        }
+        
+        .neo-title {
+            font-size: 2rem;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+    }
+</style>
+
+<div class="pago-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="neo-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="neo-title">
+                        <i class="fas fa-credit-card me-3"></i>
+                        Registrar Pago
+                    </h1>
+                    <p class="neo-subtitle">Registrar pago para la nota de entrega {{ nota.numero }}</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('mostrar_cuentas_por_cobrar') }}" class="neo-button">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información de la Nota -->
+        <div class="info-grid">
+            <div class="info-section">
+                <h3 class="section-title">
+                    <i class="fas fa-file-invoice"></i>
+                    Información de la Nota
+                </h3>
+                <div class="info-item">
+                    <span class="info-label">Número:</span>
+                    <span class="info-value">{{ nota.numero }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Fecha:</span>
+                    <span class="info-value">{{ nota.fecha }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Cliente:</span>
+                    <span class="info-value">{{ nota.cliente_nombre }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Modalidad:</span>
+                    <span class="info-value">{{ nota.modalidad_pago|title }}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3 class="section-title">
+                    <i class="fas fa-calculator"></i>
+                    Resumen Financiero
+                </h3>
+                <div class="info-item">
+                    <span class="info-label">Total USD:</span>
+                    <span class="info-value">${{ "%.2f"|format(nota.total_usd) }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Abonado USD:</span>
+                    <span class="info-value">${{ "%.2f"|format(nota.total_abonado) }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Saldo Pendiente:</span>
+                    <span class="info-value">${{ "%.2f"|format(nota.saldo_pendiente) }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tasa BCV:</span>
+                    <span class="info-value">{{ "%.2f"|format(nota.tasa_bcv) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progreso de Pago -->
+        <div class="neo-card">
+            <h3 class="section-title">
+                <i class="fas fa-chart-line"></i>
+                Progreso de Pago
+            </h3>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ (nota.total_abonado / nota.total_usd * 100) if nota.total_usd > 0 else 0 }}%"></div>
+            </div>
+            <div class="text-center mt-3">
+                <span class="text-muted">
+                    {{ "%.1f"|format((nota.total_abonado / nota.total_usd * 100) if nota.total_usd > 0 else 0) }}% Pagado
+                </span>
+            </div>
+        </div>
+
+        <!-- Formulario de Pago -->
+        <form method="POST" id="pagoForm">
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Nuevo Pago
+                </h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Monto USD</label>
+                            <input type="number" class="neo-input" name="monto_usd" step="0.01" min="0" max="{{ nota.saldo_pendiente }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Método de Pago</label>
+                            <select class="neo-select" name="metodo_pago" required>
+                                <option value="">Seleccionar método</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="tarjeta">Tarjeta</option>
+                                <option value="crypto">Criptomonedas</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Fecha de Pago</label>
+                            <input type="date" class="neo-input" name="fecha_pago" value="{{ fecha_actual }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Referencia</label>
+                            <input type="text" class="neo-input" name="referencia" placeholder="Número de referencia o comprobante">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Observaciones</label>
+                    <textarea class="neo-textarea" name="observaciones" placeholder="Observaciones adicionales del pago..."></textarea>
+                </div>
+            </div>
+
+            <!-- Resumen del Pago -->
+            <div class="resumen-pago">
+                <h3 class="section-title" style="color: white;">
+                    <i class="fas fa-calculator"></i>
+                    Resumen del Pago
+                </h3>
+                <div class="resumen-item">
+                    <span class="resumen-label">Saldo Pendiente:</span>
+                    <span class="resumen-value" id="saldoPendiente">${{ "%.2f"|format(nota.saldo_pendiente) }}</span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-label">Monto a Pagar:</span>
+                    <span class="resumen-value" id="montoPagar">$0.00</span>
+                </div>
+                <div class="resumen-item">
+                    <span class="resumen-label">Nuevo Saldo:</span>
+                    <span class="resumen-value" id="nuevoSaldo">${{ "%.2f"|format(nota.saldo_pendiente) }}</span>
+                </div>
+            </div>
+
+            <!-- Historial de Pagos -->
+            {% if nota.pagos %}
+            <div class="pagos-historial">
+                <h3 class="section-title">
+                    <i class="fas fa-history"></i>
+                    Historial de Pagos
+                </h3>
+                {% for pago in nota.pagos %}
+                <div class="pago-item">
+                    <div class="pago-header">
+                        <span class="pago-fecha">{{ pago.fecha }}</span>
+                        <span class="pago-monto">${{ "%.2f"|format(pago.monto) }}</span>
+                    </div>
+                    <div class="pago-metodo">{{ pago.metodo|title }}</div>
+                    {% if pago.observaciones %}
+                    <div class="pago-observaciones">{{ pago.observaciones }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Botones de Acción -->
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{{ url_for('mostrar_cuentas_por_cobrar') }}" class="neo-button">
+                    <i class="fas fa-times me-2"></i>
+                    Cancelar
+                </a>
+                <button type="submit" class="neo-button neo-button-success">
+                    <i class="fas fa-check me-2"></i>
+                    Registrar Pago
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Registro de Pago cargado');
+    
+    const montoInput = document.querySelector('input[name="monto_usd"]');
+    const saldoPendiente = {{ nota.saldo_pendiente }};
+    const montoPagarSpan = document.getElementById('montoPagar');
+    const nuevoSaldoSpan = document.getElementById('nuevoSaldo');
+    
+    function actualizarResumen() {
+        const monto = parseFloat(montoInput.value) || 0;
+        const nuevoSaldo = Math.max(saldoPendiente - monto, 0);
+        
+        montoPagarSpan.textContent = `$${monto.toFixed(2)}`;
+        nuevoSaldoSpan.textContent = `$${nuevoSaldo.toFixed(2)}`;
+        
+        // Validar que no exceda el saldo pendiente
+        if (monto > saldoPendiente) {
+            montoInput.setCustomValidity('El monto no puede exceder el saldo pendiente');
+            montoInput.style.borderColor = '#ef4444';
+        } else {
+            montoInput.setCustomValidity('');
+            montoInput.style.borderColor = '';
+        }
+    }
+    
+    montoInput.addEventListener('input', actualizarResumen);
+    
+    // Validación del formulario
+    document.getElementById('pagoForm').addEventListener('submit', function(e) {
+        const monto = parseFloat(montoInput.value) || 0;
+        
+        if (monto <= 0) {
+            e.preventDefault();
+            alert('El monto debe ser mayor a 0');
+            return;
+        }
+        
+        if (monto > saldoPendiente) {
+            e.preventDefault();
+            alert('El monto no puede exceder el saldo pendiente');
+            return;
+        }
+        
+        // Confirmar antes de enviar
+        if (!confirm(`¿Confirmar pago de $${monto.toFixed(2)} USD?`)) {
+            e.preventDefault();
+        }
+    });
+    
+    // Animaciones de entrada
+    const cards = document.querySelectorAll('.neo-card, .info-section, .form-section, .resumen-pago, .pagos-historial');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'all 0.6s ease';
+        
+        setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}
+

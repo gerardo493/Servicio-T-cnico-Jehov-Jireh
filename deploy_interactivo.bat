@@ -375,7 +375,7 @@ echo ║                    📊 INFORMACIÓN DEL PROYECTO               ║
 echo ╚══════════════════════════════════════════════════════════════╝
 echo.
 
-echo 🏢 Nombre del proyecto: Sistema de Recordatorios KISVIC
+echo 🏢 Nombre del proyecto: Sistema de Recordatorios
 echo 📁 Directorio: %CD%
 echo.
 
@@ -408,7 +408,7 @@ echo.
 
 echo 🌐 URLs importantes:
 echo    - Dashboard Render: https://dashboard.render.com/web/srv-d2ckh46r433s73appvug
-echo    - Aplicación: https://kisvic2025.onrender.com
+echo    - Aplicación: https://tu-app.onrender.com
 echo.
 
 echo ═══════════════════════════════════════════════════════════════
@@ -608,7 +608,7 @@ echo 🎉 Gracias por usar el Deploy Interactivo
 echo 🚀 ¡Que tengas un excelente deploy!
 echo.
 echo 🌐 Recuerda verificar tu aplicación en:
-echo    https://kisvic2025.onrender.com
+echo    https://tu-app.onrender.com
 echo.
 pause
 exit /b 0

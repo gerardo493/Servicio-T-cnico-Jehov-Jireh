@@ -1,0 +1,1488 @@
+{% extends "base.html" %}
+
+{% block title %}Diagnóstico Técnico - {{ orden.numero_orden }}{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos modernos */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        8px 8px 16px #a3b1c6,
+        -8px -8px 16px #ffffff;
+    transform: translateY(-2px);
+    color: #2d3748;
+}
+
+.neo-button:active {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #00cc6a,
+        -6px -6px 12px #00ff88;
+}
+
+.neo-button-primary:hover {
+    background: linear-gradient(145deg, #00cc6a, #00b359);
+    box-shadow: 
+        8px 8px 16px #00cc6a,
+        -8px -8px 16px #00ff88;
+    color: white;
+}
+
+.neo-button-success {
+    background: linear-gradient(145deg, #4ade80, #22c55e);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #22c55e,
+        -6px -6px 12px #4ade80;
+}
+
+.neo-button-warning {
+    background: linear-gradient(145deg, #fbbf24, #f59e0b);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #f59e0b,
+        -6px -6px 12px #fbbf24;
+}
+
+.neo-button-danger {
+    background: linear-gradient(145deg, #f87171, #ef4444);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #ef4444,
+        -6px -6px 12px #f87171;
+}
+
+.neo-input {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    padding: 12px 16px;
+    color: #4a5568;
+    transition: all 0.3s ease;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-bottom: 0;
+}
+
+.neo-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+.neo-icon {
+    color: #00ff88;
+    font-size: 1.2rem;
+}
+
+.neo-modal .modal-content {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        20px 20px 40px #a3b1c6,
+        -20px -20px 40px #ffffff;
+    border: none;
+}
+
+.neo-modal .modal-header {
+    border-bottom: 2px solid #d1d5db;
+    border-radius: 20px 20px 0 0;
+}
+
+.neo-modal .modal-footer {
+    border-top: 2px solid #d1d5db;
+    border-radius: 0 0 20px 20px;
+}
+
+/* Pestañas personalizadas */
+.nav-tabs {
+    border-bottom: 3px solid #d1d5db;
+    margin-bottom: 20px;
+}
+
+.nav-tabs .nav-link {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px 15px 0 0;
+    color: #4a5568;
+    font-weight: 600;
+    margin-right: 5px;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    background: #d1d5db;
+    color: #2d3748;
+}
+
+.nav-tabs .nav-link.active {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #00cc6a,
+        -6px -6px 12px #00ff88;
+}
+
+/* Barra de progreso */
+.progress {
+    height: 20px;
+    border-radius: 15px;
+    background: #d1d5db;
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+}
+
+.progress-bar {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    border-radius: 15px;
+    box-shadow: 
+        2px 2px 4px #00cc6a,
+        -2px -2px 4px #00ff88;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    border-radius: 2px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 30px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 15px;
+    height: 15px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 
+        3px 3px 6px #00cc6a,
+        -3px -3px 6px #00ff88;
+}
+
+.timeline-item.completed::before {
+    background: #22c55e;
+}
+
+.timeline-item.current::before {
+    background: #f59e0b;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Checkboxes personalizados */
+.form-check-input:checked {
+    background-color: #00ff88;
+    border-color: #00ff88;
+    box-shadow: 
+        3px 3px 6px #00cc6a,
+        -3px -3px 6px #00ff88;
+}
+
+/* Badges de estado */
+.badge-diagnostico {
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.badge-reparado {
+    background: linear-gradient(145deg, #22c55e, #16a34a);
+    color: white;
+}
+
+.badge-reparable {
+    background: linear-gradient(145deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.badge-irreparable {
+    background: linear-gradient(145deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.badge-espera {
+    background: linear-gradient(145deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .neo-container {
+        padding: 10px;
+    }
+    
+    .neo-card {
+        margin-bottom: 15px;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+}
+</style>
+
+<div class="neo-container">
+    <div class="container-fluid">
+        <!-- Header con información general -->
+        <div class="neo-card">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="neo-title mb-2">
+                            <i class="fas fa-stethoscope neo-icon me-2"></i>
+                            Diagnóstico Técnico
+                        </h2>
+                        <p class="text-muted mb-0">Orden: <strong>{{ orden.numero_orden }}</strong> | Cliente: <strong>{{ orden.cliente.nombre }}</strong></p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="/servicio-tecnico/orden/{{ orden.id }}" class="btn neo-button">
+                                <i class="fas fa-eye me-2"></i>Ver Orden
+                            </a>
+                            <a href="/servicio-tecnico" class="btn neo-button">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Barra de progreso -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="neo-subtitle">Progreso del Diagnóstico</span>
+                        <span class="text-muted" id="progreso-texto">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" id="barra-progreso"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestañas de navegación -->
+        <ul class="nav nav-tabs" id="diagnosticoTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab">
+                    <i class="fas fa-info-circle me-2"></i>Información
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="diagnostico-tab" data-bs-toggle="tab" data-bs-target="#diagnostico" type="button" role="tab">
+                    <i class="fas fa-stethoscope me-2"></i>Diagnóstico
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="presupuesto-tab" data-bs-toggle="tab" data-bs-target="#presupuesto" type="button" role="tab">
+                    <i class="fas fa-calculator me-2"></i>Presupuesto
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="seguimiento-tab" data-bs-toggle="tab" data-bs-target="#seguimiento" type="button" role="tab">
+                    <i class="fas fa-history me-2"></i>Seguimiento
+                </button>
+            </li>
+        </ul>
+
+        <!-- Contenido de las pestañas -->
+        <div class="tab-content" id="diagnosticoTabsContent">
+            <!-- Pestaña Información -->
+            <div class="tab-pane fade show active" id="info" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-user neo-icon me-2"></i>Datos del Cliente
+                                </h5>
+                                
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Nombre:</span>
+                                    <div class="info-value">{{ orden.cliente.nombre }}</div>
+                                </div>
+                                
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Teléfono:</span>
+                                    <div class="info-value">{{ orden.cliente.telefono }}</div>
+                                </div>
+                                
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Email:</span>
+                                    <div class="info-value">{{ orden.cliente.email or 'No especificado' }}</div>
+                                </div>
+                                
+                                <div class="info-item">
+                                    <span class="neo-subtitle">Dirección:</span>
+                                    <div class="info-value">{{ orden.cliente.direccion or 'No especificada' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-mobile-alt neo-icon me-2"></i>Datos del Equipo
+                                </h5>
+                                
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Marca/Modelo:</span>
+                                    <div class="info-value">{{ orden.equipo.marca }} {{ orden.equipo.modelo }}</div>
+                                </div>
+                                
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">IMEI 1:</span>
+                                    <div class="info-value font-monospace">{{ orden.equipo.imei }}</div>
+                                </div>
+                                
+                                {% if orden.equipo.imei2 %}
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">IMEI 2:</span>
+                                    <div class="info-value font-monospace">{{ orden.equipo.imei2 }}</div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="info-item">
+                                    <span class="neo-subtitle">Problema Reportado:</span>
+                                    <div class="info-value">{{ orden.problema_reportado }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="neo-card">
+                    <div class="card-body p-4">
+                        <h5 class="neo-title mb-4">
+                            <i class="fas fa-cogs neo-icon me-2"></i>Información de la Orden
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Número de Orden:</span>
+                                    <div class="info-value font-monospace">{{ orden.numero_orden }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Técnico Asignado:</span>
+                                    <div class="info-value">{{ orden.tecnico_asignado or 'Sin asignar' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Fecha de Ingreso:</span>
+                                    <div class="info-value">{{ orden.fecha_recepcion }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-item mb-3">
+                                    <span class="neo-subtitle">Estado Actual:</span>
+                                    <div class="info-value">
+                                        <span class="badge badge-diagnostico badge-{{ orden.estado.replace('_', '-') }}">
+                                            {{ orden.estado.replace('_', ' ').title() }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña Diagnóstico -->
+            <div class="tab-pane fade" id="diagnostico" role="tabpanel">
+                <form method="POST" enctype="multipart/form-data" id="formDiagnostico">
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-stethoscope neo-icon me-2"></i>Diagnóstico Técnico
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-4">
+                                        <label for="descripcion_tecnica" class="neo-subtitle">Descripción Técnica del Diagnóstico:</label>
+                                        <textarea id="descripcion_tecnica" name="descripcion_tecnica" class="neo-input" rows="6" 
+                                                  placeholder="Describe detalladamente el diagnóstico técnico realizado, las pruebas efectuadas y los hallazgos encontrados...">{{ orden.diagnostico.descripcion_tecnica if orden.diagnostico else '' }}</textarea>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="categoria_dano" class="neo-subtitle">Categoría del Daño:</label>
+                                        <select id="categoria_dano" name="categoria_dano" class="neo-input">
+                                            <option value="">Seleccionar categoría...</option>
+                                            <option value="hardware" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'hardware' %}selected{% endif %}>Hardware</option>
+                                            <option value="software" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'software' %}selected{% endif %}>Software</option>
+                                            <option value="bateria" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'bateria' %}selected{% endif %}>Batería</option>
+                                            <option value="pantalla" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'pantalla' %}selected{% endif %}>Pantalla</option>
+                                            <option value="conectividad" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'conectividad' %}selected{% endif %}>Conectividad</option>
+                                            <option value="audio" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'audio' %}selected{% endif %}>Audio</option>
+                                            <option value="carga" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'carga' %}selected{% endif %}>Sistema de Carga</option>
+                                            <option value="otro" {% if orden.diagnostico and orden.diagnostico.categoria_dano == 'otro' %}selected{% endif %}>Otro</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label class="neo-subtitle">Partes Revisadas:</label>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="pantalla" id="parte_pantalla" 
+                                                           {% if orden.diagnostico and 'pantalla' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_pantalla">Pantalla</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="bateria" id="parte_bateria" 
+                                                           {% if orden.diagnostico and 'bateria' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_bateria">Batería</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="cargador" id="parte_cargador" 
+                                                           {% if orden.diagnostico and 'cargador' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_cargador">Puerto de Carga</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="botones" id="parte_botones" 
+                                                           {% if orden.diagnostico and 'botones' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_botones">Botones</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="camara" id="parte_camara" 
+                                                           {% if orden.diagnostico and 'camara' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_camara">Cámara</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="altavoz" id="parte_altavoz" 
+                                                           {% if orden.diagnostico and 'altavoz' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_altavoz">Altavoz</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="microfono" id="parte_microfono" 
+                                                           {% if orden.diagnostico and 'microfono' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_microfono">Micrófono</label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="partes_revisadas" value="wifi" id="parte_wifi" 
+                                                           {% if orden.diagnostico and 'wifi' in orden.diagnostico.partes_revisadas %}checked{% endif %}>
+                                                    <label class="form-check-label" for="parte_wifi">WiFi/Bluetooth</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="fotos_diagnostico" class="neo-subtitle">Fotos del Daño/Pruebas:</label>
+                                        <input type="file" id="fotos_diagnostico" name="fotos_diagnostico" class="neo-input" multiple accept="image/*">
+                                        <small class="text-muted">Puedes subir múltiples fotos del daño o pruebas realizadas</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="neo-card-inset p-4">
+                                        <h6 class="neo-subtitle mb-3">Resultado del Diagnóstico:</h6>
+                                        
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="radio" name="resultado_diagnostico" value="reparado" id="resultado_reparado" 
+                                                   {% if orden.diagnostico and orden.diagnostico.resultado_diagnostico == 'reparado' %}checked{% endif %}>
+                                            <label class="form-check-label" for="resultado_reparado">
+                                                <i class="fas fa-check-circle text-success me-2"></i>Reparado
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="radio" name="resultado_diagnostico" value="reparable" id="resultado_reparable" 
+                                                   {% if orden.diagnostico and orden.diagnostico.resultado_diagnostico == 'reparable' %}checked{% endif %}>
+                                            <label class="form-check-label" for="resultado_reparable">
+                                                <i class="fas fa-wrench text-warning me-2"></i>Reparable (requiere repuestos)
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="radio" name="resultado_diagnostico" value="irreparable" id="resultado_irreparable" 
+                                                   {% if orden.diagnostico and orden.diagnostico.resultado_diagnostico == 'irreparable' %}checked{% endif %}>
+                                            <label class="form-check-label" for="resultado_irreparable">
+                                                <i class="fas fa-times-circle text-danger me-2"></i>Irreparable
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="resultado_diagnostico" value="espera_aprobacion" id="resultado_espera" 
+                                                   {% if orden.diagnostico and orden.diagnostico.resultado_diagnostico == 'espera_aprobacion' %}checked{% endif %}>
+                                            <label class="form-check-label" for="resultado_espera">
+                                                <i class="fas fa-clock text-info me-2"></i>En espera de aprobación
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-end">
+                                <button type="submit" class="btn neo-button-primary">
+                                    <i class="fas fa-save me-2"></i>Guardar Diagnóstico
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Pestaña Presupuesto -->
+            <div class="tab-pane fade" id="presupuesto" role="tabpanel">
+                <div class="neo-card">
+                    <div class="card-body p-4">
+                        <h5 class="neo-title mb-4">
+                            <i class="fas fa-calculator neo-icon me-2"></i>Presupuesto / Cotización
+                        </h5>
+                        
+                        <form id="formPresupuesto">
+                            <!-- Botones de Acción -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <button type="button" class="neo-button neo-button-primary" onclick="generarPDFDiagnostico()">
+                                            <i class="fas fa-stethoscope me-2"></i>
+                                            PDF Diagnóstico Técnico
+                                        </button>
+                                        <button type="button" class="neo-button neo-button-warning" onclick="generarPDFPresupuesto()">
+                                            <i class="fas fa-dollar-sign me-2"></i>
+                                            PDF Presupuesto
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="costo_mano_obra" class="neo-subtitle">Costo de Mano de Obra:</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" id="costo_mano_obra" name="costo_mano_obra" class="neo-input" 
+                                                   step="0.01" min="0" value="{{ orden.diagnostico.costo_mano_obra if orden.diagnostico else 0 }}">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="costo_piezas" class="neo-subtitle">Costo de Repuestos:</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" id="costo_piezas" name="costo_piezas" class="neo-input" 
+                                                   step="0.01" min="0" value="{{ orden.diagnostico.costo_piezas if orden.diagnostico else 0 }}" readonly>
+                                            <button type="button" class="btn neo-button-secondary" onclick="abrirSelectorRepuestos()">
+                                                <i class="fas fa-search me-1"></i>Seleccionar
+                                            </button>
+                                        </div>
+                                        <small class="text-muted">Selecciona repuestos del inventario para calcular automáticamente</small>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="total_estimado" class="neo-subtitle">Total Estimado:</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" id="total_estimado" name="total_estimado" class="neo-input" 
+                                                   step="0.01" min="0" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="estado_presupuesto" class="neo-subtitle">Estado del Presupuesto:</label>
+                                        <select id="estado_presupuesto" name="estado_presupuesto" class="neo-input">
+                                            <option value="pendiente" {% if orden.diagnostico and orden.diagnostico.estado_presupuesto == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                                            <option value="enviado" {% if orden.diagnostico and orden.diagnostico.estado_presupuesto == 'enviado' %}selected{% endif %}>Enviado</option>
+                                            <option value="aprobado" {% if orden.diagnostico and orden.diagnostico.estado_presupuesto == 'aprobado' %}selected{% endif %}>Aprobado</option>
+                                            <option value="rechazado" {% if orden.diagnostico and orden.diagnostico.estado_presupuesto == 'rechazado' %}selected{% endif %}>Rechazado</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="detalle_repuestos" class="neo-subtitle">Detalle de Repuestos:</label>
+                                        <textarea id="detalle_repuestos" name="detalle_repuestos" class="neo-input" rows="4" 
+                                                  placeholder="Detalla los repuestos necesarios y su costo...">{{ orden.diagnostico.detalle_repuestos if orden.diagnostico else '' }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-end">
+                                <button type="button" class="btn neo-button me-2" onclick="calcularTotal()">
+                                    <i class="fas fa-calculator me-2"></i>Calcular Total
+                                </button>
+                                <button type="button" class="btn neo-button-success me-2" onclick="enviarPresupuesto()">
+                                    <i class="fas fa-paper-plane me-2"></i>Enviar por WhatsApp
+                                </button>
+                                <button type="button" class="btn neo-button-primary" onclick="guardarPresupuesto()">
+                                    <i class="fas fa-save me-2"></i>Guardar Presupuesto
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña Seguimiento -->
+            <div class="tab-pane fade" id="seguimiento" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-history neo-icon me-2"></i>Timeline del Diagnóstico
+                                </h5>
+                                
+                                <div class="timeline" id="timeline-diagnostico">
+                                    <!-- Timeline items will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-comment neo-icon me-2"></i>Agregar Comentario
+                                </h5>
+                                
+                                <form id="formComentario">
+                                    <div class="mb-3">
+                                        <textarea id="nuevo_comentario" name="comentario" class="neo-input" rows="4" 
+                                                  placeholder="Registra avances, observaciones o comentarios del diagnóstico..."></textarea>
+                                    </div>
+                                    
+                                    <div class="text-end">
+                                        <button type="button" class="btn neo-button-primary" onclick="agregarComentario()">
+                                            <i class="fas fa-plus me-2"></i>Agregar Comentario
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para seleccionar repuestos -->
+<div class="modal fade" id="modalSelectorRepuestos" tabindex="-1" aria-labelledby="modalSelectorRepuestosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content neo-card">
+            <div class="modal-header">
+                <h5 class="modal-title neo-title" id="modalSelectorRepuestosLabel">
+                    <i class="fas fa-cogs me-2"></i>Seleccionar Repuestos del Inventario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Filtros de búsqueda -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <input type="text" id="buscarRepuesto" class="neo-input" placeholder="Buscar repuesto...">
+                    </div>
+                    <div class="col-md-6">
+                        <select id="filtroCategoria" class="neo-input">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Lista de repuestos -->
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="seleccionarTodos" onchange="toggleSeleccionTodos()">
+                                </th>
+                                <th>Repuesto</th>
+                                <th>Categoría</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaRepuestos">
+                            <!-- Se llenará con JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Resumen de selección -->
+                <div class="mt-4 p-3 neo-card-inset">
+                    <h6 class="neo-subtitle mb-3">Repuestos Seleccionados:</h6>
+                    <div id="resumenRepuestos">
+                        <p class="text-muted">No hay repuestos seleccionados</p>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <strong>Total Repuestos: $<span id="totalRepuestos">0.00</span></strong>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn neo-button-warning" onclick="limpiarSeleccion()">
+                                <i class="fas fa-trash me-1"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn neo-button-primary" onclick="aplicarRepuestos()">
+                    <i class="fas fa-check me-2"></i>Aplicar Repuestos
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales
+let progresoActual = 0;
+let comentarios = [];
+let inventarioRepuestos = [];
+let repuestosSeleccionados = [];
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    calcularProgreso();
+    cargarTimeline();
+    configurarCalculadora();
+});
+
+// Calcular progreso del diagnóstico
+function calcularProgreso() {
+    let progreso = 0;
+    
+    // Verificar si hay diagnóstico guardado
+    const descripcion = document.getElementById('descripcion_tecnica').value;
+    const categoria = document.getElementById('categoria_dano').value;
+    const resultado = document.querySelector('input[name="resultado_diagnostico"]:checked');
+    const partes = document.querySelectorAll('input[name="partes_revisadas"]:checked');
+    
+    if (descripcion.trim()) progreso += 30;
+    if (categoria) progreso += 20;
+    if (resultado) progreso += 30;
+    if (partes.length > 0) progreso += 20;
+    
+    progresoActual = progreso;
+    actualizarBarraProgreso();
+}
+
+// Actualizar barra de progreso
+function actualizarBarraProgreso() {
+    const barra = document.getElementById('barra-progreso');
+    const texto = document.getElementById('progreso-texto');
+    
+    barra.style.width = progresoActual + '%';
+    texto.textContent = progresoActual + '%';
+    
+    // Cambiar color según progreso
+    if (progresoActual < 30) {
+        barra.className = 'progress-bar bg-danger';
+    } else if (progresoActual < 70) {
+        barra.className = 'progress-bar bg-warning';
+    } else {
+        barra.className = 'progress-bar bg-success';
+    }
+}
+
+// Configurar calculadora de costos
+function configurarCalculadora() {
+    const manoObra = document.getElementById('costo_mano_obra');
+    const piezas = document.getElementById('costo_piezas');
+    const total = document.getElementById('total_estimado');
+    
+    function calcular() {
+        const costoMO = parseFloat(manoObra.value) || 0;
+        const costoPiezas = parseFloat(piezas.value) || 0;
+        const totalCalculado = costoMO + costoPiezas;
+        
+        total.value = totalCalculado.toFixed(2);
+    }
+    
+    manoObra.addEventListener('input', calcular);
+    piezas.addEventListener('input', calcular);
+    
+    // Calcular inicial
+    calcular();
+}
+
+// Calcular total del presupuesto
+function calcularTotal() {
+    const manoObra = parseFloat(document.getElementById('costo_mano_obra').value) || 0;
+    const piezas = parseFloat(document.getElementById('costo_piezas').value) || 0;
+    const total = manoObra + piezas;
+    
+    document.getElementById('total_estimado').value = total.toFixed(2);
+    
+    // Mostrar notificación
+    mostrarNotificacion('Total calculado: $' + total.toFixed(2), 'success');
+}
+
+// Generar PDF del diagnóstico técnico
+function generarPDFDiagnostico() {
+    // Mostrar loading
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando PDF...';
+    btn.disabled = true;
+    
+    // Crear URL para generar PDF
+    const url = `/servicio-tecnico/orden/{{ orden.id }}/diagnostico-pdf`;
+    
+    // Abrir en nueva ventana para imprimir/guardar PDF
+    const pdfWindow = window.open(url, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    
+    // Restaurar botón después de un tiempo
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        
+        // Mostrar notificación de éxito
+        mostrarNotificacion('PDF del diagnóstico abierto. Use Ctrl+P para imprimir o guardar como PDF.', 'success');
+    }, 2000);
+    
+    // Si no se puede abrir la ventana, mostrar mensaje
+    if (!pdfWindow) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        mostrarNotificacion('Por favor, permita ventanas emergentes para generar el PDF', 'warning');
+    }
+}
+
+function generarPDFPresupuesto() {
+    // Mostrar loading
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando PDF...';
+    btn.disabled = true;
+    
+    // Crear URL para generar PDF de presupuesto
+    const url = `/servicio-tecnico/orden/{{ orden.id }}/presupuesto-pdf`;
+    
+    // Abrir en nueva ventana para imprimir/guardar PDF
+    const pdfWindow = window.open(url, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    
+    // Restaurar botón después de un tiempo
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        
+        // Mostrar notificación de éxito
+        mostrarNotificacion('PDF del presupuesto abierto. Use Ctrl+P para imprimir o guardar como PDF.', 'success');
+    }, 2000);
+    
+    // Si no se puede abrir la ventana, mostrar mensaje
+    if (!pdfWindow) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        mostrarNotificacion('Por favor, permita ventanas emergentes para generar el PDF', 'warning');
+    }
+}
+
+// Enviar presupuesto por WhatsApp
+function enviarPresupuesto() {
+    const total = document.getElementById('total_estimado').value;
+    const detalle = document.getElementById('detalle_repuestos').value;
+    
+    if (!total || parseFloat(total) <= 0) {
+        mostrarNotificacion('Debe calcular el total del presupuesto primero', 'warning');
+        return;
+    }
+    
+    const mensaje = `Presupuesto para orden {{ orden.numero_orden }}:\n\n` +
+                   `Total: $${total}\n\n` +
+                   `Detalle: ${detalle || 'Sin detalles adicionales'}\n\n` +
+                   `¿Desea aprobar este presupuesto?`;
+    
+    const numeroWhatsApp = '{{ orden.cliente.telefono }}';
+    const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensaje)}`;
+    
+    window.open(urlWhatsApp, '_blank');
+    
+    // Actualizar estado a enviado
+    document.getElementById('estado_presupuesto').value = 'enviado';
+    mostrarNotificacion('Presupuesto enviado por WhatsApp', 'success');
+}
+
+// Guardar presupuesto
+function guardarPresupuesto() {
+    const formData = new FormData(document.getElementById('formPresupuesto'));
+    const estadoPresupuesto = document.getElementById('estado_presupuesto').value;
+    
+    // Validar stock antes de aprobar
+    if (estadoPresupuesto === 'aprobado' && repuestosSeleccionados.length > 0) {
+        if (!confirmarAprobacionPresupuesto()) {
+            return;
+        }
+    }
+    
+    // Agregar repuestos seleccionados
+    formData.append('repuestos_seleccionados', JSON.stringify(repuestosSeleccionados));
+    
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/presupuesto', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarNotificacion('Presupuesto guardado exitosamente', 'success');
+            // Si se aprobó, recargar página para mostrar cambios
+            if (document.getElementById('estado_presupuesto').value === 'aprobado') {
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            }
+        } else {
+            // Mostrar errores específicos de stock
+            if (data.problemas && data.problemas.length > 0) {
+                let mensajeError = 'Stock insuficiente:\n';
+                data.problemas.forEach(problema => {
+                    mensajeError += `• ${problema}\n`;
+                });
+                mostrarNotificacion(mensajeError, 'warning');
+            } else {
+                mostrarNotificacion('Error al guardar presupuesto: ' + data.message, 'danger');
+            }
+        }
+    })
+    .catch(error => {
+        mostrarNotificacion('Error al guardar presupuesto', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+// Cargar timeline
+function cargarTimeline() {
+    const timeline = document.getElementById('timeline-diagnostico');
+    
+    // Datos de ejemplo - en producción vendrían del backend
+    const eventos = [
+        {
+            fecha: '{{ orden.fecha_recepcion }}',
+            titulo: 'Orden recibida',
+            descripcion: 'Orden de servicio creada y recibida',
+            tipo: 'completed'
+        },
+        {
+            fecha: '{{ orden.fecha_actualizacion }}',
+            titulo: 'En diagnóstico',
+            descripcion: 'Iniciando proceso de diagnóstico técnico',
+            tipo: 'current'
+        }
+    ];
+    
+    timeline.innerHTML = '';
+    
+    eventos.forEach(evento => {
+        const item = document.createElement('div');
+        item.className = `timeline-item ${evento.tipo}`;
+        item.innerHTML = `
+            <div class="neo-card-inset p-3">
+                <h6 class="mb-1">${evento.titulo}</h6>
+                <p class="text-muted mb-1">${evento.descripcion}</p>
+                <small class="text-muted">${evento.fecha}</small>
+            </div>
+        `;
+        timeline.appendChild(item);
+    });
+}
+
+// Agregar comentario
+function agregarComentario() {
+    const comentario = document.getElementById('nuevo_comentario').value.trim();
+    
+    if (!comentario) {
+        mostrarNotificacion('Debe escribir un comentario', 'warning');
+        return;
+    }
+    
+    const nuevoComentario = {
+        fecha: new Date().toLocaleString(),
+        comentario: comentario,
+        usuario: '{{ session.username or "Técnico" }}'
+    };
+    
+    comentarios.push(nuevoComentario);
+    
+    // Agregar al timeline
+    const timeline = document.getElementById('timeline-diagnostico');
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    item.innerHTML = `
+        <div class="neo-card-inset p-3">
+            <h6 class="mb-1">Comentario agregado</h6>
+            <p class="text-muted mb-1">${comentario}</p>
+            <small class="text-muted">${nuevoComentario.fecha} - ${nuevoComentario.usuario}</small>
+        </div>
+    `;
+    timeline.appendChild(item);
+    
+    // Limpiar formulario
+    document.getElementById('nuevo_comentario').value = '';
+    
+    mostrarNotificacion('Comentario agregado exitosamente', 'success');
+}
+
+// Mostrar notificación
+function mostrarNotificacion(mensaje, tipo) {
+    // Crear elemento de notificación
+    const notificacion = document.createElement('div');
+    notificacion.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+    notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notificacion.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notificacion);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (notificacion.parentNode) {
+            notificacion.parentNode.removeChild(notificacion);
+        }
+    }, 5000);
+}
+
+// Event listeners para actualizar progreso
+document.getElementById('descripcion_tecnica').addEventListener('input', calcularProgreso);
+document.getElementById('categoria_dano').addEventListener('change', calcularProgreso);
+document.querySelectorAll('input[name="resultado_diagnostico"]').forEach(radio => {
+    radio.addEventListener('change', calcularProgreso);
+});
+document.querySelectorAll('input[name="partes_revisadas"]').forEach(checkbox => {
+    checkbox.addEventListener('change', calcularProgreso);
+});
+
+// Manejar envío del formulario de diagnóstico
+document.getElementById('formDiagnostico').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/diagnostico', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Respuesta recibida:', response.status, response.statusText);
+        console.log('Content-Type:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Verificar si la respuesta es JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // Si no es JSON, leer como texto para debug
+            return response.text().then(text => {
+                console.error('Respuesta no es JSON:', text);
+                throw new Error('El servidor devolvió una respuesta no válida');
+            });
+        }
+    })
+    .then(data => {
+        console.log('Datos recibidos:', data);
+        if (data.success) {
+            mostrarNotificacion('Diagnóstico guardado exitosamente', 'success');
+            calcularProgreso();
+            // Recargar la página después de 2 segundos para mostrar cambios
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            mostrarNotificacion('Error al guardar diagnóstico: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        mostrarNotificacion('Error al guardar diagnóstico: ' + error.message, 'danger');
+    });
+});
+
+// ===== FUNCIONES PARA SELECTOR DE REPUESTOS =====
+
+// Abrir modal de selección de repuestos
+function abrirSelectorRepuestos() {
+    cargarInventarioRepuestos();
+    const modal = new bootstrap.Modal(document.getElementById('modalSelectorRepuestos'));
+    modal.show();
+}
+
+// Cargar inventario de repuestos
+async function cargarInventarioRepuestos() {
+    try {
+        console.log('DEBUG: Cargando inventario de repuestos...');
+        const response = await fetch('/api/productos');
+        console.log('DEBUG: Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('DEBUG: Data recibida:', data);
+        
+        if (data.success && data.productos) {
+            inventarioRepuestos = data.productos;
+            console.log('DEBUG: Inventario cargado:', inventarioRepuestos.length, 'productos');
+            mostrarRepuestos();
+            cargarCategorias();
+        } else {
+            console.error('DEBUG: Error en respuesta:', data.error || 'Sin productos');
+            mostrarNotificacion('Error al cargar inventario: ' + (data.error || 'Sin productos'), 'danger');
+        }
+    } catch (error) {
+        console.error('DEBUG: Error cargando inventario:', error);
+        mostrarNotificacion('Error al cargar inventario: ' + error.message, 'danger');
+    }
+}
+
+// Mostrar repuestos en la tabla
+function mostrarRepuestos() {
+    console.log('DEBUG: Mostrando repuestos...');
+    console.log('DEBUG: Inventario disponible:', inventarioRepuestos.length, 'productos');
+    
+    const tbody = document.getElementById('listaRepuestos');
+    const busqueda = document.getElementById('buscarRepuesto').value.toLowerCase();
+    const categoria = document.getElementById('filtroCategoria').value;
+    
+    console.log('DEBUG: Filtros - Búsqueda:', busqueda, 'Categoría:', categoria);
+    
+    let repuestosFiltrados = inventarioRepuestos.filter(repuesto => {
+        const coincideBusqueda = repuesto.nombre.toLowerCase().includes(busqueda);
+        const coincideCategoria = !categoria || repuesto.categoria === categoria;
+        return coincideBusqueda && coincideCategoria;
+    });
+    
+    console.log('DEBUG: Repuestos filtrados:', repuestosFiltrados.length);
+    
+    tbody.innerHTML = '';
+    
+    if (repuestosFiltrados.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    ${inventarioRepuestos.length === 0 ? 'No hay productos en el inventario' : 'No se encontraron repuestos con los filtros aplicados'}
+                </td>
+            </tr>
+        `;
+        actualizarResumen();
+        return;
+    }
+    
+    repuestosFiltrados.forEach(repuesto => {
+        const tr = document.createElement('tr');
+        const seleccionado = repuestosSeleccionados.find(r => r.id === repuesto.id);
+        
+        tr.innerHTML = `
+            <td>
+                <input type="checkbox" class="checkbox-repuesto" 
+                       value="${repuesto.id}" 
+                       ${seleccionado ? 'checked' : ''}
+                       onchange="toggleRepuesto('${repuesto.id}', this.checked)">
+            </td>
+            <td>${repuesto.nombre}</td>
+            <td>${repuesto.categoria || 'Sin categoría'}</td>
+            <td>$${parseFloat(repuesto.precio).toFixed(2)}</td>
+            <td>
+                <span class="badge ${repuesto.cantidad > 10 ? 'bg-success' : repuesto.cantidad > 5 ? 'bg-warning' : 'bg-danger'}">
+                    ${repuesto.cantidad}
+                </span>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm cantidad-repuesto" 
+                       value="${seleccionado ? seleccionado.cantidad : 1}" 
+                       min="1" max="${repuesto.cantidad}"
+                       onchange="actualizarCantidadRepuesto('${repuesto.id}', this.value)"
+                       ${!seleccionado ? 'disabled' : ''}>
+            </td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+    
+    actualizarResumen();
+}
+
+// Cargar categorías para el filtro
+function cargarCategorias() {
+    const select = document.getElementById('filtroCategoria');
+    const categorias = [...new Set(inventarioRepuestos.map(r => r.categoria).filter(c => c))];
+    
+    select.innerHTML = '<option value="">Todas las categorías</option>';
+    categorias.forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria;
+        option.textContent = categoria;
+        select.appendChild(option);
+    });
+}
+
+// Toggle selección de repuesto
+function toggleRepuesto(repuestoId, seleccionado) {
+    console.log('DEBUG: Toggle repuesto:', repuestoId, seleccionado);
+    
+    const repuesto = inventarioRepuestos.find(r => r.id === repuestoId);
+    if (!repuesto) {
+        console.error('DEBUG: Repuesto no encontrado:', repuestoId);
+        return;
+    }
+    
+    const cantidadInput = event.target.closest('tr').querySelector('.cantidad-repuesto');
+    
+    if (seleccionado) {
+        const repuestoSeleccionado = {
+            id: repuestoId,
+            nombre: repuesto.nombre,
+            precio: parseFloat(repuesto.precio),
+            cantidad: parseInt(cantidadInput.value) || 1,
+            categoria: repuesto.categoria
+        };
+        
+        repuestosSeleccionados.push(repuestoSeleccionado);
+        console.log('DEBUG: Repuesto agregado:', repuestoSeleccionado);
+        cantidadInput.disabled = false;
+    } else {
+        repuestosSeleccionados = repuestosSeleccionados.filter(r => r.id !== repuestoId);
+        console.log('DEBUG: Repuesto removido:', repuestoId);
+        cantidadInput.disabled = true;
+    }
+    
+    console.log('DEBUG: Repuestos seleccionados actuales:', repuestosSeleccionados);
+    actualizarResumen();
+}
+
+// Actualizar cantidad de repuesto
+function actualizarCantidadRepuesto(repuestoId, cantidad) {
+    const repuesto = repuestosSeleccionados.find(r => r.id === repuestoId);
+    if (repuesto) {
+        repuesto.cantidad = parseInt(cantidad) || 1;
+        actualizarResumen();
+    }
+}
+
+// Toggle seleccionar todos
+function toggleSeleccionTodos() {
+    const checkboxes = document.querySelectorAll('.checkbox-repuesto');
+    const seleccionarTodos = document.getElementById('seleccionarTodos').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = seleccionarTodos;
+        toggleRepuesto(checkbox.value, seleccionarTodos);
+    });
+}
+
+// Actualizar resumen de repuestos seleccionados
+function actualizarResumen() {
+    console.log('DEBUG: Actualizando resumen, repuestos seleccionados:', repuestosSeleccionados);
+    
+    const resumen = document.getElementById('resumenRepuestos');
+    const total = document.getElementById('totalRepuestos');
+    
+    if (repuestosSeleccionados.length === 0) {
+        resumen.innerHTML = '<p class="text-muted">No hay repuestos seleccionados</p>';
+        total.textContent = '0.00';
+    } else {
+        let html = '<div class="row">';
+        let totalCalculado = 0;
+        
+        repuestosSeleccionados.forEach(repuesto => {
+            const subtotal = repuesto.precio * repuesto.cantidad;
+            totalCalculado += subtotal;
+            
+            html += `
+                <div class="col-md-6 mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>${repuesto.nombre} (x${repuesto.cantidad})</span>
+                        <span>$${subtotal.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        resumen.innerHTML = html;
+        total.textContent = totalCalculado.toFixed(2);
+        
+        console.log('DEBUG: Resumen actualizado, total:', totalCalculado);
+    }
+}
+
+// Limpiar selección
+function limpiarSeleccion() {
+    repuestosSeleccionados = [];
+    document.getElementById('seleccionarTodos').checked = false;
+    mostrarRepuestos();
+}
+
+// Aplicar repuestos seleccionados
+function aplicarRepuestos() {
+    console.log('DEBUG: Aplicando repuestos seleccionados:', repuestosSeleccionados);
+    
+    if (repuestosSeleccionados.length === 0) {
+        mostrarNotificacion('No hay repuestos seleccionados', 'warning');
+        return;
+    }
+    
+    const totalRepuestos = repuestosSeleccionados.reduce((sum, r) => sum + (r.precio * r.cantidad), 0);
+    
+    // Actualizar campo de costo de piezas
+    document.getElementById('costo_piezas').value = totalRepuestos.toFixed(2);
+    
+    // Actualizar detalle de repuestos
+    let detalle = '';
+    repuestosSeleccionados.forEach(repuesto => {
+        const subtotal = repuesto.precio * repuesto.cantidad;
+        detalle += `${repuesto.nombre} (x${repuesto.cantidad}) - $${subtotal.toFixed(2)}\n`;
+    });
+    document.getElementById('detalle_repuestos').value = detalle.trim();
+    
+    // Recalcular total
+    calcularTotal();
+    
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalSelectorRepuestos'));
+    modal.hide();
+    
+    console.log('DEBUG: Repuestos aplicados exitosamente. Total:', totalRepuestos);
+    mostrarNotificacion(`Se aplicaron ${repuestosSeleccionados.length} repuestos por un total de $${totalRepuestos.toFixed(2)}`, 'success');
+}
+
+// Confirmar aprobación de presupuesto
+function confirmarAprobacionPresupuesto() {
+    let mensaje = '¿Está seguro de aprobar este presupuesto?\n\n';
+    mensaje += 'Esto descontará automáticamente los siguientes repuestos del inventario:\n\n';
+    
+    repuestosSeleccionados.forEach(repuesto => {
+        mensaje += `• ${repuesto.nombre} (x${repuesto.cantidad}) - $${(repuesto.precio * repuesto.cantidad).toFixed(2)}\n`;
+    });
+    
+    mensaje += '\n¿Continuar?';
+    
+    return confirm(mensaje);
+}
+
+// Event listeners para filtros
+document.addEventListener('DOMContentLoaded', function() {
+    const buscarInput = document.getElementById('buscarRepuesto');
+    const categoriaSelect = document.getElementById('filtroCategoria');
+    
+    if (buscarInput) {
+        buscarInput.addEventListener('input', mostrarRepuestos);
+    }
+    
+    if (categoriaSelect) {
+        categoriaSelect.addEventListener('change', mostrarRepuestos);
+    }
+});
+</script>
+{% endblock %}

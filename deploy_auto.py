@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script de Despliegue Automático para KISVIC 2025
+Script de Despliegue Automático 2025
 Automatiza el proceso de Git y despliegue a Render
 """
 
@@ -114,14 +114,14 @@ class AutoDeployer:
         """Muestra información del despliegue"""
         print("\n📋 INFORMACIÓN DEL DESPLIEGUE")
         print("=" * 50)
-        print("   🌐 URL de tu aplicación: https://kisvic2025.onrender.com")
+        print("   🌐 URL de tu aplicación: https://tu-app.onrender.com")
         print("   📊 Dashboard de Render: https://dashboard.render.com/web/srv-d2ckh46r433s73appvug")
-        print("   📚 Repositorio GitHub: https://github.com/gerardo493/kisvic2025")
+        print("   📚 Repositorio GitHub: https://github.com/tu-usuario/tu-repo")
         print("   ⏱️  Tiempo estimado de despliegue: 2-5 minutos")
     
     def deploy(self, commit_message=None):
         """Ejecuta el proceso completo de despliegue"""
-        print("🚀 DESPLEGADOR AUTOMÁTICO KISVIC 2025")
+        print("🚀 DESPLEGADOR AUTOMÁTICO 2025")
         print("=" * 60)
         print(f"📁 Directorio: {self.project_root}")
         print(f"⏰ Inicio: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

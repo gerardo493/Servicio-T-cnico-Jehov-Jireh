@@ -1,0 +1,909 @@
+<!-- Calculadora Monetaria - Conversión de Monedas -->
+<div class="calculadora-monetaria" id="calculadora-monetaria" style="display: none;">
+    <div class="calculadora-overlay" onclick="cerrarCalculadoraMonetaria()"></div>
+    <div class="calculadora-container-monetaria">
+        <div class="calculadora-header">
+            <h3><i class="fas fa-exchange-alt me-2"></i>Calculadora Monetaria</h3>
+            <button class="btn-cerrar" onclick="cerrarCalculadoraMonetaria()">&times;</button>
+        </div>
+        <div class="calculadora-body">
+            <!-- Información de Tasas -->
+            <div class="tasas-info">
+                <div class="tasa-item">
+                    <span class="tasa-label">USD/BS:</span>
+                    <span class="tasa-valor" id="tasa-usd">Cargando...</span>
+                </div>
+                <div class="tasa-item">
+                    <span class="tasa-label">EUR/BS:</span>
+                    <span class="tasa-valor" id="tasa-eur">Cargando...</span>
+                </div>
+                <button class="btn-actualizar" onclick="actualizarTasas()">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+
+            <!-- Formulario de Conversión -->
+            <div class="conversion-form">
+                <div class="input-group">
+                    <label for="monto-origen">Monto a Convertir</label>
+                    <input type="number" id="monto-origen" placeholder="0.00" step="0.01" min="0">
+                </div>
+
+                <div class="moneda-group">
+                    <label for="moneda-origen">De:</label>
+                    <select id="moneda-origen">
+                        <option value="USD">🇺🇸 USD (Dólares)</option>
+                        <option value="EUR">🇪🇺 EUR (Euros)</option>
+                        <option value="BS">🇻🇪 BS (Bolívares)</option>
+                    </select>
+                </div>
+
+                <div class="conversion-arrow">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+
+                <div class="moneda-group">
+                    <label for="moneda-destino">A:</label>
+                    <select id="moneda-destino">
+                        <option value="USD">🇺🇸 USD (Dólares)</option>
+                        <option value="EUR">🇪🇺 EUR (Euros)</option>
+                        <option value="BS">🇻🇪 BS (Bolívares)</option>
+                    </select>
+                </div>
+
+                <div class="resultado-group">
+                    <label>Resultado:</label>
+                    <div class="resultado-display" id="resultado-conversion">
+                        <span class="resultado-monto">0.00</span>
+                        <span class="resultado-moneda">USD</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversiones Múltiples -->
+            <div class="conversiones-multiples">
+                <h4><i class="fas fa-calculator me-2"></i>Conversiones Múltiples</h4>
+                <div class="conversiones-grid">
+                    <div class="conversion-item">
+                        <span class="conversion-label">USD:</span>
+                        <span class="conversion-valor" id="conv-usd">$0.00</span>
+                    </div>
+                    <div class="conversion-item">
+                        <span class="conversion-label">EUR:</span>
+                        <span class="conversion-valor" id="conv-eur">€0.00</span>
+                    </div>
+                    <div class="conversion-item">
+                        <span class="conversion-label">BS:</span>
+                        <span class="conversion-valor" id="conv-bs">0.00 Bs</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="botones-accion">
+                <button class="btn-calc btn-limpiar" onclick="limpiarCalculadoraMonetaria()">
+                    <i class="fas fa-eraser me-2"></i>Limpiar
+                </button>
+                <button class="btn-calc btn-copiar-completo" onclick="copiarResultado()">
+                    <i class="fas fa-copy me-2"></i>Copiar Completo
+                </button>
+                <button class="btn-calc btn-copiar-simple" onclick="copiarResultadoSimple()">
+                    <i class="fas fa-clipboard me-2"></i>Copiar Simple
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.calculadora-monetaria {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+}
+
+.calculadora-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+}
+
+.calculadora-container-monetaria {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #f0f0f3;
+    border-radius: 30px;
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    width: 500px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.calculadora-container-monetaria:hover {
+    box-shadow: 
+        30px 30px 60px #d1d9e6,
+        -30px -30px 60px #ffffff,
+        inset 3px 3px 6px rgba(255, 255, 255, 0.8),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.15);
+    transform: translate(-50%, -50%) translateY(-2px);
+}
+
+.calculadora-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 30px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+    background: linear-gradient(135deg, #e8e8e8 0%, #d1d1d1 100%);
+    border-radius: 30px 30px 0 0;
+    box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    color: #2d3748;
+    position: relative;
+    overflow: hidden;
+}
+
+.calculadora-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 204, 106, 0.1) 100%);
+    z-index: 0;
+}
+
+.calculadora-header h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    position: relative;
+    z-index: 1;
+    color: #1a202c;
+    text-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.1),
+        0 0 20px rgba(0, 255, 136, 0.3);
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.btn-cerrar {
+    background: #f0f0f3;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #4a5568;
+    padding: 12px;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        6px 6px 12px #d1d9e6,
+        -6px -6px 12px #ffffff;
+    position: relative;
+    z-index: 1;
+}
+
+.btn-cerrar:hover {
+    transform: scale(1.1);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-cerrar:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: scale(0.95);
+}
+
+.calculadora-body {
+    padding: 30px;
+    background: #f0f0f3;
+}
+
+.tasas-info {
+    background: #f0f0f3;
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.tasas-info::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.tasa-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.tasa-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.tasa-label {
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 16px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.tasa-valor {
+    font-weight: 800;
+    color: #00ff88;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.btn-actualizar {
+    background: #f0f0f3;
+    color: #4a5568;
+    border: none;
+    border-radius: 15px;
+    padding: 15px 25px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    margin-top: 15px;
+    box-shadow: 
+        6px 6px 12px #d1d9e6,
+        -6px -6px 12px #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 14px;
+}
+
+.btn-actualizar:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-actualizar:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.conversion-form {
+    background: #f0f0f3;
+    border-radius: 25px;
+    padding: 30px;
+    margin-bottom: 25px;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.input-group, .moneda-group, .resultado-group {
+    margin-bottom: 25px;
+}
+
+.input-group label, .moneda-group label, .resultado-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 15px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.input-group input, .moneda-group select {
+    width: 100%;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #f0f0f3;
+    color: #2d3748;
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+}
+
+.input-group input:focus, .moneda-group select:focus {
+    outline: none;
+    box-shadow: 
+        inset 6px 6px 12px #d1d9e6,
+        inset -6px -6px 12px #ffffff,
+        0 0 0 3px rgba(0, 255, 136, 0.2);
+    background: #ffffff;
+}
+
+.conversion-arrow {
+    text-align: center;
+    margin: 20px 0;
+    color: #00ff88;
+    font-size: 28px;
+    text-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.resultado-display {
+    background: #f0f0f3;
+    color: #2d3748;
+    padding: 25px;
+    border-radius: 20px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 24px;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.resultado-display::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.resultado-monto {
+    display: block;
+    font-size: 32px;
+    margin-bottom: 8px;
+    color: #00ff88;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.resultado-moneda {
+    display: block;
+    font-size: 18px;
+    opacity: 0.8;
+    color: #4a5568;
+    font-weight: 600;
+}
+
+.conversiones-multiples {
+    background: #f0f0f3;
+    border-radius: 25px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 
+        15px 15px 30px #d1d9e6,
+        -15px -15px 30px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.conversiones-multiples::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.conversiones-multiples h4 {
+    margin: 0 0 20px 0;
+    color: #2d3748;
+    font-weight: 800;
+    font-size: 18px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.conversiones-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.conversion-item {
+    background: #f0f0f3;
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.conversion-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        10px 10px 20px #d1d9e6,
+        -10px -10px 20px #ffffff,
+        inset 3px 3px 6px rgba(255, 255, 255, 0.8),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.conversion-label {
+    display: block;
+    font-weight: 700;
+    color: #4a5568;
+    margin-bottom: 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.conversion-valor {
+    display: block;
+    font-weight: 800;
+    color: #2d3748;
+    font-size: 16px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.botones-accion {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+}
+
+.btn-calc {
+    padding: 18px 25px;
+    border: none;
+    border-radius: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 
+        6px 6px 12px #d1d9e6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+}
+
+.btn-limpiar {
+    background: #f0f0f3;
+}
+
+.btn-limpiar:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-limpiar:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.btn-copiar-completo {
+    background: #f0f0f3;
+}
+
+.btn-copiar-completo:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-copiar-completo:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.btn-copiar-simple {
+    background: #f0f0f3;
+}
+
+.btn-copiar-simple:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-copiar-simple:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .calculadora-container-monetaria {
+        width: 95vw;
+        margin: 10px;
+        border-radius: 25px;
+    }
+    
+    .calculadora-header {
+        padding: 20px 25px;
+        border-radius: 25px 25px 0 0;
+    }
+    
+    .calculadora-body {
+        padding: 20px;
+    }
+    
+    .conversiones-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .botones-accion {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .tasas-info, .conversion-form, .conversiones-multiples {
+        padding: 20px;
+        border-radius: 20px;
+    }
+}
+</style>
+
+<script>
+let tasasActuales = {
+    USD: 1,
+    EUR: 1,
+    BS: 1,
+    fechaActualizacion: ''
+};
+
+// Cargar tasas al abrir la calculadora
+function abrirCalculadoraMonetaria() {
+    document.getElementById('calculadora-monetaria').style.display = 'block';
+    cargarTasas();
+}
+
+function cerrarCalculadoraMonetaria() {
+    document.getElementById('calculadora-monetaria').style.display = 'none';
+}
+
+async function cargarTasas() {
+    try {
+        const response = await fetch('/api/tasas-actualizadas');
+        const data = await response.json();
+        
+        tasasActuales.USD = data.tasa_usd || 216.37;
+        tasasActuales.EUR = data.tasa_eur || 240.50;
+        tasasActuales.BS = 1;
+        tasasActuales.fechaActualizacion = data.fecha_actualizacion || new Date().toLocaleString('es-VE');
+        
+        document.getElementById('tasa-usd').textContent = tasasActuales.USD.toFixed(2);
+        document.getElementById('tasa-eur').textContent = tasasActuales.EUR.toFixed(2);
+        
+        // Calcular conversión inicial
+        calcularConversion();
+    } catch (error) {
+        console.error('Error cargando tasas:', error);
+        // Usar tasas por defecto
+        tasasActuales.USD = 216.37;
+        tasasActuales.EUR = 240.50;
+        tasasActuales.BS = 1;
+        tasasActuales.fechaActualizacion = new Date().toLocaleString('es-VE');
+        
+        document.getElementById('tasa-usd').textContent = tasasActuales.USD.toFixed(2);
+        document.getElementById('tasa-eur').textContent = tasasActuales.EUR.toFixed(2);
+    }
+}
+
+async function actualizarTasas() {
+    const btn = document.querySelector('.btn-actualizar');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+    btn.disabled = true;
+    
+    await cargarTasas();
+    
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+}
+
+function calcularConversion() {
+    const monto = parseFloat(document.getElementById('monto-origen').value) || 0;
+    const monedaOrigen = document.getElementById('moneda-origen').value;
+    const monedaDestino = document.getElementById('moneda-destino').value;
+    
+    if (monto === 0) {
+        limpiarResultados();
+        return;
+    }
+    
+    // Convertir a BS primero
+    let montoEnBS = 0;
+    switch (monedaOrigen) {
+        case 'USD':
+            montoEnBS = monto * tasasActuales.USD;
+            break;
+        case 'EUR':
+            montoEnBS = monto * tasasActuales.EUR;
+            break;
+        case 'BS':
+            montoEnBS = monto;
+            break;
+    }
+    
+    // Convertir de BS a moneda destino
+    let resultado = 0;
+    switch (monedaDestino) {
+        case 'USD':
+            resultado = montoEnBS / tasasActuales.USD;
+            break;
+        case 'EUR':
+            resultado = montoEnBS / tasasActuales.EUR;
+            break;
+        case 'BS':
+            resultado = montoEnBS;
+            break;
+    }
+    
+    // Mostrar resultado principal
+    const resultadoDisplay = document.getElementById('resultado-conversion');
+    resultadoDisplay.querySelector('.resultado-monto').textContent = resultado.toFixed(2);
+    resultadoDisplay.querySelector('.resultado-moneda').textContent = monedaDestino;
+    
+    // Calcular conversiones múltiples
+    const convUSD = montoEnBS / tasasActuales.USD;
+    const convEUR = montoEnBS / tasasActuales.EUR;
+    const convBS = montoEnBS;
+    
+    document.getElementById('conv-usd').textContent = `$${convUSD.toFixed(2)}`;
+    document.getElementById('conv-eur').textContent = `€${convEUR.toFixed(2)}`;
+    document.getElementById('conv-bs').textContent = `${convBS.toFixed(2)} Bs`;
+}
+
+function limpiarCalculadoraMonetaria() {
+    document.getElementById('monto-origen').value = '';
+    limpiarResultados();
+}
+
+function limpiarResultados() {
+    document.getElementById('resultado-conversion').querySelector('.resultado-monto').textContent = '0.00';
+    document.getElementById('conv-usd').textContent = '$0.00';
+    document.getElementById('conv-eur').textContent = '€0.00';
+    document.getElementById('conv-bs').textContent = '0.00 Bs';
+}
+
+function copiarResultado() {
+    const monto = parseFloat(document.getElementById('monto-origen').value) || 0;
+    const monedaOrigen = document.getElementById('moneda-origen').value;
+    const monedaDestino = document.getElementById('moneda-destino').value;
+    
+    if (monto === 0) {
+        alert('Ingrese un monto para copiar');
+        return;
+    }
+    
+    // Obtener fecha de actualización de tasas o fecha actual
+    const fechaTasas = tasasActuales.fechaActualizacion || new Date().toLocaleString('es-VE');
+    
+    // Calcular equivalentes en todas las monedas
+    let montoEnBS = 0;
+    switch (monedaOrigen) {
+        case 'USD':
+            montoEnBS = monto * tasasActuales.USD;
+            break;
+        case 'EUR':
+            montoEnBS = monto * tasasActuales.EUR;
+            break;
+        case 'BS':
+            montoEnBS = monto;
+            break;
+    }
+    
+    const equivalenteUSD = montoEnBS / tasasActuales.USD;
+    const equivalenteEUR = montoEnBS / tasasActuales.EUR;
+    
+    // Crear texto completo con toda la información
+    const textoCompleto = `💰 CONVERSIÓN MONETARIA
+📅 Fecha de tasas: ${fechaTasas}
+💱 Tasas BCV: USD ${tasasActuales.USD.toFixed(2)} | EUR ${tasasActuales.EUR.toFixed(2)}
+
+💵 MONTO ORIGINAL: ${monto.toFixed(2)} ${monedaOrigen}
+
+🔄 EQUIVALENTES:
+• USD: $${equivalenteUSD.toFixed(2)}
+• EUR: €${equivalenteEUR.toFixed(2)}
+• BS: ${montoEnBS.toFixed(2)} Bs
+
+🎯 RESULTADO PRINCIPAL: ${document.getElementById('resultado-conversion').querySelector('.resultado-monto').textContent} ${monedaDestino}`;
+    
+    navigator.clipboard.writeText(textoCompleto).then(() => {
+        // Mostrar notificación mejorada
+        const btn = document.querySelector('.btn-copiar-completo');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+        btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+        btn.style.color = 'white';
+        
+        // Crear notificación temporal más visible
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+            z-index: 10000;
+            font-weight: 600;
+            font-size: 14px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        notification.innerHTML = `
+            <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+            Conversión copiada al portapapeles
+        `;
+        
+        // Agregar animación CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.body.appendChild(notification);
+        
+        // Remover notificación después de 3 segundos
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+                document.body.removeChild(notification);
+                document.head.removeChild(style);
+            }, 300);
+        }, 3000);
+        
+        // Restaurar botón después de 2 segundos
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = '#f0f0f3';
+            btn.style.color = '#4a5568';
+        }, 2000);
+    }).catch(err => {
+        console.error('Error copiando al portapapeles:', err);
+        alert('Error al copiar. Intente seleccionar y copiar manualmente.');
+    });
+}
+
+function copiarResultadoSimple() {
+    const monto = document.getElementById('resultado-conversion').querySelector('.resultado-monto').textContent;
+    const moneda = document.getElementById('resultado-conversion').querySelector('.resultado-moneda').textContent;
+    const texto = `${monto} ${moneda}`;
+    
+    navigator.clipboard.writeText(texto).then(() => {
+        // Mostrar notificación simple
+        const btn = document.querySelector('.btn-copiar-simple');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+        btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+        btn.style.color = 'white';
+        
+        // Restaurar botón después de 2 segundos
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = '#f0f0f3';
+            btn.style.color = '#4a5568';
+        }, 2000);
+    }).catch(err => {
+        console.error('Error copiando al portapapeles:', err);
+        alert('Error al copiar. Intente seleccionar y copiar manualmente.');
+    });
+}
+
+// Event listeners
+document.getElementById('monto-origen').addEventListener('input', calcularConversion);
+document.getElementById('moneda-origen').addEventListener('change', calcularConversion);
+document.getElementById('moneda-destino').addEventListener('change', calcularConversion);
+
+// Cerrar con Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        cerrarCalculadoraMonetaria();
+    }
+});
+</script>

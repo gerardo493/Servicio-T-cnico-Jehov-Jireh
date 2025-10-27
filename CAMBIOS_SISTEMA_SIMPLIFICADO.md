@@ -132,6 +132,6 @@ El sistema de recordatorios WhatsApp ahora funciona de manera **DIRECTA** y **SI
 
 ---
 
-*Sistema simplificado para KISVIC - Gestión Fiscal y Contable*
+*Sistema simplificado - Gestión Fiscal y Contable*
 *Fecha: Enero 2025*
 *Estado: ✅ PROBLEMA RESUELTO - SISTEMA FUNCIONAL*

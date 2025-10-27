@@ -162,6 +162,6 @@ Todos los problemas han sido **completamente resueltos**:
 
 ---
 
-*Cambios aplicados para KISVIC - Gestión Fiscal y Contable*
+*Cambios aplicados - Gestión Fiscal y Contable*
 *Fecha: Enero 2025*
 *Estado: ✅ TODOS LOS PROBLEMAS RESUELTOS - SISTEMA FUNCIONAL*

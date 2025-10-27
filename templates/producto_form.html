@@ -91,17 +91,13 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="precio_detal" class="form-label"><span class="icon"><i class="fas fa-dollar-sign"></i></span>Precio al detal</label>
+                            <label for="precio" class="form-label"><span class="icon"><i class="fas fa-dollar-sign"></i></span>Precio</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="precio_detal" name="precio_detal" step="0.01" min="0" value="{{ producto.precio_detal if producto else producto.precio if producto else '' }}" required>
+                                <input type="number" class="form-control" id="precio" name="precio" step="0.01" min="0" value="{{ producto.precio if producto else '' }}" required>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="precio_distribuidor" class="form-label"><span class="icon"><i class="fas fa-handshake"></i></span>Precio a distribuidor</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="precio_distribuidor" name="precio_distribuidor" step="0.01" min="0" value="{{ producto.precio_distribuidor if producto else producto.precio if producto else '' }}" required>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>Equivalente en bolívares: <span id="precio-bs">Bs 0.00</span>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -134,4 +130,39 @@
 </div>
 {% endblock %}
 
-
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const precioInput = document.getElementById('precio');
+    const precioBsSpan = document.getElementById('precio-bs');
+    
+    // Tasa de cambio actual (obtenida dinámicamente)
+    let tasaCambio = 36.5; // Valor por defecto
+    
+    // Obtener tasa actualizada del BCV
+    fetch('/api/tasas-actualizadas')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.tasa_bcv) {
+                tasaCambio = data.tasa_bcv;
+                actualizarPrecioBs(); // Actualizar con la nueva tasa
+            }
+        })
+        .catch(error => {
+            console.log('Error obteniendo tasa de cambio, usando valor por defecto:', error);
+        });
+    
+    function actualizarPrecioBs() {
+        const precio = parseFloat(precioInput.value) || 0;
+        const precioBs = precio * tasaCambio;
+        precioBsSpan.textContent = `Bs ${precioBs.toFixed(2)}`;
+    }
+    
+    // Actualizar al cargar la página
+    actualizarPrecioBs();
+    
+    // Actualizar cuando cambie el precio
+    precioInput.addEventListener('input', actualizarPrecioBs);
+});
+</script>
+{% endblock %}

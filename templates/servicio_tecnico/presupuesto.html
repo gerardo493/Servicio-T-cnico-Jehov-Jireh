@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Presupuesto - Orden {{ orden.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card neomorphic-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-calculator"></i>
+                        Presupuesto - Orden {{ orden.id }}
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('ver_orden_servicio', id=orden.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver a la Orden
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if orden.diagnostico %}
+                    <!-- Información del Presupuesto -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="info-box neomorphic-box">
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Cliente</span>
+                                    <span class="info-box-number">{{ orden.cliente.nombre }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-box neomorphic-box">
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Equipo</span>
+                                    <span class="info-box-number">{{ orden.equipo.marca }} {{ orden.equipo.modelo }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detalle del Presupuesto -->
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card neomorphic-card">
+                                <div class="card-header">
+                                    <h4><i class="fas fa-list"></i> Detalle del Presupuesto</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if orden.diagnostico.detalle_repuestos %}
+                                    <div class="mb-3">
+                                        <h5>Repuestos Necesarios:</h5>
+                                        <p class="text-muted">{{ orden.diagnostico.detalle_repuestos }}</p>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Concepto</th>
+                                                    <th class="text-right">Monto</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if orden.diagnostico.costo_piezas %}
+                                                <tr>
+                                                    <td><strong>Costo de Piezas</strong></td>
+                                                    <td class="text-right">${{ "%.2f"|format(orden.diagnostico.costo_piezas) }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                {% if orden.diagnostico.costo_mano_obra %}
+                                                <tr>
+                                                    <td><strong>Mano de Obra</strong></td>
+                                                    <td class="text-right">${{ "%.2f"|format(orden.diagnostico.costo_mano_obra) }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                <tr class="table-success">
+                                                    <td><strong>TOTAL ESTIMADO</strong></td>
+                                                    <td class="text-right"><strong>${{ "%.2f"|format(orden.diagnostico.total_estimado) }}</strong></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card neomorphic-card">
+                                <div class="card-header">
+                                    <h4><i class="fas fa-info-circle"></i> Estado del Presupuesto</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <strong>Estado:</strong>
+                                        <span class="badge badge-{% if orden.diagnostico.estado_presupuesto == 'aprobado' %}success{% elif orden.diagnostico.estado_presupuesto == 'pendiente' %}warning{% else %}secondary{% endif %}">
+                                            {{ orden.diagnostico.estado_presupuesto|title }}
+                                        </span>
+                                    </div>
+                                    
+                                    {% if orden.diagnostico.fecha_presupuesto %}
+                                    <div class="mb-3">
+                                        <strong>Fecha:</strong><br>
+                                        <small class="text-muted">{{ orden.diagnostico.fecha_presupuesto }}</small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mb-3">
+                                        <strong>Técnico:</strong><br>
+                                        <small class="text-muted">{{ orden.tecnico_asignado or 'Por asignar' }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Acciones -->
+                            <div class="card neomorphic-card">
+                                <div class="card-header">
+                                    <h4><i class="fas fa-cogs"></i> Acciones</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary" onclick="generarPDFPresupuesto()">
+                                            <i class="fas fa-file-pdf"></i> Generar PDF Presupuesto
+                                        </button>
+                                        
+                                        <a href="{{ url_for('diagnostico_orden', id=orden.id) }}" class="btn btn-info">
+                                            <i class="fas fa-stethoscope"></i> Ver Diagnóstico
+                                        </a>
+                                        
+                                        <a href="{{ url_for('ver_orden_servicio', id=orden.id) }}" class="btn btn-secondary">
+                                            <i class="fas fa-eye"></i> Ver Orden Completa
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% else %}
+                    <!-- Sin diagnóstico -->
+                    <div class="alert alert-warning">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Presupuesto No Disponible</h4>
+                        <p>Esta orden aún no tiene un diagnóstico técnico completado. Es necesario realizar el diagnóstico antes de generar el presupuesto.</p>
+                        <a href="{{ url_for('diagnostico_orden', id=orden.id) }}" class="btn btn-primary">
+                            <i class="fas fa-stethoscope"></i> Realizar Diagnóstico
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generarPDFPresupuesto() {
+    // Abrir el PDF del presupuesto en una nueva ventana
+    window.open('{{ url_for("presupuesto_pdf", id=orden.id) }}', '_blank');
+}
+</script>
+{% endblock %}

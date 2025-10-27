@@ -451,9 +451,16 @@
                     <i class="fas fa-list"></i> Listas de Precio
                   </button>
                   <ul class="dropdown-menu w-100" aria-labelledby="dropdownListasPrecio">
-                    <li><a class="dropdown-item" href="{{ url_for('lista_precios', tipo='detal') }}"><i class="fas fa-store"></i> Lista de Precios a Tiendas</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('lista_precios', tipo='distribuidor') }}"><i class="fas fa-truck"></i> Lista de Precios Distribuidor</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('lista_precios') }}"><i class="fas fa-list"></i> Lista de Precio</a></li>
                   </ul>
+                </div>
+                <div class="tasa-info" style="display: flex; flex-direction: column; padding: 8px 12px; background: linear-gradient(135deg, rgba(0,123,255,0.2), rgba(0,86,179,0.2)); border: 1px solid rgba(0,123,255,0.3); border-radius: 6px; margin-left: 10px;">
+                  <small class="text-white" style="font-weight: 600;">
+                    <i class="fas fa-university me-1"></i> Tasa BCV: 1 USD = {{ "%.2f"|format(tasa_cambio) }} Bs
+                  </small>
+                  <small class="text-white-50" style="font-size: 0.75rem;">
+                    <i class="fas fa-clock me-1"></i> Actualizada automáticamente
+                  </small>
                 </div>
                 <!-- Fin menú desplegable -->
                 <button type="button" class="btn btn-red flex-grow-1" id="btnEliminarSeleccionados" style="display: none;" data-bs-toggle="tooltip" title="Eliminar Seleccionados">
@@ -511,8 +518,8 @@
                                 <th>ID</th>
                                 <th>Nombre</th>
                                 <th>Categoría</th>
-                                <th>Precio Detal</th>
-                                <th>Precio Distribuidor</th>
+                                <th>Precio ($)</th>
+                                <th>Equivalente (Bs)</th>
                                 <th>Stock</th>
                                 <th>Acciones</th>
                             </tr>
@@ -528,8 +535,8 @@
                                 <td>{{ id }}</td>
                                 <td>{{ producto.nombre }}</td>
                                 <td>{{ producto.categoria }}</td>
-                                <td>${{ "%.2f"|format(producto.precio_detal if producto.precio_detal is defined else producto.precio) }}</td>
-                                <td>${{ "%.2f"|format(producto.precio_distribuidor if producto.precio_distribuidor is defined else producto.precio) }}</td>
+                                <td>${{ "%.2f"|format(producto.precio) }}</td>
+                                <td>Bs {{ "%.2f"|format(producto.precio * tasa_cambio) }}</td>
                                 <td>
                                     <span class="badge {% if producto.cantidad > 0 %}bg-success{% else %}bg-danger{% endif %}">
                                         {{ producto.cantidad }}

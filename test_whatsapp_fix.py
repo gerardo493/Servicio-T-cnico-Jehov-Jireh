@@ -48,7 +48,7 @@ def generar_enlaces_completos(telefono, mensaje):
 def probar_enlaces():
     """Prueba todos los tipos de enlaces"""
     telefono = "584121447869"
-    mensaje = "Hola, este es un mensaje de prueba desde KISVIC 🚀"
+    mensaje = "Hola, este es un mensaje de prueba desde la empresa 🚀"
     
     print("🧪 PRUEBA DE ENLACES DE WHATSAPP")
     print("=" * 50)

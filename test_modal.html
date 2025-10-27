@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Modal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .neo-modal {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 
+                20px 20px 40px #a3b1c6,
+                -20px -20px 40px #ffffff;
+        }
+        .neo-input {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 15px;
+            box-shadow: 
+                inset 6px 6px 12px #a3b1c6,
+                inset -6px -6px 12px #ffffff;
+            color: #2d3748;
+            font-weight: 500;
+            padding: 12px 16px;
+            transition: all 0.3s ease;
+        }
+        .neo-button-primary {
+            background: linear-gradient(145deg, #00ff88, #00cc6a);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            box-shadow: 
+                6px 6px 12px #a3b1c6,
+                -6px -6px 12px #ffffff;
+            padding: 12px 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <button class="btn btn-primary" onclick="abrirModal()">Abrir Modal de Prueba</button>
+    </div>
+
+    <!-- Modal Asignar Técnico -->
+    <div class="modal fade" id="modalAsignarTecnico" tabindex="-1" aria-labelledby="modalAsignarTecnicoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content neo-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAsignarTecnicoLabel">
+                        <i class="fas fa-user-tie me-2"></i>Asignar Técnico
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAsignarTecnico">
+                        <input type="hidden" id="orden-id-tecnico" name="orden_id">
+                        
+                        <div class="mb-3">
+                            <label for="tecnico-nombre" class="form-label">Nombre del Técnico</label>
+                            <input type="text" id="tecnico-nombre" name="tecnico_nombre" class="neo-input w-100" 
+                                   placeholder="Ingrese el nombre completo del técnico" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tecnico-especialidad" class="form-label">Especialidad</label>
+                            <select id="tecnico-especialidad" name="tecnico_especialidad" class="neo-input w-100">
+                                <option value="">Seleccionar especialidad...</option>
+                                <option value="general">Técnico General</option>
+                                <option value="smartphones">Smartphones y Tablets</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn neo-button-primary" onclick="guardarAsignacionTecnico()">
+                        <i class="fas fa-user-check me-2"></i>Asignar Técnico
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function abrirModal() {
+            console.log('DEBUG: Abriendo modal de prueba');
+            const modal = new bootstrap.Modal(document.getElementById('modalAsignarTecnico'));
+            modal.show();
+        }
+
+        function guardarAsignacionTecnico() {
+            console.log('DEBUG: Guardando asignación de técnico');
+            const tecnicoNombre = document.getElementById('tecnico-nombre').value;
+            console.log('DEBUG: Nombre del técnico:', tecnicoNombre);
+            alert('Técnico asignado: ' + tecnicoNombre);
+        }
+    </script>
+</body>
+</html>

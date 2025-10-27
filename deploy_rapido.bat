@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title DESPLEGADOR RAPIDO KISVIC 2025
+title DESPLEGADOR RAPIDO 2025
 
 echo.
 echo ========================================
-echo    DESPLEGADOR RAPIDO KISVIC 2025
+echo    DESPLEGADOR RAPIDO 2025
 echo ========================================
 echo.
 

@@ -4,752 +4,909 @@
 
 {% block content %}
 <style>
-    .clientes-container {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+/* Neomorfismo - Estilos modernos para clientes */
+.neo-container {
+    background: #e0e5ec;
         min-height: 100vh;
-        padding: 2rem 0;
-    }
+    padding: 20px;
+}
 
-    .page-header {
-        background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        color: white;
-    }
-
-    .page-header h2 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin: 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .table-card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-top: 20px;
-    }
-
-    .search-card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
         margin-bottom: 20px;
-        padding: 1.5rem;
-    }
+}
 
-    .search-card .input-group {
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border-radius: 8px;
-        overflow: hidden;
-    }
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
 
-    .search-card .input-group-text {
-        background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-        color: white;
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
         border: none;
-        padding: 0.75rem 1rem;
-    }
+}
 
-    .search-card .form-control {
-        border: 1px solid #e0e0e0;
-        padding: 0.75rem 1rem;
-        font-size: 1rem;
-        color: #1a237e;
-    }
-
-    .search-card .form-control:focus {
-        box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.25);
-        border-color: #1a237e;
-    }
-
-    .search-card .form-select {
-        border: 1px solid #e0e0e0;
-        padding: 0.75rem 1rem;
-        font-size: 1rem;
-        color: #1a237e;
-        background-color: white;
-        cursor: pointer;
-    }
-
-    .search-card .form-select:focus {
-        box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.25);
-        border-color: #1a237e;
-    }
-
-    .search-card .btn-primary {
-        background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+.neo-button {
+    background: #e0e5ec;
         border: none;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
 
-    .search-card .btn-primary:hover {
-        background: linear-gradient(135deg, #0d47a1 0%, #1a237e 100%);
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
         transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.neo-button:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+        color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
     }
 
-    .table th {
-        background-color: #1a237e;
+.neo-button-primary:hover {
+    background: linear-gradient(145deg, #00cc6a, #00ff88);
         color: white;
+    }
+
+.neo-button-secondary {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button-secondary:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button-secondary:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-warning {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #d69e2e;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button-warning:hover {
+    box-shadow: 
+        8px 8px 16px #a3b1c6,
+        -8px -8px 16px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-button-warning:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-input {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    color: #4a5568;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.neo-subtitle {
+    color: #4a5568;
         font-weight: 600;
-        text-transform: uppercase;
-        font-size: 1rem;
-        letter-spacing: 0.5px;
-        padding: 1rem;
-    }
+    margin-bottom: 0.5rem;
+}
 
-    .table td {
-        font-size: 1.1rem;
-        color: #1a237e;
-        padding: 1rem;
-        vertical-align: middle;
-        font-weight: 500;
-    }
+.neo-icon {
+    color: #00ff88;
+    margin-right: 8px;
+}
 
-    .cliente-info {
-        max-width: 200px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #1a237e;
-    }
+.neo-table {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
 
-    .cliente-info:hover {
-        white-space: normal;
-        overflow: visible;
-    }
+.neo-table th {
+    background: #e0e5ec;
+    border: none;
+    color: #2d3748;
+    font-weight: 600;
+    padding: 15px;
+}
 
-    .btn-action {
-        padding: 0.25rem 0.5rem;
-        margin: 0 0.1rem;
-    }
+.neo-table td {
+    background: #e0e5ec;
+    border: none;
+    color: #4a5568;
+    padding: 15px;
+    border-bottom: 1px solid rgba(163, 177, 198, 0.3);
+}
 
-    .contact-buttons {
-        display: flex;
-        gap: 0.5rem;
-    }
+.neo-table tbody tr:hover {
+    background: rgba(0, 255, 136, 0.1);
+}
 
-    .btn-whatsapp {
-        background-color: #25D366;
+.neo-badge {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.neo-badge-success {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+}
+
+.neo-badge-warning {
+    background: linear-gradient(145deg, #f6ad55, #ed8936);
+    color: white;
+}
+
+.neo-badge-info {
+    background: linear-gradient(145deg, #63b3ed, #4299e1);
         color: white;
-    }
+}
 
-    .btn-whatsapp:hover {
-        background-color: #128C7E;
-        color: white;
+/* Responsive */
+@media (max-width: 768px) {
+    .neo-container {
+        padding: 10px;
     }
-
-    .btn-gmail {
-        background-color: #EA4335;
-        color: white;
+    
+    .neo-button {
+        padding: 10px 16px;
+        font-size: 0.9rem;
     }
-
-    .btn-gmail:hover {
-        background-color: #D33426;
-        color: white;
-    }
-
-    /* Estilos para autocompletado */
-    .autocomplete-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #ddd;
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 1000;
-        max-height: 300px;
-        overflow-y: auto;
-        display: none;
-    }
-
-    .autocomplete-item {
-        padding: 12px 16px;
-        cursor: pointer;
-        border-bottom: 1px solid #f0f0f0;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .autocomplete-item:last-child {
-        border-bottom: none;
-    }
-
-    .autocomplete-item:hover {
-        background-color: #f8f9fa;
-        transform: translateX(4px);
-    }
-
-    .autocomplete-item.selected {
-        background-color: #e3f2fd;
-        border-left: 4px solid #1a237e;
-    }
-
-    .autocomplete-item .cliente-avatar {
-        width: 40px;
-        height: 40px;
-        background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 14px;
-        flex-shrink: 0;
-    }
-
-    .autocomplete-item .cliente-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .autocomplete-item .cliente-nombre {
-        font-weight: 600;
-        color: #1a237e;
-        font-size: 14px;
-        margin-bottom: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .autocomplete-item .cliente-details {
-        font-size: 12px;
-        color: #666;
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .autocomplete-item .cliente-rif {
-        background: #e8f5e8;
-        color: #2e7d32;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-weight: 500;
-    }
-
-    .autocomplete-item .cliente-contacto {
-        color: #666;
-    }
-
-    .autocomplete-item .highlight {
-        background-color: #fff3cd;
-        padding: 1px 2px;
-        border-radius: 2px;
-    }
-
-    /* Scrollbar personalizado para el dropdown */
-    .autocomplete-dropdown::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .autocomplete-dropdown::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
-
-    .autocomplete-dropdown::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
-    }
-
-    .autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
-    }
-
-    /* Loading indicator */
-    .autocomplete-loading {
-        padding: 16px;
-        text-align: center;
-        color: #666;
-        font-style: italic;
-    }
-
-    .autocomplete-loading i {
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    /* No results */
-    .autocomplete-no-results {
-        padding: 16px;
-        text-align: center;
-        color: #666;
-        font-style: italic;
-    }
-
-    .fa-gmail:before {
-        content: "G";
-        font-family: Arial, sans-serif;
-        font-weight: bold;
-    }
-
-    .badge {
-        font-size: 1rem;
-        padding: 0.6em 1em;
-        font-weight: 600;
-        background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-        color: white;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .text-muted {
-        font-size: 1rem;
-        color: #1a237e !important;
-        font-weight: 500;
-    }
-
-    .text-muted i {
-        margin-right: 5px;
-        color: #1a237e;
-    }
-
-    .btn-sm {
-        font-size: 1rem;
-        padding: 0.4rem 0.6rem;
-    }
-
-    @media (max-width: 768px) {
-        .page-header {
-            padding: 1.5rem;
-        }
-        .table-responsive {
-            font-size: 1rem;
-        }
-        .btn-action {
-            padding: 0.2rem 0.4rem;
-        }
-        .cliente-info {
-            font-size: 1rem;
+    
+    .neo-table th,
+    .neo-table td {
+        padding: 10px;
+        font-size: 0.9rem;
         }
     }
 </style>
 
-<div class="clientes-container">
-    <div class="container-fluid">
-        <div class="page-header d-flex justify-content-between align-items-center">
-            <h2><i class="fas fa-users me-2"></i>Gestión de Clientes</h2>
-            <div class="btn-group">
-                <a href="{{ url_for('mapa_avanzado') }}" class="btn btn-info">
-                    <i class="fas fa-map-marked-alt me-2"></i>Mapa Avanzado
-                </a>
-                <a href="{{ url_for('reporte_clientes') }}" class="btn btn-success">
-                    <i class="fas fa-chart-bar me-2"></i>Ver Reporte
-                </a>
-                <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-primary">
+<div class="neo-container">
+    <!-- Header -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="neo-title mb-2">
+                        <i class="fas fa-users neo-icon"></i>Gestión de Clientes
+                    </h2>
+                    <p class="text-muted mb-0">Administra la información de tus clientes</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="/clientes/nuevo" class="btn neo-button-primary">
                     <i class="fas fa-plus me-2"></i>Nuevo Cliente
                 </a>
+                    <a href="/clientes/pagos-pendientes" class="btn neo-button-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Pagos Pendientes
+                    </a>
+                    <a href="/clientes/calendario" class="btn neo-button-secondary">
+                        <i class="fas fa-calendar-alt me-2"></i>Calendario
+                    </a>
+                    <a href="/clientes/por-fecha" class="btn neo-button-secondary">
+                        <i class="fas fa-filter me-2"></i>Por Fecha
+                    </a>
+                    <a href="/clientes/reporte" class="btn neo-button-secondary">
+                        <i class="fas fa-chart-bar me-2"></i>Reportes
+                    </a>
+                </div>
+            </div>
             </div>
         </div>
 
-        <div class="search-card">
-            <div class="card-body">
-                <form method="get" class="row g-3">
+    <!-- Búsqueda y Filtros -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <form method="GET" class="row g-3">
                     <div class="col-md-6">
-                        <div class="input-group position-relative">
-                            <span class="input-group-text">
+                    <div class="neo-card-inset p-3">
+                        <div class="input-group">
+                            <span class="input-group-text neo-input" style="border-radius: 15px 0 0 15px;">
                                 <i class="fas fa-search"></i>
                             </span>
-                            <input type="text" class="form-control" name="q" id="searchInput"
-                                   placeholder="Buscar por nombre o RIF del cliente..." value="{{ q or '' }}"
-                                   autocomplete="off">
-                            <div id="autocompleteResults" class="autocomplete-dropdown"></div>
+                            <input type="text" 
+                                   class="form-control neo-input" 
+                                   name="q" 
+                                   value="{{ q or '' }}" 
+                                   placeholder="Buscar por nombre, cédula, email o teléfono..."
+                                   style="border-radius: 0 15px 15px 0; border-left: none;">
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <select name="orden" class="form-select">
-                            <option value="nombre" {% if filtro_orden == 'nombre' %}selected{% endif %}>
-                                <i class="fas fa-sort-alpha-down"></i> Ordenar por Nombre
-                            </option>
-                            <option value="rif" {% if filtro_orden == 'rif' %}selected{% endif %}>
-                                <i class="fas fa-sort-numeric-down"></i> Ordenar por RIF
-                            </option>
+                </div>
+                <div class="col-md-2">
+                    <div class="neo-card-inset p-3">
+                        <select name="filtro_tipo" class="form-select neo-input">
+                            <option value="">Todos los tipos</option>
+                            <option value="V" {% if filtro_tipo == 'V' %}selected{% endif %}>V - Venezolano</option>
+                            <option value="E" {% if filtro_tipo == 'E' %}selected{% endif %}>E - Extranjero</option>
+                            <option value="J" {% if filtro_tipo == 'J' %}selected{% endif %}>J - Jurídico</option>
+                            <option value="P" {% if filtro_tipo == 'P' %}selected{% endif %}>P - Pasaporte</option>
+                            <option value="G" {% if filtro_tipo == 'G' %}selected{% endif %}>G - Gubernamental</option>
                         </select>
                     </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="neo-card-inset p-3">
+                        <select name="filtro_estado" class="form-select neo-input">
+                            <option value="">Todos los estados</option>
+                            <option value="activo" {% if filtro_estado == 'activo' %}selected{% endif %}>Activos</option>
+                            <option value="inactivo" {% if filtro_estado == 'inactivo' %}selected{% endif %}>Inactivos</option>
+                        </select>
+                    </div>
+                    </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-filter me-2"></i>Filtrar
+                    <div class="neo-card-inset p-3">
+                        <select name="filtro_orden" class="form-select neo-input">
+                            <option value="nombre" {% if filtro_orden == 'nombre' %}selected{% endif %}>Por Nombre</option>
+                            <option value="cedula_rif" {% if filtro_orden == 'cedula_rif' %}selected{% endif %}>Por Cédula</option>
+                            <option value="fecha_creacion" {% if filtro_orden == 'fecha_creacion' %}selected{% endif %}>Por Fecha</option>
+                            <option value="email" {% if filtro_orden == 'email' %}selected{% endif %}>Por Email</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn neo-button">
+                            <i class="fas fa-search me-2"></i>Buscar
                         </button>
+                        <a href="/clientes" class="btn neo-button-secondary">
+                            <i class="fas fa-times me-2"></i>Limpiar
+                        </a>
+                        <button type="button" class="btn neo-button" onclick="exportarClientes()">
+                            <i class="fas fa-download me-2"></i>Exportar
+                        </button>
+                    </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="table-card">
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="neo-card">
+                <div class="card-body p-3 text-center">
+                    <i class="fas fa-users fa-2x neo-icon mb-2"></i>
+                    <h5 class="neo-title mb-1">{{ total_clientes or 0 }}</h5>
+                    <small class="text-muted">Total Clientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card">
+                <div class="card-body p-3 text-center">
+                    <i class="fas fa-user-check fa-2x" style="color: #00ff88;" class="mb-2"></i>
+                    <h5 class="neo-title mb-1">{{ clientes_activos or 0 }}</h5>
+                    <small class="text-muted">Activos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card">
+                <div class="card-body p-3 text-center">
+                    <i class="fas fa-user-times fa-2x" style="color: #f6ad55;" class="mb-2"></i>
+                    <h5 class="neo-title mb-1">{{ clientes_inactivos or 0 }}</h5>
+                    <small class="text-muted">Inactivos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card">
+                <div class="card-body p-3 text-center">
+                    <i class="fas fa-percentage fa-2x" style="color: #63b3ed;" class="mb-2"></i>
+                    <h5 class="neo-title mb-1">
+                        {% if total_clientes > 0 %}
+                            {{ "%.1f"|format((clientes_activos / total_clientes * 100)) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </h5>
+                    <small class="text-muted">% Activos</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Masivas -->
+    <div class="neo-card" id="accionesMasivas" style="display: none;">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h6 class="neo-subtitle mb-0">
+                        <i class="fas fa-check-square me-2"></i>
+                        <span id="clientesSeleccionados">0</span> clientes seleccionados
+                    </h6>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn neo-button-secondary" onclick="accionMasiva('activar')">
+                            <i class="fas fa-user-check me-2"></i>Activar
+                        </button>
+                        <button class="btn neo-button-warning" onclick="accionMasiva('desactivar')">
+                            <i class="fas fa-user-times me-2"></i>Desactivar
+                        </button>
+                        <button class="btn neo-button" onclick="abrirComunicacionMasiva()">
+                            <i class="fas fa-paper-plane me-2"></i>Comunicar
+                        </button>
+                        <button class="btn neo-button-secondary" onclick="limpiarSeleccion()">
+                            <i class="fas fa-times me-2"></i>Limpiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Clientes -->
+    <div class="neo-card">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                <table class="table neo-table mb-0">
                         <thead>
                             <tr>
-                                <th>RIF</th>
-                                <th>Nombre</th>
-                                <th>Contacto</th>
-                                <th>Dirección</th>
-                                <th>Acciones</th>
+                            <th width="50">
+                                <input type="checkbox" id="seleccionarTodos" onchange="toggleSeleccionTodos()">
+                            </th>
+                            <th><i class="fas fa-user me-2"></i>Cliente</th>
+                            <th><i class="fas fa-id-card me-2"></i>Identificación</th>
+                            <th><i class="fas fa-phone me-2"></i>Contacto</th>
+                            <th><i class="fas fa-map-marker-alt me-2"></i>Dirección</th>
+                            <th><i class="fas fa-calendar me-2"></i>Registro</th>
+                            <th><i class="fas fa-cogs me-2"></i>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for id, cliente in clientes.items() %}
+                        {% for cliente_id, cliente in clientes.items() %}
                             <tr>
                                 <td>
-                                    <span class="badge bg-secondary">{{ id }}</span>
+                                <input type="checkbox" class="cliente-checkbox" value="{{ cliente_id }}" onchange="actualizarSeleccion()">
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px;">
+                                            <i class="fas fa-user text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ cliente.get('nombre', 'Sin nombre') }}</div>
+                                        <small class="text-muted">{{ cliente.get('email', 'Sin email') }}</small>
+                                    </div>
+                                </div>
                                 </td>
                                 <td>
-                                    <div class="cliente-info" title="{{ cliente.nombre }}">
-                                        {{ cliente.nombre }}
+                                <div>
+                                    <span class="neo-badge">{{ cliente.get('tipo_id', 'V') }}</span>
+                                    <div class="mt-1">{{ cliente.get('cedula_rif', 'Sin cédula') }}</div>
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="contact-buttons">
-                                        {% if cliente.telefono %}
-                                        <a href="https://wa.me/{{ cliente.telefono }}" target="_blank" 
-                                           class="btn btn-whatsapp btn-sm" title="Enviar WhatsApp">
-                                            <i class="fab fa-whatsapp"></i>
-                                        </a>
-                                        {% endif %}
-                                        {% if cliente.email %}
-                                        <a href="mailto:{{ cliente.email }}" class="btn btn-gmail btn-sm" title="Enviar Email">
-                                            <i class="fas fa-envelope"></i>
-                                        </a>
+                                <div>
+                                    <div><i class="fas fa-phone me-1"></i>{{ cliente.get('telefono', 'Sin teléfono') }}</div>
+                                    {% if cliente.get('telefono2') %}
+                                    <div><i class="fas fa-mobile-alt me-1"></i>{{ cliente.telefono2 }}</div>
                                         {% endif %}
                                     </div>
-                                    <small class="text-muted d-block mt-1">
-                                        {% if cliente.telefono %}
-                                        <i class="fab fa-whatsapp"></i> {{ cliente.telefono }}<br>
-                                        {% endif %}
-                                        {% if cliente.email %}
-                                        <i class="fas fa-envelope"></i> {{ cliente.email }}
-                                        {% endif %}
-                                    </small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 200px;" title="{{ cliente.get('direccion', 'Sin dirección') }}">
+                                    {{ cliente.get('direccion', 'Sin dirección') }}
+                                </div>
                                 </td>
                                 <td>
-                                    <div class="cliente-info" title="{{ cliente.direccion }}">
-                                        {{ cliente.direccion }}
+                                <div>
+                                    <div>{{ cliente.get('fecha_creacion', 'Sin fecha')[:10] }}</div>
+                                    <small class="text-muted">{{ cliente.get('fecha_creacion', '')[-8:] }}</small>
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="btn-group">
-                                        <a href="{{ url_for('historial_cliente', id=id) }}" 
-                                           class="btn btn-info btn-action" title="Ver historial">
-                                            <i class="fas fa-history"></i>
-                                        </a>
-                                        <a href="{{ url_for('editar_cliente', id=id) }}" 
-                                           class="btn btn-warning btn-action" title="Editar">
+                                <div class="d-flex gap-1">
+                                    <a href="/clientes/{{ cliente_id }}" class="btn btn-sm neo-button" title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="/clientes/{{ cliente_id }}/editar" class="btn btn-sm neo-button-secondary" title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-danger btn-action" title="Eliminar"
-                                                onclick="confirmarEliminacion('{{ id }}', '{{ cliente.nombre }}')">
+                                    <button class="btn btn-sm neo-button-warning" 
+                                            onclick="eliminarCliente('{{ cliente_id }}', '{{ cliente.get('nombre', 'Cliente') }}')" 
+                                            title="Eliminar">
                                             <i class="fas fa-trash"></i>
                                         </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-users fa-3x mb-3"></i>
+                                    <div>No se encontraron clientes</div>
+                                    <small>Intenta ajustar los filtros de búsqueda</small>
                                     </div>
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginación y Estadísticas -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle neo-icon me-2"></i>
+                        <span class="text-muted">
+                            Mostrando {{ clientes|length }} de {{ total_clientes_general }} clientes
+                        </span>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <!-- Botones de exportar e importar ocultos -->
+                    <div class="d-flex gap-2 justify-content-end" style="display: none !important;">
+                        <a href="/clientes/exportar" class="btn neo-button-secondary">
+                            <i class="fas fa-download me-2"></i>Exportar
+                        </a>
+                        <a href="/clientes/importar" class="btn neo-button">
+                            <i class="fas fa-upload me-2"></i>Importar
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de Confirmación -->
-<div class="modal fade" id="modalEliminar" tabindex="-1">
+<!-- Modal de Confirmación de Eliminación -->
+<div class="modal fade" id="modalEliminarCliente" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content neo-card">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                <h5 class="modal-title neo-title">
+                    <i class="fas fa-exclamation-triangle neo-icon me-2"></i>Confirmar Eliminación
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>¿Está seguro que desea eliminar al cliente <strong id="nombreCliente"></strong>?</p>
-                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Esta acción no se puede deshacer.</p>
+                <p>¿Estás seguro de que deseas eliminar al cliente <strong id="nombreClienteEliminar"></strong>?</p>
+                <p class="text-muted small">Esta acción no se puede deshacer.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form id="formEliminar" method="POST" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash me-2"></i>Eliminar Cliente
-                    </button>
-                </form>
+                <button type="button" class="btn neo-button-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn neo-button-warning" id="confirmarEliminarCliente">
+                    <i class="fas fa-trash me-2"></i>Eliminar
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<footer class="footer mt-auto py-3 bg-light text-center">
-</footer>
+<!-- Modal de Comunicación Masiva -->
+<div class="modal fade" id="modalComunicacionMasiva" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content neo-card">
+            <div class="modal-header">
+                <h5 class="modal-title neo-title">
+                    <i class="fas fa-paper-plane neo-icon me-2"></i>Comunicación Masiva
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formComunicacionMasiva">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="neo-label">Tipo de Comunicación</label>
+                            <select class="neo-select w-100" name="tipo_comunicacion" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="email">Email</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="neo-label">Asunto (Email)</label>
+                            <input type="text" class="neo-input w-100" name="asunto" placeholder="Asunto del email...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="neo-label">Mensaje</label>
+                        <textarea class="neo-textarea w-100" name="mensaje" rows="4" 
+                                  placeholder="Escribe tu mensaje aquí..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="neo-card-inset p-3">
+                            <h6 class="neo-subtitle mb-2">Plantillas Predefinidas</h6>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn neo-button-secondary btn-sm" onclick="cargarPlantilla('recordatorio')">
+                                    Recordatorio de Pago
+                                </button>
+                                <button type="button" class="btn neo-button-secondary btn-sm" onclick="cargarPlantilla('promocion')">
+                                    Promoción
+                                </button>
+                                <button type="button" class="btn neo-button-secondary btn-sm" onclick="cargarPlantilla('mantenimiento')">
+                                    Mantenimiento
+                    </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="neo-card-inset p-3">
+                            <h6 class="neo-subtitle mb-2">Clientes Seleccionados</h6>
+                            <div id="listaClientesSeleccionados" class="text-muted">
+                                Selecciona clientes de la tabla
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn neo-button-primary" onclick="enviarComunicacionMasiva()">
+                    <i class="fas fa-paper-plane me-2"></i>Enviar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-{% endblock %}
-
-{% block extra_js %}
 <script>
-function confirmarEliminacion(id, nombre) {
-    document.getElementById('nombreCliente').textContent = nombre;
-    document.getElementById('formEliminar').action = `/clientes/${id}/eliminar`;
-    new bootstrap.Modal(document.getElementById('modalEliminar')).show();
+// Función para eliminar cliente
+function eliminarCliente(clienteId, nombreCliente) {
+    document.getElementById('nombreClienteEliminar').textContent = nombreCliente;
+    document.getElementById('confirmarEliminarCliente').onclick = function() {
+        // Crear formulario para enviar POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/clientes/${clienteId}/eliminar`;
+        
+        // Agregar token CSRF si existe
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.getAttribute('content');
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    };
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('modalEliminarCliente'));
+    modal.show();
 }
 
-// Sistema de autocompletado avanzado
-class ClienteAutocomplete {
-    constructor() {
-        this.searchInput = document.getElementById('searchInput');
-        this.resultsContainer = document.getElementById('autocompleteResults');
-        this.selectedIndex = -1;
-        this.results = [];
-        this.debounceTimer = null;
-        this.isLoading = false;
-        
-        this.init();
-    }
+// Auto-submit del formulario de búsqueda al cambiar los selects
+document.querySelectorAll('select[name="filtro_orden"], select[name="filtro_tipo"], select[name="filtro_estado"]').forEach(select => {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+
+// Función para exportar clientes
+function exportarClientes() {
+    const params = new URLSearchParams(window.location.search);
+    params.set('exportar', 'excel');
     
-    init() {
-        if (!this.searchInput || !this.resultsContainer) {
-            console.error('No se encontraron los elementos necesarios para el autocompletado');
-            return;
+    // Crear enlace de descarga
+    const link = document.createElement('a');
+    link.href = `/clientes/exportar?${params.toString()}`;
+    link.download = `clientes_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Búsqueda en tiempo real
+let searchTimeout;
+document.querySelector('input[name="q"]').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        if (this.value.length >= 3 || this.value.length === 0) {
+            this.form.submit();
         }
-        
-        // Event listeners
-        this.searchInput.addEventListener('input', (e) => this.handleInput(e));
-        this.searchInput.addEventListener('keydown', (e) => this.handleKeydown(e));
-        this.searchInput.addEventListener('focus', () => this.showResults());
-        this.searchInput.addEventListener('blur', () => this.hideResults());
-        
-        // Cerrar al hacer clic fuera
-        document.addEventListener('click', (e) => {
-            if (!this.searchInput.contains(e.target) && !this.resultsContainer.contains(e.target)) {
-                this.hideResults();
-            }
-        });
-    }
+    }, 500);
+});
+
+// Variables globales para selección
+let clientesSeleccionados = new Set();
+
+// Función para actualizar selección
+function actualizarSeleccion() {
+    const checkboxes = document.querySelectorAll('.cliente-checkbox:checked');
+    clientesSeleccionados.clear();
     
-    handleInput(e) {
-        const query = e.target.value.trim();
-        
-        // Limpiar timer anterior
-        if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
-        }
-        
-        // Si la query está vacía, ocultar resultados
-        if (query.length === 0) {
-            this.hideResults();
-            return;
-        }
-        
-        // Debounce para evitar muchas peticiones
-        this.debounceTimer = setTimeout(() => {
-            this.searchClientes(query);
-        }, 300);
-    }
+    checkboxes.forEach(checkbox => {
+        clientesSeleccionados.add(checkbox.value);
+    });
     
-    async searchClientes(query) {
-        if (this.isLoading) return;
-        
-        this.isLoading = true;
-        this.showLoading();
-        
-        try {
-            const url = `/api/clientes/autocomplete?q=${encodeURIComponent(query)}`;
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            this.results = data;
-            this.renderResults();
-        } catch (error) {
-            console.error('Error en búsqueda:', error);
-            this.showError();
-        } finally {
-            this.isLoading = false;
-        }
-    }
+    const contador = document.getElementById('clientesSeleccionados');
+    const accionesMasivas = document.getElementById('accionesMasivas');
     
-    renderResults() {
-        if (this.results.length === 0) {
-            this.showNoResults();
-            return;
-        }
-        
-        this.resultsContainer.innerHTML = '';
-        this.selectedIndex = -1;
-        
-        this.results.forEach((cliente, index) => {
-            const item = this.createResultItem(cliente, index);
-            this.resultsContainer.appendChild(item);
-        });
-        
-        this.showResults();
-    }
+    contador.textContent = clientesSeleccionados.size;
     
-    createResultItem(cliente, index) {
-        const item = document.createElement('div');
-        item.className = 'autocomplete-item';
-        item.dataset.index = index;
-        
-        // Crear avatar con iniciales
-        const iniciales = this.getIniciales(cliente.nombre);
-        
-        // Resaltar texto de búsqueda
-        const nombreHighlighted = this.highlightText(cliente.nombre, this.searchInput.value);
-        const rifHighlighted = this.highlightText(cliente.rif, this.searchInput.value);
-        
-        item.innerHTML = `
-            <div class="cliente-avatar">${iniciales}</div>
-            <div class="cliente-info">
-                <div class="cliente-nombre">${nombreHighlighted}</div>
-                <div class="cliente-details">
-                    <span class="cliente-rif">${rifHighlighted}</span>
-                    ${cliente.email ? `<span class="cliente-contacto"><i class="fas fa-envelope"></i> ${cliente.email}</span>` : ''}
-                    ${cliente.telefono ? `<span class="cliente-contacto"><i class="fas fa-phone"></i> ${cliente.telefono}</span>` : ''}
-                </div>
-            </div>
-        `;
-        
-        // Event listeners
-        item.addEventListener('click', () => this.selectCliente(cliente));
-        item.addEventListener('mouseenter', () => this.highlightItem(index));
-        
-        return item;
-    }
-    
-    getIniciales(nombre) {
-        return nombre
-            .split(' ')
-            .map(word => word.charAt(0))
-            .join('')
-            .toUpperCase()
-            .substring(0, 2);
-    }
-    
-    highlightText(text, query) {
-        if (!query) return text;
-        
-        const regex = new RegExp(`(${query})`, 'gi');
-        return text.replace(regex, '<span class="highlight">$1</span>');
-    }
-    
-    selectCliente(cliente) {
-        this.searchInput.value = cliente.nombre;
-        this.hideResults();
-        
-        // Enviar el formulario automáticamente
-        this.searchInput.form.submit();
-    }
-    
-    handleKeydown(e) {
-        const items = this.resultsContainer.querySelectorAll('.autocomplete-item');
-        
-        switch(e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                this.selectedIndex = Math.min(this.selectedIndex + 1, items.length - 1);
-                this.updateSelection(items);
-                break;
-                
-            case 'ArrowUp':
-                e.preventDefault();
-                this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
-                this.updateSelection(items);
-                break;
-                
-            case 'Enter':
-                e.preventDefault();
-                if (this.selectedIndex >= 0 && this.results[this.selectedIndex]) {
-                    this.selectCliente(this.results[this.selectedIndex]);
-                } else {
-                    this.searchInput.form.submit();
-                }
-                break;
-                
-            case 'Escape':
-                this.hideResults();
-                this.searchInput.blur();
-                break;
-        }
-    }
-    
-    updateSelection(items) {
-        items.forEach((item, index) => {
-            item.classList.toggle('selected', index === this.selectedIndex);
-        });
-    }
-    
-    highlightItem(index) {
-        this.selectedIndex = index;
-        const items = this.resultsContainer.querySelectorAll('.autocomplete-item');
-        this.updateSelection(items);
-    }
-    
-    showResults() {
-        if (this.results.length > 0 || this.isLoading) {
-            this.resultsContainer.style.display = 'block';
-        }
-    }
-    
-    hideResults() {
-        this.resultsContainer.style.display = 'none';
-    }
-    
-    showLoading() {
-        this.resultsContainer.innerHTML = `
-            <div class="autocomplete-loading">
-                <i class="fas fa-spinner"></i> Buscando clientes...
-            </div>
-        `;
-        this.showResults();
-    }
-    
-    showNoResults() {
-        this.resultsContainer.innerHTML = `
-            <div class="autocomplete-no-results">
-                <i class="fas fa-search"></i> No se encontraron clientes
-            </div>
-        `;
-        this.showResults();
-    }
-    
-    showError() {
-        this.resultsContainer.innerHTML = `
-            <div class="autocomplete-no-results">
-                <i class="fas fa-exclamation-triangle"></i> Error en la búsqueda
-            </div>
-        `;
-        this.showResults();
+    if (clientesSeleccionados.size > 0) {
+        accionesMasivas.style.display = 'block';
+        actualizarListaClientesSeleccionados();
+    } else {
+        accionesMasivas.style.display = 'none';
     }
 }
 
-// Inicializar autocompletado cuando el DOM esté listo
+// Función para seleccionar/deseleccionar todos
+function toggleSeleccionTodos() {
+    const seleccionarTodos = document.getElementById('seleccionarTodos');
+    const checkboxes = document.querySelectorAll('.cliente-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = seleccionarTodos.checked;
+    });
+    
+    actualizarSeleccion();
+}
+
+// Función para limpiar selección
+function limpiarSeleccion() {
+    const checkboxes = document.querySelectorAll('.cliente-checkbox');
+    const seleccionarTodos = document.getElementById('seleccionarTodos');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    seleccionarTodos.checked = false;
+    
+    actualizarSeleccion();
+}
+
+// Función para acción masiva
+function accionMasiva(accion) {
+    if (clientesSeleccionados.size === 0) {
+        alert('No hay clientes seleccionados');
+        return;
+    }
+    
+    const accionTexto = accion === 'activar' ? 'activar' : 'desactivar';
+    if (confirm(`¿Estás seguro de que deseas ${accionTexto} ${clientesSeleccionados.size} clientes?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/clientes/accion-masiva';
+        
+        const accionInput = document.createElement('input');
+        accionInput.type = 'hidden';
+        accionInput.name = 'accion';
+        accionInput.value = accion;
+        form.appendChild(accionInput);
+        
+        clientesSeleccionados.forEach(clienteId => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'cliente_ids';
+            input.value = clienteId;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Función para abrir comunicación masiva
+function abrirComunicacionMasiva() {
+    if (clientesSeleccionados.size === 0) {
+        alert('No hay clientes seleccionados');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalComunicacionMasiva'));
+    modal.show();
+}
+
+// Función para actualizar lista de clientes seleccionados
+function actualizarListaClientesSeleccionados() {
+    const lista = document.getElementById('listaClientesSeleccionados');
+    const checkboxes = document.querySelectorAll('.cliente-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        lista.innerHTML = 'Selecciona clientes de la tabla';
+        return;
+    }
+    
+    let html = '<div class="row">';
+    checkboxes.forEach((checkbox, index) => {
+        const row = checkbox.closest('tr');
+        const nombre = row.querySelector('.fw-bold').textContent;
+        const cedula = row.querySelector('.mt-1').textContent;
+        
+        html += `
+            <div class="col-md-6 mb-2">
+                <div class="neo-badge me-2">${nombre}</div>
+                <small class="text-muted">${cedula}</small>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    lista.innerHTML = html;
+}
+
+// Función para cargar plantillas
+function cargarPlantilla(tipo) {
+    const mensajeTextarea = document.querySelector('textarea[name="mensaje"]');
+    const asuntoInput = document.querySelector('input[name="asunto"]');
+    
+    const plantillas = {
+        recordatorio: {
+            asunto: 'Recordatorio de Pago Pendiente',
+            mensaje: 'Estimado cliente,\n\nLe recordamos que tiene un pago pendiente en nuestra empresa. Por favor, contacte con nosotros para regularizar su situación.\n\nGracias por su atención.\n\nAtentamente,\nEquipo de Cobranza'
+        },
+        promocion: {
+            asunto: '¡Nueva Promoción Disponible!',
+            mensaje: 'Estimado cliente,\n\nTenemos una promoción especial que no se puede perder. Contacte con nosotros para más información.\n\n¡No se lo pierda!\n\nAtentamente,\nEquipo Comercial'
+        },
+        mantenimiento: {
+            asunto: 'Mantenimiento Programado',
+            mensaje: 'Estimado cliente,\n\nLe informamos sobre un mantenimiento programado de nuestros sistemas. Durante este tiempo, algunos servicios pueden verse afectados.\n\nDisculpe las molestias.\n\nAtentamente,\nEquipo Técnico'
+        }
+    };
+    
+    if (plantillas[tipo]) {
+        mensajeTextarea.value = plantillas[tipo].mensaje;
+        asuntoInput.value = plantillas[tipo].asunto;
+    }
+}
+
+// Función para enviar comunicación masiva
+function enviarComunicacionMasiva() {
+    const form = document.getElementById('formComunicacionMasiva');
+    const formData = new FormData(form);
+    
+    // Validar formulario
+    if (!formData.get('tipo_comunicacion')) {
+        alert('Selecciona el tipo de comunicación');
+        return;
+    }
+    
+    if (!formData.get('mensaje').trim()) {
+        alert('El mensaje es obligatorio');
+        return;
+    }
+    
+    // Crear formulario de envío
+    const submitForm = document.createElement('form');
+    submitForm.method = 'POST';
+    submitForm.action = '/clientes/comunicacion-masiva';
+    
+    // Agregar campos del formulario
+    for (let [key, value] of formData.entries()) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        submitForm.appendChild(input);
+    }
+    
+    // Agregar IDs de clientes seleccionados
+    clientesSeleccionados.forEach(clienteId => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'cliente_ids';
+        input.value = clienteId;
+        submitForm.appendChild(input);
+    });
+    
+    document.body.appendChild(submitForm);
+    submitForm.submit();
+}
+
+// Animaciones suaves
 document.addEventListener('DOMContentLoaded', function() {
-    new ClienteAutocomplete();
+    // Animar cards al cargar
+    const cards = document.querySelectorAll('.neo-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Mostrar tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 });
 </script>
 {% endblock %}

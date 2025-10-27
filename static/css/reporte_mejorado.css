@@ -1,0 +1,1287 @@
+/* Sistema Neomórfico Completo - CSS Externo */
+/* Variables CSS para consistencia */
+:root {
+    --primary-color: #667eea;
+    --secondary-color: #764ba2;
+    --background-color: #f0f0f3;
+    --surface-color: #ffffff;
+    --text-color: #2d3748;
+    --text-muted: #718096;
+    --shadow-light: #ffffff;
+    --shadow-dark: #d1d9e6;
+    --border-radius: 20px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Colores adicionales para diferentes secciones */
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --info-color: #3498db;
+    --purple-color: #9b59b6;
+    --pink-color: #e91e63;
+    --teal-color: #1abc9c;
+    --orange-color: #ff9800;
+}
+
+/* Reset y Base */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, var(--background-color) 0%, #e6e6e9 100%) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    color: var(--text-color);
+}
+
+.container-fluid {
+    max-width: 1400px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
+}
+
+/* Header Neomórfico */
+.reporte-header-enhanced {
+    margin-bottom: 3rem;
+}
+
+.header-background {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: 
+        20px 20px 60px rgba(102, 126, 234, 0.3),
+        -20px -20px 60px rgba(118, 75, 162, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.header-background::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
+}
+
+.header-content {
+    position: relative;
+    z-index: 1;
+}
+
+.reporte-title-enhanced {
+    color: white !important;
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.5rem !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.reporte-subtitle-enhanced {
+    color: rgba(255,255,255,0.9) !important;
+    font-size: 1.2rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.reporte-badges {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.badge {
+    background: rgba(255,255,255,0.2) !important;
+    color: white !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-action {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    background: rgba(255,255,255,0.2) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: var(--transition) !important;
+    backdrop-filter: blur(10px);
+}
+
+.btn-action:hover {
+    background: rgba(255,255,255,0.3) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+/* Botón Volver Neomórfico */
+.btn-volver-enhanced {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    padding: 1rem 2rem !important;
+    border-radius: var(--border-radius) !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        10px 10px 30px rgba(240, 147, 251, 0.3),
+        -10px -10px 30px rgba(245, 87, 108, 0.3);
+    transition: var(--transition) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.btn-volver-enhanced:hover {
+    transform: translateY(-3px);
+    box-shadow: 
+        15px 15px 40px rgba(240, 147, 251, 0.4),
+        -15px -15px 40px rgba(245, 87, 108, 0.4);
+    color: white !important;
+}
+
+/* Cards Neomórficas */
+.neo-card {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 2rem !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light);
+    border: none !important;
+    transition: var(--transition) !important;
+    margin-bottom: 2rem !important;
+}
+
+.neo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light);
+}
+
+/* Estadísticas Generales */
+.estadisticas-generales {
+    margin-bottom: 3rem;
+}
+
+.estadisticas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.estadistica-card {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 2rem !important;
+    text-align: center !important;
+    box-shadow: 
+        15px 15px 40px var(--shadow-dark),
+        -15px -15px 40px var(--shadow-light);
+    transition: var(--transition) !important;
+    border: none !important;
+}
+
+.estadistica-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 
+        20px 20px 50px var(--shadow-dark),
+        -20px -20px 50px var(--shadow-light);
+}
+
+.estadistica-icon {
+    font-size: 2.5rem !important;
+    margin-bottom: 1rem !important;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.estadistica-label {
+    color: var(--text-muted) !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.estadistica-value {
+    color: var(--text-color) !important;
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.estadistica-change {
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    padding: 0.3rem 0.8rem !important;
+    border-radius: 15px !important;
+}
+
+.estadistica-change.positive {
+    background: rgba(72, 187, 120, 0.1) !important;
+    color: #38a169 !important;
+}
+
+.estadistica-change.negative {
+    background: rgba(245, 101, 101, 0.1) !important;
+    color: #e53e3e !important;
+}
+
+/* Filtros Avanzados */
+.filtros-avanzados {
+    margin-bottom: 3rem;
+}
+
+.filtros-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.filtros-title {
+    color: var(--text-color) !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filtros-toggle {
+    background: var(--surface-color) !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 
+        8px 8px 20px var(--shadow-dark),
+        -8px -8px 20px var(--shadow-light);
+    transition: var(--transition) !important;
+    color: var(--text-color) !important;
+}
+
+.filtros-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        12px 12px 25px var(--shadow-dark),
+        -12px -12px 25px var(--shadow-light);
+}
+
+.filtros-content {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 2rem !important;
+    box-shadow: 
+        15px 15px 40px var(--shadow-dark),
+        -15px -15px 40px var(--shadow-light);
+    margin-bottom: 2rem;
+}
+
+.filtros-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filtro-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filtro-label {
+    color: var(--text-color) !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    font-size: 0.9rem !important;
+}
+
+.filtro-input {
+    background: var(--background-color) !important;
+    border: none !important;
+    border-radius: 15px !important;
+    padding: 0.8rem 1rem !important;
+    box-shadow: 
+        inset 8px 8px 20px var(--shadow-dark),
+        inset -8px -8px 20px var(--shadow-light);
+    transition: var(--transition) !important;
+    color: var(--text-color) !important;
+    font-size: 0.9rem !important;
+}
+
+.filtro-input:focus {
+    outline: none !important;
+    box-shadow: 
+        inset 8px 8px 20px var(--shadow-dark),
+        inset -8px -8px 20px var(--shadow-light),
+        0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.filtros-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.btn-filtro {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 15px !important;
+    padding: 0.8rem 1.5rem !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        8px 8px 20px rgba(102, 126, 234, 0.3),
+        -8px -8px 20px rgba(118, 75, 162, 0.3);
+    transition: var(--transition) !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-filtro:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        12px 12px 25px rgba(102, 126, 234, 0.4),
+        -12px -12px 25px rgba(118, 75, 162, 0.4);
+}
+
+.btn-limpiar {
+    background: var(--surface-color) !important;
+    color: var(--text-color) !important;
+    border: none !important;
+    border-radius: 15px !important;
+    padding: 0.8rem 1.5rem !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        8px 8px 20px var(--shadow-dark),
+        -8px -8px 20px var(--shadow-light);
+    transition: var(--transition) !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-limpiar:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        12px 12px 25px var(--shadow-dark),
+        -12px -12px 25px var(--shadow-light);
+}
+
+/* Visualizaciones */
+.visualizaciones-clave {
+    margin-bottom: 3rem;
+}
+
+.visualizaciones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+.chart-container {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 2rem !important;
+    box-shadow: 
+        15px 15px 40px var(--shadow-dark),
+        -15px -15px 40px var(--shadow-light);
+    transition: var(--transition) !important;
+}
+
+.chart-container:hover {
+    transform: translateY(-3px);
+    box-shadow: 
+        20px 20px 50px var(--shadow-dark),
+        -20px -20px 50px var(--shadow-light);
+}
+
+.chart-title {
+    color: var(--text-color) !important;
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1rem !important;
+    text-align: center;
+}
+
+/* Tabs Neomórficas */
+.nav-tabs {
+    border: none !important;
+    margin-bottom: 2rem !important;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.nav-tabs .nav-link {
+    background: var(--surface-color) !important;
+    border: none !important;
+    border-radius: 15px !important;
+    padding: 1rem 2rem !important;
+    color: var(--text-color) !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        8px 8px 20px var(--shadow-dark),
+        -8px -8px 20px var(--shadow-light);
+    transition: var(--transition) !important;
+    margin: 0 !important;
+}
+
+.nav-tabs .nav-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        12px 12px 25px var(--shadow-dark),
+        -12px -12px 25px var(--shadow-light);
+}
+
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(102, 126, 234, 0.3),
+        -8px -8px 20px rgba(118, 75, 162, 0.3);
+}
+
+.tab-content {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 2rem !important;
+    box-shadow: 
+        15px 15px 40px var(--shadow-dark),
+        -15px -15px 40px var(--shadow-light);
+}
+
+/* Tablas Neomórficas */
+.table-neomorphic {
+    background: transparent !important;
+    border: none !important;
+    border-radius: var(--border-radius) !important;
+    overflow: hidden;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light);
+}
+
+.table-neomorphic thead th {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    border: none !important;
+    padding: 1rem !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+}
+
+.table-neomorphic tbody td {
+    background: var(--surface-color) !important;
+    border: none !important;
+    padding: 1rem !important;
+    text-align: center !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+    transition: var(--transition) !important;
+}
+
+.table-neomorphic tbody tr:hover td {
+    background: rgba(102, 126, 234, 0.05) !important;
+    transform: scale(1.02);
+}
+
+.table-neomorphic tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* Resumen por Tipo */
+.resumen-tipo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 1.5rem !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light);
+    transition: var(--transition) !important;
+}
+
+.resumen-tipo:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        15px 15px 35px var(--shadow-dark),
+        -15px -15px 35px var(--shadow-light);
+}
+
+.resumen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.resumen-title {
+    color: var(--text-color) !important;
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.resumen-icon {
+    font-size: 1.5rem !important;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.resumen-summary {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: var(--background-color);
+    border-radius: 15px;
+    box-shadow: 
+        inset 5px 5px 15px var(--shadow-dark),
+        inset -5px -5px 15px var(--shadow-light);
+    min-width: 120px;
+}
+
+.summary-label {
+    color: var(--text-muted) !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    margin-bottom: 0.3rem !important;
+}
+
+.summary-value {
+    color: var(--text-color) !important;
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+}
+
+/* Footer */
+.reporte-footer {
+    margin-top: 3rem;
+    text-align: center;
+    padding: 2rem;
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    box-shadow: 
+        15px 15px 40px var(--shadow-dark),
+        -15px -15px 40px var(--shadow-light);
+}
+
+.footer-title {
+    color: var(--text-color) !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1rem !important;
+}
+
+.footer-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.footer-item {
+    text-align: center;
+}
+
+.footer-label {
+    color: var(--text-muted) !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.footer-value {
+    color: var(--text-color) !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 1rem 0.5rem !important;
+    }
+    
+    .reporte-title-enhanced {
+        font-size: 2rem !important;
+    }
+    
+    .estadisticas-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .filtros-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .visualizaciones-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .nav-tabs {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .resumen-summary {
+        justify-content: center;
+    }
+    
+    .footer-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.neo-card,
+.estadistica-card,
+.chart-container,
+.resumen-tipo {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--background-color);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+}
+
+/* ========================================
+   ESTILOS NEOMÓRFICOS PARA TODOS LOS APARTADOS
+   ======================================== */
+
+/* 1. INVENTARIO NEOMÓRFICO */
+.inventario-container {
+    background: var(--background-color) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.inventario-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 2.5rem !important;
+    box-shadow: 
+        20px 20px 60px rgba(102, 126, 234, 0.3),
+        -20px -20px 60px rgba(118, 75, 162, 0.3) !important;
+    margin-bottom: 2rem !important;
+    color: white !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.product-card-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+.product-card-neo:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light) !important;
+}
+
+.product-image-neo {
+    border-radius: 15px !important;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light) !important;
+    margin-bottom: 1rem !important;
+    transition: var(--transition) !important;
+}
+
+.product-image-neo:hover {
+    transform: scale(1.05) !important;
+}
+
+/* 2. CLIENTES NEOMÓRFICOS */
+.clientes-container {
+    background: var(--background-color) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.client-card-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 2rem !important;
+    margin-bottom: 1.5rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+}
+
+.client-card-neo:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light) !important;
+}
+
+.client-avatar-neo {
+    width: 80px !important;
+    height: 80px !important;
+    border-radius: 50% !important;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light) !important;
+    margin: 0 auto 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    font-size: 2rem !important;
+    font-weight: bold !important;
+}
+
+/* 3. FACTURAS NEOMÓRFICAS */
+.facturas-container {
+    background: var(--background-color) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.factura-card-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 2rem !important;
+    margin-bottom: 1.5rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.factura-card-neo::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+.factura-card-neo:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light) !important;
+}
+
+/* 4. CUENTAS POR COBRAR NEOMÓRFICAS */
+.cuentas-container {
+    background: var(--background-color) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.cuenta-card-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 2rem !important;
+    margin-bottom: 1.5rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+    border-left: 4px solid var(--warning-color) !important;
+}
+
+.cuenta-card-neo.vencida {
+    border-left-color: var(--danger-color) !important;
+}
+
+.cuenta-card-neo.al-dia {
+    border-left-color: var(--success-color) !important;
+}
+
+.cuenta-card-neo:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light) !important;
+}
+
+/* 5. REPORTES NEOMÓRFICOS */
+.reportes-container {
+    background: var(--background-color) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.reporte-card-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 2rem !important;
+    margin-bottom: 1.5rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+    text-align: center !important;
+}
+
+.reporte-card-neo:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light) !important;
+}
+
+.reporte-icon-neo {
+    width: 80px !important;
+    height: 80px !important;
+    border-radius: 50% !important;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light) !important;
+    margin: 0 auto 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    font-size: 2rem !important;
+}
+
+/* 6. CONFIGURACIÓN NEOMÓRFICA */
+.config-container {
+    background: var(--background-color) !important;
+    min-height: 100vh !important;
+    padding: 2rem 0 !important;
+}
+
+.config-section-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+}
+
+.config-section-neo:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        25px 25px 70px var(--shadow-dark),
+        -25px -25px 70px var(--shadow-light) !important;
+}
+
+/* 7. FORMULARIOS NEOMÓRFICOS */
+.form-container-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        20px 20px 60px var(--shadow-dark),
+        -20px -20px 60px var(--shadow-light) !important;
+    padding: 2.5rem !important;
+    margin-bottom: 2rem !important;
+    transition: var(--transition) !important;
+    border: none !important;
+}
+
+.form-group-neo {
+    margin-bottom: 1.5rem !important;
+}
+
+.form-label-neo {
+    color: var(--text-color) !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    display: block !important;
+}
+
+.form-control-neo {
+    background: var(--background-color) !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        inset 8px 8px 20px var(--shadow-dark),
+        inset -8px -8px 20px var(--shadow-light) !important;
+    padding: 0.75rem 1rem !important;
+    color: var(--text-color) !important;
+    width: 100% !important;
+    transition: var(--transition) !important;
+    font-size: 1rem !important;
+}
+
+.form-control-neo:focus {
+    outline: none !important;
+    box-shadow: 
+        inset 8px 8px 20px var(--shadow-dark),
+        inset -8px -8px 20px var(--shadow-light),
+        0 0 0 3px rgba(102, 126, 234, 0.3) !important;
+}
+
+.form-control-neo::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* 8. TABLAS NEOMÓRFICAS */
+.table-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light) !important;
+    overflow: hidden !important;
+    border: none !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.table-neo thead th {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    border: none !important;
+    padding: 1rem !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+}
+
+.table-neo tbody tr {
+    transition: var(--transition) !important;
+    border: none !important;
+}
+
+.table-neo tbody tr:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)) !important;
+    transform: scale(1.01) !important;
+}
+
+.table-neo tbody td {
+    border: none !important;
+    padding: 1rem !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* 9. BOTONES NEOMÓRFICOS UNIVERSALES */
+.btn-neo-universal {
+    background: var(--surface-color) !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 20px var(--shadow-dark),
+        -8px -8px 20px var(--shadow-light) !important;
+    color: var(--text-color) !important;
+    padding: 0.75rem 1.5rem !important;
+    transition: var(--transition) !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    margin: 0.25rem !important;
+    cursor: pointer !important;
+}
+
+.btn-neo-universal:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        12px 12px 25px var(--shadow-dark),
+        -12px -12px 25px var(--shadow-light) !important;
+    color: var(--text-color) !important;
+    text-decoration: none !important;
+}
+
+.btn-neo-universal:active {
+    transform: translateY(1px) !important;
+    box-shadow: 
+        inset 4px 4px 10px var(--shadow-dark),
+        inset -4px -4px 10px var(--shadow-light) !important;
+}
+
+/* Variantes de botones */
+.btn-neo-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(102, 126, 234, 0.3),
+        -8px -8px 20px rgba(118, 75, 162, 0.3) !important;
+}
+
+.btn-neo-success {
+    background: linear-gradient(135deg, var(--success-color), #2ecc71) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(39, 174, 96, 0.3),
+        -8px -8px 20px rgba(46, 204, 113, 0.3) !important;
+}
+
+.btn-neo-warning {
+    background: linear-gradient(135deg, var(--warning-color), #f1c40f) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(243, 156, 18, 0.3),
+        -8px -8px 20px rgba(241, 196, 15, 0.3) !important;
+}
+
+.btn-neo-danger {
+    background: linear-gradient(135deg, var(--danger-color), #ec7063) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(231, 76, 60, 0.3),
+        -8px -8px 20px rgba(236, 112, 99, 0.3) !important;
+}
+
+.btn-neo-info {
+    background: linear-gradient(135deg, var(--info-color), #5dade2) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(52, 152, 219, 0.3),
+        -8px -8px 20px rgba(93, 173, 226, 0.3) !important;
+}
+
+/* 10. BADGES NEOMÓRFICOS */
+.badge-neo {
+    padding: 0.5rem 1rem !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    box-shadow: 
+        3px 3px 8px rgba(0,0,0,0.1),
+        -3px -3px 8px rgba(255,255,255,0.8) !important;
+    display: inline-block !important;
+}
+
+.badge-neo-success {
+    background: linear-gradient(135deg, var(--success-color), #2ecc71) !important;
+    color: white !important;
+}
+
+.badge-neo-warning {
+    background: linear-gradient(135deg, var(--warning-color), #f1c40f) !important;
+    color: white !important;
+}
+
+.badge-neo-danger {
+    background: linear-gradient(135deg, var(--danger-color), #ec7063) !important;
+    color: white !important;
+}
+
+.badge-neo-info {
+    background: linear-gradient(135deg, var(--info-color), #5dade2) !important;
+    color: white !important;
+}
+
+.badge-neo-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+}
+
+/* 11. MODALES NEOMÓRFICOS */
+.modal-neo {
+    background: var(--surface-color) !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        30px 30px 80px var(--shadow-dark),
+        -30px -30px 80px var(--shadow-light) !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+.modal-header-neo {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    padding: 1.5rem !important;
+    border: none !important;
+}
+
+.modal-body-neo {
+    padding: 2rem !important;
+    background: var(--surface-color) !important;
+}
+
+.modal-footer-neo {
+    padding: 1.5rem !important;
+    background: #f8f9fa !important;
+    border-top: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* 12. ALERTAS NEOMÓRFICAS */
+.alert-neo {
+    background: var(--surface-color) !important;
+    border: none !important;
+    border-radius: var(--border-radius) !important;
+    box-shadow: 
+        10px 10px 30px var(--shadow-dark),
+        -10px -10px 30px var(--shadow-light) !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    border-left: 4px solid !important;
+}
+
+.alert-neo-success {
+    border-left-color: var(--success-color) !important;
+    background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1)) !important;
+}
+
+.alert-neo-warning {
+    border-left-color: var(--warning-color) !important;
+    background: linear-gradient(135deg, rgba(243, 156, 18, 0.1), rgba(241, 196, 15, 0.1)) !important;
+}
+
+.alert-neo-danger {
+    border-left-color: var(--danger-color) !important;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(236, 112, 99, 0.1)) !important;
+}
+
+.alert-neo-info {
+    border-left-color: var(--info-color) !important;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(93, 173, 226, 0.1)) !important;
+}
+
+/* 13. PAGINACIÓN NEOMÓRFICA */
+.pagination-neo {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    margin: 2rem 0 !important;
+}
+
+.page-item-neo {
+    background: var(--surface-color) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    box-shadow: 
+        5px 5px 15px var(--shadow-dark),
+        -5px -5px 15px var(--shadow-light) !important;
+    transition: var(--transition) !important;
+}
+
+.page-item-neo:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        8px 8px 20px var(--shadow-dark),
+        -8px -8px 20px var(--shadow-light) !important;
+}
+
+.page-link-neo {
+    color: var(--text-color) !important;
+    text-decoration: none !important;
+    padding: 0.75rem 1rem !important;
+    display: block !important;
+    border-radius: 10px !important;
+    transition: var(--transition) !important;
+}
+
+.page-item-neo.active .page-link-neo {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    box-shadow: 
+        inset 3px 3px 8px rgba(0,0,0,0.2),
+        inset -3px -3px 8px rgba(255,255,255,0.2) !important;
+}
+
+/* 14. LOADING NEOMÓRFICO */
+.loading-neo {
+    display: inline-block !important;
+    width: 40px !important;
+    height: 40px !important;
+    border: 4px solid var(--background-color) !important;
+    border-top: 4px solid var(--primary-color) !important;
+    border-radius: 50% !important;
+    animation: spin-neo 1s linear infinite !important;
+    margin: 0 auto !important;
+}
+
+@keyframes spin-neo {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

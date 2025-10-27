@@ -26,7 +26,7 @@ git push origin main
 
 ### 2. **En Render**
 1. **Crear nuevo Web Service**
-2. **Conectar repositorio** `gerardo493/kisvic2025`
+2. **Conectar repositorio** `tu-usuario/tu-repo`
 3. **Requirements File:** `requirements_forzado.txt` ⭐
 4. **Build Command:** DEJAR VACÍO
 5. **Start Command:** DEJAR VACÍO

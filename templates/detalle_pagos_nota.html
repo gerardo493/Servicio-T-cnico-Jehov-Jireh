@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Pagos - {{ nota.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-detail-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        transition: all 0.3s ease;
+    }
+
+    .payment-detail-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(31, 38, 135, 0.5);
+    }
+
+    .payment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .payment-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #28a745;
+    }
+
+    .payment-method {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .payment-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .detail-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-value {
+        font-size: 1rem;
+        color: #333;
+        font-weight: 500;
+    }
+
+    .summary-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .summary-item {
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .summary-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-label {
+        color: #6c757d;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+
+    .capture-thumbnail {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .capture-thumbnail:hover {
+        transform: scale(1.05);
+        border-color: #667eea;
+    }
+
+    .no-payments {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+
+    .no-payments i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-credit-card me-2"></i>Detalle de Pagos - {{ nota.numero }}
+                </h1>
+                <!-- Módulo de Notas de Entrega eliminado -->
+                    <i class="fas fa-arrow-left me-2"></i>Volver a Notas
+                </a>
+            </div>
+
+            <!-- Resumen Financiero -->
+            <div class="summary-card">
+                <h5 class="mb-4">
+                    <i class="fas fa-chart-line me-2"></i>Resumen Financiero
+                </h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-value text-primary">${{ "%.2f"|format(nota.total_usd) }}</div>
+                            <div class="summary-label">Total Nota</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-value text-success">${{ "%.2f"|format(nota.pagado_usd) }}</div>
+                            <div class="summary-label">Pagado</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-value text-warning">${{ "%.2f"|format(nota.saldo_pendiente_usd) }}</div>
+                            <div class="summary-label">Saldo Pendiente</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="summary-item">
+                            <div class="summary-value text-info">{{ pagos|length }}</div>
+                            <div class="summary-label">Pagos Registrados</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información de la Nota -->
+            <div class="payment-detail-card">
+                <h6><i class="fas fa-file-invoice me-2"></i>Información de la Nota de Entrega</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Número:</strong> {{ nota.numero }}</p>
+                        <p><strong>Cliente:</strong> {{ cliente_nombre }}</p>
+                        <p><strong>Fecha:</strong> {{ nota.fecha }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Estado de Cobro:</strong> 
+                            <span class="badge bg-{{ 'success' if nota.estado_cobro == 'COBRO_TOTAL' else 'warning' if nota.estado_cobro == 'COBRO_PARCIAL' else 'danger' }}">
+                                {{ nota.estado_cobro }}
+                            </span>
+                        </p>
+                        <p><strong>Modalidad:</strong> {{ nota.modalidad_pago }}</p>
+                        <p><strong>Tasa BCV:</strong> {{ "%.4f"|format(nota.tasa_bcv) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {% if pagos %}
+                <!-- Lista de Pagos -->
+                <h5 class="mb-3">
+                    <i class="fas fa-list me-2"></i>Historial de Pagos
+                </h5>
+                <div class="row">
+                    {% for pago in pagos %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="payment-detail-card">
+                            <div class="payment-header">
+                                <div class="payment-amount">
+                                    ${{ "%.2f"|format(pago.monto) }}
+                                </div>
+                                <div class="payment-method">
+                                    {{ pago.metodo|title }}
+                                </div>
+                            </div>
+
+                            <div class="payment-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Fecha de Pago</span>
+                                    <span class="detail-value">{{ pago.fecha }}</span>
+                                </div>
+
+                                <div class="detail-item">
+                                    <span class="detail-label">Referencia</span>
+                                    <span class="detail-value">{{ pago.referencia or 'N/A' }}</span>
+                                </div>
+
+                                {% if pago.banco %}
+                                <div class="detail-item">
+                                    <span class="detail-label">Banco</span>
+                                    <span class="detail-value">{{ pago.banco }}</span>
+                                </div>
+                                {% endif %}
+
+                                <div class="detail-item">
+                                    <span class="detail-label">Moneda</span>
+                                    <span class="detail-value">{{ pago.moneda or 'USD' }}</span>
+                                </div>
+                            </div>
+
+                            {% if pago.captura_path %}
+                            <div class="mt-3 text-center">
+                                <img src="/static/{{ pago.captura_path }}" 
+                                     class="capture-thumbnail" 
+                                     onclick="verCapturaCompleta('{{ pago.captura_path }}')"
+                                     title="Hacer clic para ver en tamaño completo">
+                                <br>
+                                <small class="text-muted">Hacer clic para ver en tamaño completo</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-payments">
+                    <i class="fas fa-credit-card"></i>
+                    <h4>No hay pagos registrados</h4>
+                    <p>Esta nota de entrega no tiene pagos registrados aún.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver captura completa -->
+<div class="modal fade" id="modalCaptura" tabindex="-1" aria-labelledby="modalCapturaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCapturaLabel">
+                    <i class="fas fa-image me-2"></i>Captura del Pago
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="capturaCompleta" src="" class="img-fluid" style="max-height: 70vh;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function verCapturaCompleta(capturaPath) {
+    document.getElementById('capturaCompleta').src = '/static/' + capturaPath;
+    const modal = new bootstrap.Modal(document.getElementById('modalCaptura'));
+    modal.show();
+}
+</script>
+{% endblock %}
+
+

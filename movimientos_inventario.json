@@ -1,0 +1,132 @@
+[
+    {
+        "tipo": "salida",
+        "producto_id": "3",
+        "producto_nombre": "ARANDANO NEGRO X 60 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 14:29:05",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "4",
+        "producto_nombre": "ARANDANO ROJO X 60 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 14:29:05",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "5",
+        "producto_nombre": "BOLDO X 60 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 14:29:05",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "7",
+        "producto_nombre": "CALCIO MAG-ZINC X 50 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 14:29:05",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "10",
+        "producto_nombre": "CASTAÑA DE INDIA X 60  CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 15:14:25",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "11",
+        "producto_nombre": "CENTELLA A.  C/ ALCACHOFA X 60 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 15:14:25",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "12",
+        "producto_nombre": "CENTELLA ASIATICA X 60 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 15:14:25",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "14",
+        "producto_nombre": "CLORURO DE MAGNESIO X 33 GR",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 15:14:25",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "19",
+        "producto_nombre": "ESCOBA DE CARNICERO X 60 CAP",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 15:14:25",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "21",
+        "producto_nombre": "GINKGO LOCHITA X 60 CAP",
+        "cantidad": 400,
+        "motivo": "Reparación orden OS-00000002",
+        "fecha": "2025-10-20 15:14:25",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-00000002"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "1",
+        "producto_nombre": "pantalla de iphone 12",
+        "cantidad": 99,
+        "motivo": "Reparación orden OS-20251021011209",
+        "fecha": "2025-10-21 01:13:57",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-20251021011209"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "2",
+        "producto_nombre": "bateria generica",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-20251026173246",
+        "fecha": "2025-10-26 21:41:59",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-20251026173246"
+    },
+    {
+        "tipo": "salida",
+        "producto_id": "2",
+        "producto_nombre": "bateria generica",
+        "cantidad": 1,
+        "motivo": "Reparación orden OS-20251026173246",
+        "fecha": "2025-10-26 21:43:03",
+        "usuario": "Sistema",
+        "orden_servicio": "OS-20251026173246"
+    }
+]

@@ -4720,12 +4720,12 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 
 ⏰ *Este recordatorio requiere acción inmediata*
 
-🏢 *PRODUCTOS NATURALES KISVIC 1045, C.A.*
+🏢 *NOMBRE_DE_EMPRESA*
 📍 Centro Comercial Caña de Azúcar (Antiguo Merbumar)
    Nave A, Locales 154-156, Maracay-Edo. Aragua
-📧 kisvic1045@gmail.com
+📧 email@empresa.com
 📱 0424-728-6225
-🆔 RIF: J-404373818
+🆔 RIF: J-XXXXXXXXX
 
 📞 *Por favor contacta urgentemente para coordinar el pago*
 
@@ -4742,12 +4742,12 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 • Días transcurridos: {dias_vencimiento} días
 {f"• Facturas vencidas: {len(facturas_vencidas)} facturas" if facturas_vencidas else ""}
 
-🏢 *PRODUCTOS NATURALES KISVIC 1045, C.A.*
+🏢 *NOMBRE_DE_EMPRESA*
 📍 Centro Comercial Caña de Azúcar (Antiguo Merbumar)
    Nave A, Locales 154-156, Maracay-Edo. Aragua
-📧 kisvic1045@gmail.com
+📧 email@empresa.com
 📱 0424-728-6225
-🆔 RIF: J-404373818
+🆔 RIF: J-XXXXXXXXX
 
 📞 *Te invitamos a contactar para coordinar el pago*
 
@@ -4763,12 +4763,12 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 • Monto pendiente: *${total_pendiente:.2f} USD*
 {f"• Facturas vencidas: {len(facturas_vencidas)} facturas" if facturas_vencidas else ""}
 
-🏢 *PRODUCTOS NATURALES KISVIC 1045, C.A.*
+🏢 *NOMBRE_DE_EMPRESA*
 📍 Centro Comercial Caña de Azúcar (Antiguo Merbumar)
    Nave A, Locales 154-156, Maracay-Edo. Aragua
-📧 kisvic1045@gmail.com
+📧 email@empresa.com
 📱 0424-728-6225
-🆔 RIF: J-404373818
+🆔 RIF: J-XXXXXXXXX
 
 📞 *Cuando puedas, contáctanos para coordinar el pago*
 

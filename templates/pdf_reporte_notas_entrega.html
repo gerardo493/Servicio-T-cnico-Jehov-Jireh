@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Notas de Entrega</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', 'Roboto', 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+            background: #fff;
+            margin: 0;
+            padding: 15px;
+        }
+
+        .page {
+            max-width: 8.5in;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            min-height: 11in;
+            overflow: hidden;
+        }
+
+        /* Header del Reporte */
+        .header {
+            background: linear-gradient(135deg, #004AAD 0%, #00897B 100%);
+            color: white;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 74, 173, 0.15);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        /* Información del Período */
+        .periodo-info {
+            background: #f8f9fa;
+            border: 2px solid #004AAD;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .periodo-info h2 {
+            color: #004AAD;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .periodo-info p {
+            color: #666;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        /* Estadísticas */
+        .stats-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card .icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #004AAD 0%, #00897B 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            color: white;
+            font-size: 20px;
+        }
+
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #004AAD;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* Tabla de Notas */
+        .table-section {
+            margin-bottom: 25px;
+        }
+
+        .table-section h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #004AAD;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #004AAD;
+            padding-bottom: 5px;
+        }
+
+        .notas-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .notas-table th {
+            background: linear-gradient(135deg, #004AAD 0%, #00897B 100%);
+            color: white;
+            font-weight: 700;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .notas-table td {
+            border: 1px solid #e0e0e0;
+            padding: 8px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .notas-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .notas-table tr:nth-child(odd) {
+            background: white;
+        }
+
+        .nota-numero {
+            font-weight: 700;
+            color: #004AAD;
+        }
+
+        .cliente-nombre {
+            font-weight: 600;
+            color: #333;
+            text-align: left;
+        }
+
+        .estado-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .estado-pendiente {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .estado-entregado {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .estado-anulado {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .modalidad-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            background: #e3f2fd;
+            color: #004AAD;
+        }
+
+        .total-usd {
+            font-weight: 700;
+            color: #4CAF50;
+        }
+
+        .total-bs {
+            font-weight: 700;
+            color: #2196F3;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding: 20px;
+            border-top: 3px solid #004AAD;
+            text-align: center;
+            font-size: 10px;
+            color: #333;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        .footer .empresa {
+            font-weight: 700;
+            color: #004AAD;
+        }
+
+        /* Responsive para impresión */
+        @media print {
+            body {
+                margin: 0;
+                padding: 8px;
+                font-size: 10px;
+            }
+            
+            .page {
+                box-shadow: none;
+                max-width: 8.5in;
+                width: 8.5in;
+                height: auto;
+                min-height: 11in;
+                overflow: visible;
+            }
+            
+            .header {
+                margin-bottom: 15px;
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .stats-section {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .stat-card {
+                padding: 10px;
+            }
+            
+            .stat-card .number {
+                font-size: 18px;
+            }
+            
+            .notas-table th {
+                padding: 6px 4px;
+                font-size: 8px;
+            }
+            
+            .notas-table td {
+                padding: 4px;
+                font-size: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header -->
+        <div class="header">
+            <h1>Reporte de Notas de Entrega</h1>
+            <p>Servicio Técnico Jehová Jireh</p>
+        </div>
+
+        <!-- Información del Período -->
+        <div class="periodo-info">
+            <h2>
+                {% if mes_filtro and año_filtro %}
+                Período: {{ nombre_mes }} {{ año_filtro }}
+                {% else %}
+                Período: Todos los registros
+                {% endif %}
+            </h2>
+            <p>Reporte generado el {{ moment().strftime('%d/%m/%Y %H:%M') }}</p>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-section">
+            <div class="stat-card">
+                <div class="icon">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="number">{{ total_notas }}</div>
+                <div class="label">Total Notas</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="number">${{ "%.2f"|format(total_usd) }}</div>
+                <div class="label">Total USD</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="number">Bs {{ "%.2f"|format(total_bs) }}</div>
+                <div class="label">Total Bs</div>
+            </div>
+        </div>
+
+        <!-- Tabla de Notas -->
+        <div class="table-section">
+            <h3>Detalle de Notas de Entrega</h3>
+            {% if notas %}
+            <table class="notas-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">N° Nota</th>
+                        <th style="width: 12%;">Fecha</th>
+                        <th style="width: 25%;">Cliente</th>
+                        <th style="width: 10%;">Estado</th>
+                        <th style="width: 10%;">Modalidad</th>
+                        <th style="width: 12%;">Total USD</th>
+                        <th style="width: 12%;">Total Bs</th>
+                        <th style="width: 9%;">Productos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for numero, nota in notas.items() %}
+                    <tr>
+                        <td class="nota-numero">{{ nota.numero }}</td>
+                        <td>
+                            {{ nota.fecha }}
+                            {% if nota.hora %}
+                            <br><small>{{ nota.hora }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="cliente-nombre">
+                            {{ nota.cliente_nombre or 'Cliente no especificado' }}
+                            {% if nota.cliente_telefono %}
+                            <br><small>{{ nota.cliente_telefono }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if nota.estado == 'PENDIENTE_ENTREGA' %}
+                                <span class="estado-badge estado-pendiente">Pendiente</span>
+                            {% elif nota.estado == 'ENTREGADO' %}
+                                <span class="estado-badge estado-entregado">Entregado</span>
+                            {% elif nota.estado == 'ANULADO' %}
+                                <span class="estado-badge estado-anulado">Anulado</span>
+                            {% else %}
+                                <span class="estado-badge">{{ nota.estado }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="modalidad-badge">
+                                {{ nota.modalidad_pago.title() if nota.modalidad_pago else 'N/A' }}
+                            </span>
+                        </td>
+                        <td class="total-usd">${{ "%.2f"|format(nota.total_usd) }}</td>
+                        <td class="total-bs">Bs {{ "%.2f"|format(nota.total_bs) }}</td>
+                        <td>{{ nota.productos|length if nota.productos else 0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <h4>No hay notas de entrega</h4>
+                <p>No se encontraron notas para el período seleccionado.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="empresa">Servicio Técnico Jehová Jireh</p>
+            <p>Documento generado el {{ moment().strftime('%d/%m/%Y %H:%M') }}</p>
+            <p><strong>Documento generado por el Sistema de Gestión Comercial – Servicio Técnico Jehová Jireh</strong></p>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-print cuando se carga la página
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
+
+
+

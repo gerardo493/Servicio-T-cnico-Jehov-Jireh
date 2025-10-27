@@ -1,4 +1,4 @@
-# 🚀 Sistema de Deploy Completo - KISVIC 2025
+# 🚀 Sistema de Deploy Completo - 2025
 
 Un script de Python **completo y profesional** para desplegar tu sistema de recordatorios de manera segura y eficiente.
 
@@ -231,7 +231,7 @@ Un script de Python **completo y profesional** para desplegar tu sistema de reco
 
 ### **URLs del Sistema**
 - **Dashboard Render**: https://dashboard.render.com/web/srv-d2ckh46r433s73appvug
-- **Aplicación**: https://kisvic2025.onrender.com
+- **Aplicación**: https://tu-app.onrender.com
 
 ## 🔄 Actualizaciones y Mantenimiento
 

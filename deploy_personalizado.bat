@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title DESPLEGADOR PERSONALIZADO KISVIC 2025
+title DESPLEGADOR PERSONALIZADO 2025
 
 echo.
 echo ========================================
-echo DESPLEGADOR PERSONALIZADO KISVIC 2025
+echo DESPLEGADOR PERSONALIZADO 2025
 echo ========================================
 echo.
 

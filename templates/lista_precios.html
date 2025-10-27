@@ -417,7 +417,7 @@ body, .lista-precios-container {
             <div class="titulo-section">
                 <h2 class="titulo-lista">
                     <i class="fas fa-list me-2"></i>
-                    {% if tipo == 'detal' %}Lista de Precio a Tiendas{% else %}Lista de Precios a Distribuidores{% endif %}
+                    Lista de Precios
                 </h2>
                 <p class="fecha-emision">Fecha de emisión: {{ now.strftime('%d/%m/%Y %H:%M') }}</p>
             </div>
@@ -440,7 +440,7 @@ body, .lista-precios-container {
                 <div class="titulo-section">
                     <h2 class="titulo-lista">
                         <i class="fas fa-list me-2"></i>
-                        {% if tipo == 'detal' %}Lista de Precio a Tiendas{% else %}Lista de Precios a Distribuidores{% endif %}
+                        Lista de Precios
                     </h2>
                     <p class="fecha-emision">Fecha de emisión: {{ now.strftime('%d/%m/%Y %H:%M') }}</p>
                     {% if not pdf %}
@@ -457,7 +457,6 @@ body, .lista-precios-container {
         {% if not pdf %}
         <div class="filtros-section">
             <form method="get" class="row g-3">
-                <input type="hidden" name="tipo" value="{{ tipo }}">
                 <div class="col-md-3">
                     <label for="categoria" class="form-label">Categoría</label>
                     <select name="categoria" id="categoria" class="form-select">
@@ -486,7 +485,7 @@ body, .lista-precios-container {
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-filter me-2"></i>Filtrar
                     </button>
-                    <a href="{{ url_for('lista_precios', tipo=tipo) }}" class="btn btn-outline-secondary ms-2">
+                    <a href="{{ url_for('lista_precios') }}" class="btn btn-outline-secondary ms-2">
                         <i class="fas fa-times me-2"></i>Limpiar Filtros
                     </a>
                 </div>
@@ -524,7 +523,7 @@ body, .lista-precios-container {
                         <tr>
                             <td class="text-center fw-medium">{{ id }}</td>
                             <td class="fw-medium">{{ producto.nombre }}</td>
-                            <td class="text-end fw-medium">${{ "%.2f"|format(producto.get('precio_detal' if tipo == 'detal' else 'precio_distribuidor', producto.get('precio', 0))) }}</td>
+                            <td class="text-end fw-medium">${{ "%.2f"|format(producto.get('precio', 0)) }}</td>
                             {% if not pdf %}
                             <td class="text-center fw-medium">{{ producto.cantidad }}</td>
                             {% endif %}
@@ -557,8 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (precioMax) params.push('precio_max=' + encodeURIComponent(precioMax));
             if (busqueda) params.push('busqueda=' + encodeURIComponent(busqueda));
             var query = params.length ? ('?' + params.join('&')) : '';
-            var tipo = '{{ tipo }}';
-            var url = "{{ url_for('lista_precios_pdf', tipo='TIPO_PLACEHOLDER') }}".replace('TIPO_PLACEHOLDER', tipo) + query;
+            var url = "{{ url_for('lista_precios_pdf') }}" + query;
             window.open(url, '_blank');
         });
     }

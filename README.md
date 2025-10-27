@@ -1,4 +1,4 @@
-# Sistema de Gestión Comercial KISVIC
+# Sistema de Gestión Comercial
 
 ## Despliegue en Render
 

@@ -1,0 +1,989 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Orden de Servicio{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos modernos */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button:active {
+    box-shadow: 
+        inset 4px 4px 8px #a3b1c6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-button-primary:hover {
+    background: linear-gradient(145deg, #00cc6a, #00ff88);
+    color: white;
+}
+
+.neo-button-danger {
+    background: linear-gradient(145deg, #ff6b6b, #ee5a52);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-button-danger:hover {
+    background: linear-gradient(145deg, #ee5a52, #ff6b6b);
+    color: white;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.neo-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.neo-icon {
+    color: #00ff88;
+}
+
+.neo-input {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    padding: 12px 16px;
+    color: #4a5568;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.neo-section {
+    background: #e0e5ec;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+}
+
+.neo-section h5 {
+    color: #2d3748;
+    font-weight: 600;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.neo-section h5 i {
+    margin-right: 10px;
+    color: #00ff88;
+}
+
+.neo-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.neo-badge-estado {
+    background: linear-gradient(145deg, #e0e5ec, #f0f4f8);
+    color: #4a5568;
+    box-shadow: 
+        3px 3px 6px #a3b1c6,
+        -3px -3px 6px #ffffff;
+}
+
+.estado-en_espera_revision {
+    background: linear-gradient(145deg, #fff3cd, #ffeaa7);
+    color: #856404;
+}
+
+.estado-en_diagnostico {
+    background: linear-gradient(145deg, #d1ecf1, #74c0fc);
+    color: #0c5460;
+}
+
+.estado-presupuesto_enviado {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+.estado-aprobado_por_cliente {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.estado-en_reparacion {
+    background: linear-gradient(145deg, #e2e3e5, #d6d8db);
+    color: #383d41;
+}
+
+.estado-reparado {
+    background: linear-gradient(145deg, #d1ecf1, #bee5eb);
+    color: #0c5460;
+}
+
+.estado-entregado {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+
+.estado-cancelado {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .neo-container {
+        padding: 10px;
+    }
+    
+    .neo-card {
+        border-radius: 15px;
+    }
+    
+    .neo-button {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+}
+</style>
+
+<div class="neo-container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-edit neo-icon me-3 fa-2x"></i>
+                    <div>
+                        <h1 class="neo-title mb-0">Editar Orden de Servicio</h1>
+                        <p class="text-muted mb-0">{{ orden.numero_orden }}</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/servicio-tecnico/orden/{{ orden.id }}" class="btn neo-button">
+                        <i class="fas fa-eye me-1"></i>Ver Detalles
+                    </a>
+                    <a href="/servicio-tecnico" class="btn neo-button">
+                        <i class="fas fa-arrow-left me-1"></i>Volver
+                    </a>
+                </div>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data">
+                <div class="row">
+                    <!-- Información General -->
+                    <div class="col-md-8">
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-info-circle neo-icon me-2"></i>Información General
+                                </h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="estado" class="form-label neo-subtitle">Estado:</label>
+                                            <select class="form-control neo-input" id="estado" name="estado" required>
+                                                <option value="en_espera_revision" {% if orden.estado == 'en_espera_revision' %}selected{% endif %}>En Espera de Revisión</option>
+                                                <option value="en_diagnostico" {% if orden.estado == 'en_diagnostico' %}selected{% endif %}>En Diagnóstico</option>
+                                                <option value="presupuesto_enviado" {% if orden.estado == 'presupuesto_enviado' %}selected{% endif %}>Presupuesto Enviado</option>
+                                                <option value="aprobado_por_cliente" {% if orden.estado == 'aprobado_por_cliente' %}selected{% endif %}>Aprobado por Cliente</option>
+                                                <option value="en_reparacion" {% if orden.estado == 'en_reparacion' %}selected{% endif %}>En Reparación</option>
+                                                <option value="reparado" {% if orden.estado == 'reparado' %}selected{% endif %}>Reparado</option>
+                                                <option value="entregado" {% if orden.estado == 'entregado' %}selected{% endif %}>Entregado</option>
+                                                <option value="cancelado" {% if orden.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="prioridad" class="form-label neo-subtitle">Prioridad:</label>
+                                            <select class="form-control neo-input" id="prioridad" name="prioridad" required>
+                                                <option value="baja" {% if orden.get('prioridad') == 'baja' %}selected{% endif %}>Baja</option>
+                                                <option value="media" {% if orden.get('prioridad') == 'media' %}selected{% endif %}>Media</option>
+                                                <option value="alta" {% if orden.get('prioridad') == 'alta' %}selected{% endif %}>Alta</option>
+                                                <option value="urgente" {% if orden.get('prioridad') == 'urgente' %}selected{% endif %}>Urgente</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="fecha_recepcion" class="form-label neo-subtitle">Fecha de Recepción:</label>
+                                            <input type="date" class="form-control neo-input" id="fecha_recepcion" name="fecha_recepcion" 
+                                                   value="{{ orden.fecha_recepcion }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="fecha_entrega_estimada" class="form-label neo-subtitle">Entrega Estimada:</label>
+                                            <input type="date" class="form-control neo-input" id="fecha_entrega_estimada" name="fecha_entrega_estimada" 
+                                                   value="{{ orden.fecha_entrega_estimada or '' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="tecnico_asignado" class="form-label neo-subtitle">Técnico Asignado:</label>
+                                    <input type="text" class="form-control neo-input" id="tecnico_asignado" name="tecnico_asignado" 
+                                           value="{{ orden.get('tecnico_asignado', '') }}" placeholder="Nombre del técnico">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="costo_estimado" class="form-label neo-subtitle">Costo Estimado:</label>
+                                    <input type="number" step="0.01" class="form-control neo-input" id="costo_estimado" name="costo_estimado" 
+                                           value="{{ orden.get('costo_estimado', 0) }}" placeholder="0.00">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="tipo_servicio" class="form-label neo-subtitle">Tipo de Servicio:</label>
+                                    <select class="form-control neo-input" id="tipo_servicio" name="tipo_servicio">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="revision" {% if orden.get('tipo_servicio') == 'revision' %}selected{% endif %}>Revisión</option>
+                                        <option value="reparacion" {% if orden.get('tipo_servicio') == 'reparacion' %}selected{% endif %}>Reparación</option>
+                                        <option value="mantenimiento" {% if orden.get('tipo_servicio') == 'mantenimiento' %}selected{% endif %}>Mantenimiento</option>
+                                        <option value="garantia" {% if orden.get('tipo_servicio') == 'garantia' %}selected{% endif %}>Garantía</option>
+                                        <option value="diagnostico" {% if orden.get('tipo_servicio') == 'diagnostico' %}selected{% endif %}>Diagnóstico</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Datos del Cliente -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-user neo-icon me-2"></i>Datos del Cliente
+                                </h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="cliente_nombre" class="form-label neo-subtitle">Nombre Completo:</label>
+                                            <input type="text" class="form-control neo-input" id="cliente_nombre" name="cliente_nombre" 
+                                                   value="{{ orden.cliente.nombre }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="cliente_cedula" class="form-label neo-subtitle">Cédula/RIF:</label>
+                                            <input type="text" class="form-control neo-input" id="cliente_cedula" name="cliente_cedula" 
+                                                   value="{{ orden.cliente.cedula_rif }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="cliente_telefono" class="form-label neo-subtitle">Teléfono Principal:</label>
+                                            <input type="tel" class="form-control neo-input" id="cliente_telefono" name="cliente_telefono" 
+                                                   value="{{ orden.cliente.telefono }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="cliente_telefono2" class="form-label neo-subtitle">Teléfono Alternativo:</label>
+                                            <input type="tel" class="form-control neo-input" id="cliente_telefono2" name="cliente_telefono2" 
+                                                   value="{{ orden.cliente.get('telefono2', '') }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="cliente_email" class="form-label neo-subtitle">Email:</label>
+                                            <input type="email" class="form-control neo-input" id="cliente_email" name="cliente_email" 
+                                                   value="{{ orden.cliente.get('email', '') }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="cliente_direccion" class="form-label neo-subtitle">Dirección:</label>
+                                            <textarea class="form-control neo-input" id="cliente_direccion" name="cliente_direccion" 
+                                                      rows="2">{{ orden.cliente.get('direccion', '') }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Datos del Equipo -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-mobile-alt neo-icon me-2"></i>Datos del Equipo
+                                </h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="equipo_marca" class="form-label neo-subtitle">Marca:</label>
+                                            <input type="text" class="form-control neo-input" id="equipo_marca" name="equipo_marca" 
+                                                   value="{{ orden.equipo.marca }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="equipo_modelo" class="form-label neo-subtitle">Modelo:</label>
+                                            <input type="text" class="form-control neo-input" id="equipo_modelo" name="equipo_modelo" 
+                                                   value="{{ orden.equipo.modelo }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="equipo_imei" class="form-label neo-subtitle">IMEI 1:</label>
+                                            <input type="text" class="form-control neo-input" id="equipo_imei" name="equipo_imei" 
+                                                   value="{{ orden.equipo.imei }}" required maxlength="15" pattern="[0-9]{15}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="equipo_imei2" class="form-label neo-subtitle">IMEI 2:</label>
+                                            <input type="text" class="form-control neo-input" id="equipo_imei2" name="equipo_imei2" 
+                                                   value="{{ orden.equipo.get('imei2', '') }}" maxlength="15" pattern="[0-9]{15}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="equipo_color" class="form-label neo-subtitle">Color:</label>
+                                            <input type="text" class="form-control neo-input" id="equipo_color" name="equipo_color" 
+                                                   value="{{ orden.equipo.get('color', '') }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="equipo_serial" class="form-label neo-subtitle">Número de Serie:</label>
+                                            <input type="text" class="form-control neo-input" id="equipo_serial" name="equipo_serial" 
+                                                   value="{{ orden.equipo.get('numero_serie', '') }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración de Desbloqueo -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-lock neo-icon me-2"></i>Configuración de Desbloqueo
+                                </h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="tipo_desbloqueo" class="form-label neo-subtitle">Tipo de Desbloqueo:</label>
+                                            <select id="tipo_desbloqueo" name="tipo_desbloqueo" class="form-control neo-input" onchange="actualizarTipoDesbloqueo()">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="patron" {% if orden.get('desbloqueo', {}).get('tipo') == 'patron' %}selected{% endif %}>Patrón (Teléfonos/Tablets)</option>
+                                                <option value="pin" {% if orden.get('desbloqueo', {}).get('tipo') == 'pin' %}selected{% endif %}>PIN</option>
+                                                <option value="password" {% if orden.get('desbloqueo', {}).get('tipo') == 'password' %}selected{% endif %}>Contraseña</option>
+                                                <option value="huella" {% if orden.get('desbloqueo', {}).get('tipo') == 'huella' %}selected{% endif %}>Huella Dactilar</option>
+                                                <option value="reconocimiento" {% if orden.get('desbloqueo', {}).get('tipo') == 'reconocimiento' %}selected{% endif %}>Reconocimiento Facial</option>
+                                                <option value="ninguno" {% if orden.get('desbloqueo', {}).get('tipo') == 'ninguno' %}selected{% endif %}>Sin desbloqueo</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="estado_desbloqueo" class="form-label neo-subtitle">Estado del Desbloqueo:</label>
+                                            <select id="estado_desbloqueo" name="estado_desbloqueo" class="form-control neo-input">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="activo" {% if orden.get('desbloqueo', {}).get('estado') == 'activo' %}selected{% endif %}>Activo</option>
+                                                <option value="desactivado" {% if orden.get('desbloqueo', {}).get('estado') == 'desactivado' %}selected{% endif %}>Desactivado</option>
+                                                <option value="bloqueado" {% if orden.get('desbloqueo', {}).get('estado') == 'bloqueado' %}selected{% endif %}>Bloqueado</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label neo-subtitle">Configuración:</label>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="text-muted">Configurar clave o patrón</span>
+                                                <button type="button" class="btn neo-button" onclick="abrirModalDesbloqueo()">
+                                                    <i class="fas fa-key me-2"></i>Configurar Desbloqueo
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="notas_desbloqueo" class="form-label neo-subtitle">Notas sobre Desbloqueo:</label>
+                                            <textarea id="notas_desbloqueo" name="notas_desbloqueo" class="form-control neo-input" rows="2" 
+                                                      placeholder="Información adicional sobre el desbloqueo del dispositivo">{{ orden.get('desbloqueo', {}).get('notas', '') }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Campos ocultos para datos de desbloqueo -->
+                                <input type="hidden" id="tipo_desbloqueo_hidden" name="tipo_desbloqueo" value="{{ orden.get('desbloqueo', {}).get('tipo', '') }}">
+                                <input type="hidden" id="estado_desbloqueo_hidden" name="estado_desbloqueo" value="{{ orden.get('desbloqueo', {}).get('estado', '') }}">
+                                <input type="hidden" id="clave_desbloqueo" name="clave_desbloqueo" value="{{ orden.get('desbloqueo', {}).get('clave', '') }}">
+                                <input type="hidden" id="notas_desbloqueo_hidden" name="notas_desbloqueo" value="{{ orden.get('desbloqueo', {}).get('notas', '') }}">
+                            </div>
+                        </div>
+
+                        <!-- Problema Reportado -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-exclamation-triangle neo-icon me-2"></i>Problema Reportado
+                                </h5>
+                                
+                                <div class="mb-3">
+                                    <label for="problema_reportado" class="form-label neo-subtitle">Descripción del Problema:</label>
+                                    <textarea class="form-control neo-input" id="problema_reportado" name="problema_reportado" 
+                                              rows="4" placeholder="Describe detalladamente el problema reportado por el cliente">{{ orden.get('problema_reportado', '') }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel Lateral -->
+                    <div class="col-md-4">
+                        <!-- Estado Actual -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-info neo-icon me-2"></i>Estado Actual
+                                </h5>
+                                
+                                <div class="text-center mb-3">
+                                    <span class="neo-badge neo-badge-estado estado-{{ orden.estado }}">
+                                        {% if orden.estado == 'en_espera_revision' %}
+                                        🟡 En Espera
+                                        {% elif orden.estado == 'en_diagnostico' %}
+                                        🔍 En Diagnóstico
+                                        {% elif orden.estado == 'presupuesto_enviado' %}
+                                        📋 Presupuesto
+                                        {% elif orden.estado == 'aprobado_por_cliente' %}
+                                        ✅ Aprobado
+                                        {% elif orden.estado == 'en_reparacion' %}
+                                        ⚙️ En Reparación
+                                        {% elif orden.estado == 'reparado' %}
+                                        🔧 Reparado
+                                        {% elif orden.estado == 'entregado' %}
+                                        🎉 Entregado
+                                        {% elif orden.estado == 'cancelado' %}
+                                        ❌ Cancelado
+                                        {% else %}
+                                        {{ orden.estado.replace('_', ' ').title() }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                
+                                <div class="text-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>Creada: {{ orden.fecha_creacion }}
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Actualizada: {{ orden.fecha_actualizacion }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Observaciones Internas -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-sticky-note neo-icon me-2"></i>Observaciones Internas
+                                </h5>
+                                
+                                <div class="mb-3">
+                                    <label for="observaciones_internas" class="form-label neo-subtitle">Notas del Técnico:</label>
+                                    <textarea class="form-control neo-input" id="observaciones_internas" name="observaciones_internas" 
+                                              rows="4" placeholder="Observaciones internas del técnico">{{ orden.get('observaciones_internas', '') }}</textarea>
+                                </div>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="cliente_notificado" name="cliente_notificado" 
+                                           {% if orden.get('cliente_notificado') %}checked{% endif %}>
+                                    <label class="form-check-label" for="cliente_notificado">
+                                        Cliente notificado
+                                    </label>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="atendido_por" class="form-label neo-subtitle">Atendido por:</label>
+                                    <input type="text" class="form-control neo-input" id="atendido_por" name="atendido_por" 
+                                           value="{{ orden.get('atendido_por', '') }}" placeholder="Nombre del técnico">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="neo-card">
+                            <div class="card-body p-4">
+                                <h5 class="neo-title mb-4">
+                                    <i class="fas fa-cogs neo-icon me-2"></i>Acciones
+                                </h5>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn neo-button neo-button-primary">
+                                        <i class="fas fa-save me-2"></i>Guardar Cambios
+                                    </button>
+                                    <a href="/servicio-tecnico/orden/{{ orden.id }}" class="btn neo-button">
+                                        <i class="fas fa-eye me-2"></i>Ver Detalles
+                                    </a>
+                                    <a href="/servicio-tecnico" class="btn neo-button">
+                                        <i class="fas fa-arrow-left me-2"></i>Volver al Listado
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validación de IMEI
+document.getElementById('equipo_imei').addEventListener('input', function(e) {
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length > 15) {
+        e.target.value = value.substring(0, 15);
+    } else {
+        e.target.value = value;
+    }
+});
+
+document.getElementById('equipo_imei2').addEventListener('input', function(e) {
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length > 15) {
+        e.target.value = value.substring(0, 15);
+    } else {
+        e.target.value = value;
+    }
+});
+
+// Validación de formulario
+document.querySelector('form').addEventListener('submit', function(e) {
+    const imei1 = document.getElementById('equipo_imei').value;
+    const imei2 = document.getElementById('equipo_imei2').value;
+    
+    if (imei1.length !== 15) {
+        e.preventDefault();
+        alert('El IMEI 1 debe tener exactamente 15 dígitos');
+        return;
+    }
+    
+    if (imei2 && imei2.length !== 15) {
+        e.preventDefault();
+        alert('El IMEI 2 debe tener exactamente 15 dígitos');
+        return;
+    }
+    
+    if (imei1 === imei2 && imei2) {
+        e.preventDefault();
+        alert('Los IMEI no pueden ser iguales');
+        return;
+    }
+});
+
+// Funciones para configuración de desbloqueo
+let patronDibujado = [];
+let canvas, ctx;
+let isDrawing = false;
+
+function abrirModalDesbloqueo() {
+    const modal = new bootstrap.Modal(document.getElementById('modalDesbloqueo'));
+    
+    // Cargar datos existentes
+    const tipo = document.getElementById('tipo_desbloqueo').value;
+    const estado = document.getElementById('estado_desbloqueo').value;
+    const clave = document.getElementById('clave_desbloqueo').value;
+    const notas = document.getElementById('notas_desbloqueo').value;
+    
+    document.getElementById('modal_tipo_desbloqueo').value = tipo;
+    document.getElementById('modal_estado_desbloqueo').value = estado;
+    document.getElementById('modal_clave_desbloqueo').value = clave;
+    document.getElementById('modal_notas_desbloqueo').value = notas;
+    
+    cambiarModoDesbloqueo();
+    modal.show();
+}
+
+function inicializarCanvas() {
+    canvas = document.getElementById('canvasPatron');
+    ctx = canvas.getContext('2d');
+    configurarEventosCanvas();
+    dibujarPatron();
+}
+
+function configurarEventosCanvas() {
+    canvas.addEventListener('mousedown', manejarMouseDown);
+    canvas.addEventListener('mousemove', manejarMouseMove);
+    canvas.addEventListener('mouseup', manejarMouseUp);
+    canvas.addEventListener('mouseleave', manejarMouseUp);
+}
+
+function manejarMouseDown(e) {
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const punto = encontrarPuntoMasCercano(x, y);
+    if (punto && !patronDibujado.some(p => p.row === punto.row && p.col === punto.col)) {
+        patronDibujado.push(punto);
+        dibujarPatron();
+    }
+}
+
+function manejarMouseMove(e) {
+    if (!isDrawing) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const punto = encontrarPuntoMasCercano(x, y);
+    if (punto && !patronDibujado.some(p => p.row === punto.row && p.col === punto.col)) {
+        patronDibujado.push(punto);
+        dibujarPatron();
+    }
+}
+
+function manejarMouseUp(e) {
+    isDrawing = false;
+}
+
+function encontrarPuntoMasCercano(x, y) {
+    const dotSize = 15;
+    const spacing = 80;
+    const startX = 50;
+    const startY = 50;
+    const threshold = 30;
+    
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+            const puntoX = startX + col * spacing;
+            const puntoY = startY + row * spacing;
+            
+            const distancia = Math.sqrt((x - puntoX) ** 2 + (y - puntoY) ** 2);
+            if (distancia <= threshold) {
+                return { x: puntoX, y: puntoY, row, col };
+            }
+        }
+    }
+    return null;
+}
+
+function dibujarPatron() {
+    if (!canvas || !ctx) return;
+    
+    // Limpiar canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Dibujar grilla de puntos
+    const dotSize = 15;
+    const spacing = 80;
+    const startX = 50;
+    const startY = 50;
+    
+    ctx.fillStyle = '#00ff88';
+    ctx.strokeStyle = '#00cc6a';
+    ctx.lineWidth = 3;
+    
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+            const x = startX + col * spacing;
+            const y = startY + row * spacing;
+            
+            // Verificar si este punto está en el patrón
+            const enPatron = patronDibujado.some(p => p.row === row && p.col === col);
+            
+            if (enPatron) {
+                // Punto seleccionado - más grande y de color diferente
+                ctx.fillStyle = '#ff6b6b';
+                ctx.strokeStyle = '#ff5252';
+                ctx.lineWidth = 4;
+            } else {
+                // Punto normal
+                ctx.fillStyle = '#00ff88';
+                ctx.strokeStyle = '#00cc6a';
+                ctx.lineWidth = 3;
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, dotSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+    
+    // Dibujar líneas conectando los puntos del patrón
+    if (patronDibujado.length > 1) {
+        ctx.strokeStyle = '#00ff88';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.beginPath();
+        ctx.moveTo(patronDibujado[0].x, patronDibujado[0].y);
+        
+        for (let i = 1; i < patronDibujado.length; i++) {
+            ctx.lineTo(patronDibujado[i].x, patronDibujado[i].y);
+        }
+        ctx.stroke();
+    }
+}
+
+function limpiarPatron() {
+    patronDibujado = [];
+    dibujarPatron();
+}
+
+function guardarPatron() {
+    if (patronDibujado.length < 4) {
+        alert('El patrón debe tener al menos 4 puntos');
+        return;
+    }
+    
+    const patronString = patronDibujado.map(dot => `${dot.row}${dot.col}`).join('-');
+    document.getElementById('modal_clave_desbloqueo').value = patronString;
+    alert('Patrón guardado correctamente');
+}
+
+function cambiarModoDesbloqueo() {
+    const tipo = document.getElementById('modal_tipo_desbloqueo').value;
+    const seccionPatron = document.getElementById('seccion_patron');
+    const seccionClave = document.getElementById('seccion_clave');
+    const labelClave = document.getElementById('label_clave');
+    const inputClave = document.getElementById('modal_clave_desbloqueo');
+    
+    seccionPatron.style.display = 'none';
+    seccionClave.style.display = 'none';
+    
+    if (tipo === 'patron') {
+        seccionPatron.style.display = 'block';
+        inicializarCanvas();
+    } else if (tipo === 'pin' || tipo === 'password') {
+        seccionClave.style.display = 'block';
+        labelClave.textContent = tipo === 'pin' ? 'PIN:' : 'Contraseña:';
+        inputClave.type = 'password';
+        inputClave.placeholder = tipo === 'pin' ? 'Ingresa el PIN' : 'Ingresa la contraseña';
+    }
+}
+
+function mostrarOcultarClave() {
+    const input = document.getElementById('modal_clave_desbloqueo');
+    const boton = event.target;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        boton.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Ocultar';
+    } else {
+        input.type = 'password';
+        boton.innerHTML = '<i class="fas fa-eye me-1"></i>Mostrar';
+    }
+}
+
+function actualizarTipoDesbloqueo() {
+    const tipo = document.getElementById('tipo_desbloqueo').value;
+    const modalTipo = document.getElementById('modal_tipo_desbloqueo');
+    modalTipo.value = tipo;
+    cambiarModoDesbloqueo();
+}
+
+function guardarDatosDesbloqueo() {
+    const tipo = document.getElementById('modal_tipo_desbloqueo').value;
+    const estado = document.getElementById('modal_estado_desbloqueo').value;
+    const clave = document.getElementById('modal_clave_desbloqueo').value;
+    const notas = document.getElementById('modal_notas_desbloqueo').value;
+    
+    console.log('Guardando datos de desbloqueo:', { tipo, estado, clave: clave.substring(0, 20) + '...', notas });
+    
+    // Actualizar campos del formulario principal
+    document.getElementById('tipo_desbloqueo').value = tipo;
+    document.getElementById('estado_desbloqueo').value = estado;
+    document.getElementById('notas_desbloqueo').value = notas;
+    document.getElementById('clave_desbloqueo').value = clave;
+    
+    // Actualizar campos ocultos
+    document.getElementById('tipo_desbloqueo_hidden').value = tipo;
+    document.getElementById('estado_desbloqueo_hidden').value = estado;
+    document.getElementById('notas_desbloqueo_hidden').value = notas;
+    
+    console.log('Campos actualizados:', {
+        tipo_desbloqueo: document.getElementById('tipo_desbloqueo').value,
+        estado_desbloqueo: document.getElementById('estado_desbloqueo').value,
+        notas_desbloqueo: document.getElementById('notas_desbloqueo').value,
+        clave_desbloqueo: document.getElementById('clave_desbloqueo').value.substring(0, 20) + '...'
+    });
+    
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalDesbloqueo'));
+    modal.hide();
+    
+    alert('Datos de desbloqueo guardados correctamente');
+}
+
+// Inicializar cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar patrón existente si existe
+    const claveExistente = document.getElementById('clave_desbloqueo').value;
+    if (claveExistente && document.getElementById('tipo_desbloqueo').value === 'patron') {
+        const puntos = claveExistente.split('-');
+        patronDibujado = [];
+        puntos.forEach(punto => {
+            const row = parseInt(punto[0]);
+            const col = parseInt(punto[1]);
+            const spacing = 80;
+            const startX = 50;
+            const startY = 50;
+            const x = startX + col * spacing;
+            const y = startY + row * spacing;
+            patronDibujado.push({x, y, row, col});
+        });
+    }
+});
+</script>
+
+<!-- Modal de Configuración de Desbloqueo -->
+<div class="modal fade" id="modalDesbloqueo" tabindex="-1" aria-labelledby="modalDesbloqueoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content neo-modal">
+            <div class="modal-header">
+                <h5 class="modal-title neo-title" id="modalDesbloqueoLabel">
+                    <i class="fas fa-lock me-2"></i>Configurar Datos de Desbloqueo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="neo-form-group">
+                            <label class="neo-label">Tipo de Desbloqueo:</label>
+                            <select id="modal_tipo_desbloqueo" class="neo-input" onchange="cambiarModoDesbloqueo()">
+                                <option value="">Seleccionar...</option>
+                                <option value="patron">Patrón (Teléfonos/Tablets)</option>
+                                <option value="pin">PIN</option>
+                                <option value="password">Contraseña</option>
+                                <option value="huella">Huella Dactilar</option>
+                                <option value="reconocimiento">Reconocimiento Facial</option>
+                                <option value="ninguno">Sin desbloqueo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="neo-form-group">
+                            <label class="neo-label">Estado:</label>
+                            <select id="modal_estado_desbloqueo" class="neo-input">
+                                <option value="activo">Activo</option>
+                                <option value="desactivado">Desactivado</option>
+                                <option value="bloqueado">Bloqueado</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección de Patrón -->
+                <div id="seccion_patron" class="mt-4" style="display: none;">
+                    <div class="neo-form-group">
+                        <label class="neo-label">Dibujar Patrón:</label>
+                        <div class="text-center">
+                            <canvas id="canvasPatron" width="300" height="300" 
+                                    style="border: 2px solid #e0e5ec; border-radius: 15px; background: #f8f9fa; cursor: crosshair;"></canvas>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <button type="button" class="btn neo-button me-2" onclick="limpiarPatron()">
+                                <i class="fas fa-eraser me-1"></i>Limpiar
+                            </button>
+                            <button type="button" class="btn neo-button" onclick="guardarPatron()">
+                                <i class="fas fa-save me-1"></i>Guardar Patrón
+                            </button>
+                        </div>
+                        <p class="text-muted text-center mt-2">Dibuja el patrón de desbloqueo del dispositivo (mínimo 4 puntos)</p>
+                    </div>
+                </div>
+
+                <!-- Sección de PIN/Contraseña -->
+                <div id="seccion_clave" class="mt-4" style="display: none;">
+                    <div class="neo-form-group">
+                        <label class="neo-label" id="label_clave">Contraseña/PIN:</label>
+                        <input type="password" id="modal_clave_desbloqueo" class="neo-input" 
+                               placeholder="Ingresa la contraseña o PIN">
+                        <div class="mt-2">
+                            <button type="button" class="btn neo-button btn-sm" onclick="mostrarOcultarClave()">
+                                <i class="fas fa-eye me-1"></i>Mostrar/Ocultar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="neo-form-group">
+                        <label class="neo-label">Notas Adicionales:</label>
+                        <textarea id="modal_notas_desbloqueo" class="neo-input" rows="3" 
+                                  placeholder="Información adicional sobre el desbloqueo del dispositivo"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn neo-button" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn neo-button neo-button-primary" onclick="guardarDatosDesbloqueo()">
+                    <i class="fas fa-save me-2"></i>Guardar Configuración
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

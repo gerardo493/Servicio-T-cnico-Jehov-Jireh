@@ -118,6 +118,6 @@ El modal de WhatsApp ahora se despliega correctamente en `factura_detalle.html`:
 
 ---
 
-*Cambios aplicados para KISVIC - Gestión Fiscal y Contable*
+*Cambios aplicados - Gestión Fiscal y Contable*
 *Fecha: Enero 2025*
 *Estado: ✅ SISTEMA COMPLETAMENTE FUNCIONAL - MODAL DESPLEGABLE*

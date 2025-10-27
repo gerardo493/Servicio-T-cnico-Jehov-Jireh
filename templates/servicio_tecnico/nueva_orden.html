@@ -1,0 +1,1960 @@
+{% extends 'base.html' %}
+{% block title %}Nueva Orden de Servicio{% endblock %}
+{% block content %}
+    <style>
+        /* Estilos Neomórficos Base */
+        body {
+            background: #e0e5ec;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #2c3e50;
+        }
+
+        .neo-container {
+            background: #e0e5ec;
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .neo-card {
+            background: #e0e5ec;
+            border-radius: 25px;
+            box-shadow: 
+                15px 15px 30px #a3b1c6,
+                -15px -15px 30px #ffffff;
+            border: none;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .neo-card-header {
+            background: linear-gradient(145deg, #00ff88, #00cc6a);
+            color: #000;
+            padding: 1.5rem;
+            border-radius: 25px 25px 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .neo-card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        .neo-title {
+            font-size: 2rem;
+            font-weight: 900;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .neo-subtitle {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .neo-section {
+            background: #e0e5ec;
+            border-radius: 20px;
+            box-shadow: 
+                8px 8px 16px #a3b1c6,
+                -8px -8px 16px #ffffff;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            border: none;
+        }
+
+        .neo-section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #00ff88;
+        }
+
+        .neo-section-icon {
+            font-size: 2rem;
+            margin-right: 1rem;
+            color: #00ff88;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .neo-section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .neo-form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .neo-label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .neo-input {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 15px;
+            padding: 0.75rem 1rem;
+            box-shadow: 
+                inset 6px 6px 12px #a3b1c6,
+                inset -6px -6px 12px #ffffff;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .neo-input:focus {
+            outline: none;
+            box-shadow: 
+                inset 8px 8px 16px #a3b1c6,
+                inset -8px -8px 16px #ffffff,
+                0 0 0 3px rgba(0, 255, 136, 0.3);
+        }
+
+        .neo-select {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 15px;
+            padding: 0.75rem 1rem;
+            box-shadow: 
+                inset 6px 6px 12px #a3b1c6,
+                inset -6px -6px 12px #ffffff;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .neo-select:focus {
+            outline: none;
+            box-shadow: 
+                inset 8px 8px 16px #a3b1c6,
+                inset -8px -8px 16px #ffffff,
+                0 0 0 3px rgba(0, 255, 136, 0.3);
+        }
+
+        .neo-textarea {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 15px;
+            padding: 0.75rem 1rem;
+            box-shadow: 
+                inset 6px 6px 12px #a3b1c6,
+                inset -6px -6px 12px #ffffff;
+            transition: all 0.3s ease;
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .neo-textarea:focus {
+            outline: none;
+            box-shadow: 
+                inset 8px 8px 16px #a3b1c6,
+                inset -8px -8px 16px #ffffff,
+                0 0 0 3px rgba(0, 255, 136, 0.3);
+        }
+
+        .neo-checkbox {
+            position: relative;
+            display: inline-block;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .neo-checkbox input[type="checkbox"] {
+            opacity: 0;
+            position: absolute;
+        }
+
+        .neo-checkbox label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            background: #e0e5ec;
+            border-radius: 15px;
+            box-shadow: 
+                4px 4px 8px #a3b1c6,
+                -4px -4px 8px #ffffff;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .neo-checkbox label:hover {
+            box-shadow: 
+                6px 6px 12px #a3b1c6,
+                -6px -6px 12px #ffffff;
+        }
+
+        .neo-checkbox input[type="checkbox"]:checked + label {
+            background: linear-gradient(145deg, #00ff88, #00cc6a);
+            color: #000;
+            box-shadow: 
+                inset 4px 4px 8px rgba(0, 0, 0, 0.1),
+                inset -4px -4px 8px rgba(255, 255, 255, 0.1);
+        }
+
+        .neo-checkbox label::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #a3b1c6;
+            border-radius: 5px;
+            margin-right: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .neo-checkbox input[type="checkbox"]:checked + label::before {
+            background: #000;
+            border-color: #000;
+            content: '✓';
+            color: #00ff88;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .neo-button {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 15px;
+            padding: 0.75rem 2rem;
+            box-shadow: 
+                6px 6px 12px #a3b1c6,
+                -6px -6px 12px #ffffff;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .neo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                8px 8px 16px #a3b1c6,
+                -8px -8px 16px #ffffff;
+        }
+
+        .neo-button:active {
+            transform: translateY(0);
+            box-shadow: 
+                inset 4px 4px 8px #a3b1c6,
+                inset -4px -4px 8px #ffffff;
+        }
+
+        .neo-button-primary {
+            background: linear-gradient(145deg, #00ff88, #00cc6a);
+            color: #000;
+            box-shadow: 
+                6px 6px 12px #a3b1c6,
+                -6px -6px 12px #ffffff,
+                0 0 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .neo-button-primary:hover {
+            background: linear-gradient(145deg, #00e639, #00b359);
+            box-shadow: 
+                6px 6px 12px #a3b1c6,
+                -6px -6px 12px #ffffff,
+                0 0 25px rgba(0, 255, 136, 0.6);
+        }
+
+        .neo-button-secondary {
+            background: linear-gradient(145deg, #6c757d, #5a6268);
+            color: white;
+        }
+
+        .neo-button-danger {
+            background: linear-gradient(145deg, #dc3545, #c82333);
+            color: white;
+        }
+
+        /* Estilos para el modal de desbloqueo */
+        .neo-modal {
+            background: linear-gradient(145deg, #f8f9fa, #ffffff);
+            border-radius: 20px;
+            box-shadow: 20px 20px 40px #d1d3d4, -20px -20px 40px #ffffff;
+            border: none;
+        }
+
+        .neo-modal .modal-header {
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .neo-modal .modal-footer {
+            border-top: 1px solid #e9ecef;
+            border-radius: 0 0 20px 20px;
+        }
+
+        /* Estilos para el canvas de patrón */
+        .patron-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(145deg, #f8f9fa, #ffffff);
+            border-radius: 15px;
+            box-shadow: inset 5px 5px 10px #e9ecef, inset -5px -5px 10px #ffffff;
+        }
+
+        #canvasPatron {
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            box-shadow: 5px 5px 10px #d1d3d4, -5px -5px 10px #ffffff;
+            transition: all 0.3s ease;
+        }
+
+        #canvasPatron:hover {
+            box-shadow: 8px 8px 15px #d1d3d4, -8px -8px 15px #ffffff;
+            transform: translateY(-2px);
+        }
+
+        #canvasPatron:active {
+            box-shadow: 2px 2px 5px #d1d3d4, -2px -2px 5px #ffffff;
+            transform: translateY(0);
+        }
+
+        .neo-file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            background: #e0e5ec;
+            border-radius: 15px;
+            padding: 1rem;
+            box-shadow: 
+                6px 6px 12px #a3b1c6,
+                -6px -6px 12px #ffffff;
+            transition: all 0.3s ease;
+            text-align: center;
+            width: 100%;
+        }
+
+        .neo-file-upload:hover {
+            box-shadow: 
+                8px 8px 16px #a3b1c6,
+                -8px -8px 16px #ffffff;
+        }
+
+        .neo-file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .neo-preview-image {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 15px;
+            box-shadow: 
+                4px 4px 8px #a3b1c6,
+                -4px -4px 8px #ffffff;
+            margin-top: 1rem;
+        }
+
+        .neo-qr-container {
+            text-align: center;
+            padding: 2rem;
+            background: #e0e5ec;
+            border-radius: 20px;
+            box-shadow: 
+                inset 6px 6px 12px #a3b1c6,
+                inset -6px -6px 12px #ffffff;
+            margin-top: 1rem;
+        }
+
+
+        .neo-alert {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 15px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 
+                4px 4px 8px #a3b1c6,
+                -4px -4px 8px #ffffff;
+        }
+
+        .neo-alert-success {
+            border-left: 4px solid #00ff88;
+        }
+
+        .neo-alert-danger {
+            border-left: 4px solid #dc3545;
+        }
+
+        .neo-alert-warning {
+            border-left: 4px solid #ffc107;
+        }
+
+        .neo-autocomplete {
+            position: relative;
+        }
+
+        .neo-autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #e0e5ec;
+            border-radius: 15px;
+            box-shadow: 
+                8px 8px 16px #a3b1c6,
+                -8px -8px 16px #ffffff;
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .neo-autocomplete-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #a3b1c6;
+            transition: all 0.3s ease;
+        }
+
+        .neo-autocomplete-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .neo-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .neo-loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #a3b1c6;
+            border-radius: 50%;
+            border-top-color: #00ff88;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .neo-container {
+                padding: 1rem 0;
+            }
+            
+            .neo-section {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .neo-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+    <div class="neo-container">
+        <div class="container">
+                    <!-- Header -->
+                    <div class="neo-card">
+                        <div class="neo-card-header">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h1 class="neo-title">
+                                        <i class="fas fa-plus-circle me-3"></i>
+                                        Nueva Orden de Servicio
+                                    </h1>
+                                    <p class="neo-subtitle">Complete todos los campos para crear una nueva orden de servicio técnico</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <a href="/servicio-tecnico" class="neo-button neo-button-secondary">
+                                        <i class="fas fa-arrow-left me-2"></i>
+                                        Volver a Servicio Técnico
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+            <form id="formNuevaOrden" method="POST" action="/servicio-tecnico/nueva-orden" enctype="multipart/form-data">
+                <!-- Sección 1: Datos del Cliente -->
+                <div class="neo-section">
+                    <div class="neo-section-header">
+                        <i class="fas fa-user neo-section-icon"></i>
+                        <h2 class="neo-section-title">👤 Datos del Cliente</h2>
+                            </div>
+                    
+                                <div class="row">
+                                    <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="cliente_nombre">
+                                    <i class="fas fa-user me-2"></i>Nombre Completo *
+                                </label>
+                                <div class="neo-autocomplete">
+                                    <input type="text" id="cliente_nombre" name="cliente_nombre" class="neo-input" 
+                                           placeholder="Ingrese el nombre completo del cliente" 
+                                           value="{% if cliente_data %}{{ cliente_data.get('nombre', '') }}{% endif %}" required>
+                                    <div class="neo-autocomplete-results" id="cliente_suggestions"></div>
+                                </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="cliente_cedula">
+                                    <i class="fas fa-id-card me-2"></i>Cédula / RIF *
+                                </label>
+                                <input type="text" id="cliente_cedula" name="cliente_cedula" class="neo-input" 
+                                       placeholder="V-12345678 o J-12345678-9" 
+                                       value="{% if cliente_data %}{{ cliente_data.get('cedula_rif', '') }}{% endif %}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="cliente_telefono">
+                                    <i class="fas fa-phone me-2"></i>Teléfono Principal *
+                                </label>
+                                <input type="tel" id="cliente_telefono" name="cliente_telefono" class="neo-input" 
+                                       placeholder="0412-123-4567" 
+                                       value="{% if cliente_data %}{{ cliente_data.get('telefono', '') }}{% endif %}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="cliente_telefono2">
+                                    <i class="fas fa-phone-alt me-2"></i>Teléfono Alternativo
+                                </label>
+                                <input type="tel" id="cliente_telefono2" name="cliente_telefono2" class="neo-input" 
+                                       placeholder="0424-123-4567"
+                                       value="{% if cliente_data %}{{ cliente_data.get('telefono2', '') }}{% endif %}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="cliente_email">
+                                    <i class="fas fa-envelope me-2"></i>Correo Electrónico
+                                </label>
+                                <input type="email" id="cliente_email" name="cliente_email" class="neo-input" 
+                                       placeholder="cliente@email.com"
+                                       value="{% if cliente_data %}{{ cliente_data.get('email', '') }}{% endif %}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                    <div class="neo-form-group">
+                        <label class="neo-label" for="cliente_direccion">
+                            <i class="fas fa-map-marker-alt me-2"></i>Dirección / Sector
+                        </label>
+                        <textarea id="cliente_direccion" name="cliente_direccion" class="neo-textarea" 
+                                  placeholder="Ingrese la dirección completa del cliente" rows="2">{% if cliente_data %}{{ cliente_data.get('direccion', '') }}{% endif %}</textarea>
+                    </div>
+                                </div>
+
+                <!-- Sección 2: Datos del Equipo -->
+                <div class="neo-section">
+                    <div class="neo-section-header">
+                        <i class="fas fa-mobile-alt neo-section-icon"></i>
+                        <h2 class="neo-section-title">📱 Datos del Equipo</h2>
+                                </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_marca">
+                                    <i class="fas fa-tag me-2"></i>Marca *
+                                </label>
+                                <select id="equipo_marca" name="equipo_marca" class="neo-select" required>
+                                    <option value="">Seleccionar marca</option>
+                                    <option value="Samsung">Samsung</option>
+                                    <option value="Apple">Apple</option>
+                                    <option value="Huawei">Huawei</option>
+                                    <option value="Xiaomi">Xiaomi</option>
+                                    <option value="Oppo">Oppo</option>
+                                    <option value="Vivo">Vivo</option>
+                                    <option value="OnePlus">OnePlus</option>
+                                    <option value="Motorola">Motorola</option>
+                                    <option value="LG">LG</option>
+                                    <option value="Sony">Sony</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_modelo">
+                                    <i class="fas fa-mobile-alt me-2"></i>Modelo *
+                                </label>
+                                <input type="text" id="equipo_modelo" name="equipo_modelo" class="neo-input" 
+                                       placeholder="Galaxy S21, iPhone 13, etc." required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_tipo">
+                                    <i class="fas fa-laptop me-2"></i>Tipo de Equipo *
+                                </label>
+                                <select id="equipo_tipo" name="equipo_tipo" class="neo-select" required>
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="telefono">📱 Teléfono</option>
+                                    <option value="tablet">📱 Tablet</option>
+                                    <option value="laptop">💻 Laptop</option>
+                                    <option value="desktop">🖥️ Desktop</option>
+                                    <option value="smartwatch">⌚ Smartwatch</option>
+                                    <option value="audifonos">🎧 Audífonos</option>
+                                    <option value="otro">🔧 Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_color">
+                                    <i class="fas fa-palette me-2"></i>Color
+                                </label>
+                                <input type="text" id="equipo_color" name="equipo_color" class="neo-input" 
+                                       placeholder="Negro, Blanco, Azul, etc.">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_imei1">
+                                    <i class="fas fa-fingerprint me-2"></i>IMEI 1 * (15 dígitos)
+                                </label>
+                                <input type="text" id="equipo_imei1" name="equipo_imei1" class="neo-input" 
+                                       placeholder="123456789012345" maxlength="15" required>
+                                <small class="text-muted">Ingrese el IMEI principal del equipo</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_imei2">
+                                    <i class="fas fa-fingerprint me-2"></i>IMEI 2 (15 dígitos)
+                                </label>
+                                <input type="text" id="equipo_imei2" name="equipo_imei2" class="neo-input" 
+                                       placeholder="123456789012345" maxlength="15">
+                                <small class="text-muted">IMEI secundario (si aplica)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="equipo_serial">
+                                    <i class="fas fa-barcode me-2"></i>Número de Serie
+                                </label>
+                                <input type="text" id="equipo_serial" name="equipo_serial" class="neo-input" 
+                                       placeholder="Número de serie del equipo" maxlength="20" 
+                                       pattern="[A-Za-z0-9]{5,20}" 
+                                       title="Número de serie: 5-20 caracteres alfanuméricos">
+                                <small class="text-muted">5-20 caracteres alfanuméricos</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos de Desbloqueo -->
+                    <div class="neo-form-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label class="neo-label">
+                                <i class="fas fa-lock me-2"></i>Datos de Desbloqueo
+                            </label>
+                            <button type="button" class="btn neo-button" onclick="abrirModalDesbloqueo()">
+                                <i class="fas fa-key me-2"></i>Configurar Desbloqueo
+                            </button>
+                        </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                <div class="neo-form-group">
+                                    <label class="neo-label">Tipo de Desbloqueo:</label>
+                                    <select id="tipo_desbloqueo" name="tipo_desbloqueo" class="neo-input" onchange="actualizarTipoDesbloqueo()">
+                                                <option value="">Seleccionar...</option>
+                                        <option value="patron">Patrón (Teléfonos/Tablets)</option>
+                                        <option value="pin">PIN</option>
+                                        <option value="password">Contraseña</option>
+                                        <option value="huella">Huella Dactilar</option>
+                                        <option value="reconocimiento">Reconocimiento Facial</option>
+                                        <option value="ninguno">Sin desbloqueo</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                <div class="neo-form-group">
+                                    <label class="neo-label">Estado del Desbloqueo:</label>
+                                    <select id="estado_desbloqueo" name="estado_desbloqueo" class="neo-input">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="activo">Activo</option>
+                                        <option value="desactivado">Desactivado</option>
+                                        <option value="bloqueado">Bloqueado</option>
+                                        <option value="desconocido">Desconocido</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="neo-form-group">
+                                    <label class="neo-label">Notas sobre Desbloqueo:</label>
+                                    <textarea id="notas_desbloqueo" name="notas_desbloqueo" class="neo-input" rows="2" 
+                                              placeholder="Información adicional sobre el desbloqueo del dispositivo"></textarea>
+                                </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                    <!-- Accesorios Entregados -->
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-box me-2"></i>Accesorios Entregados
+                        </label>
+                                <div class="row">
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="accesorio_cargador" name="accesorios[]" value="cargador">
+                                    <label for="accesorio_cargador">🔌 Cargador</label>
+                                        </div>
+                                    </div>
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="accesorio_audifonos" name="accesorios[]" value="audifonos">
+                                    <label for="accesorio_audifonos">🎧 Audífonos</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="accesorio_caja" name="accesorios[]" value="caja">
+                                    <label for="accesorio_caja">📦 Caja Original</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="accesorio_cable" name="accesorios[]" value="cable">
+                                    <label for="accesorio_cable">🔌 Cable USB</label>
+                                </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                    <!-- Condición Física -->
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-tools me-2"></i>Condición Física del Equipo
+                        </label>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="condicion_pantalla_rota" name="condiciones[]" value="pantalla_rota">
+                                    <label for="condicion_pantalla_rota">📱 Pantalla Rota</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="condicion_rayones" name="condiciones[]" value="rayones">
+                                    <label for="condicion_rayones">🔍 Rayones</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="condicion_sin_bateria" name="condiciones[]" value="sin_bateria">
+                                    <label for="condicion_sin_bateria">🔋 Sin Batería</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="condicion_agua" name="condiciones[]" value="agua">
+                                    <label for="condicion_agua">💧 Daño por Agua</label>
+                                </div>
+                            </div>
+                        </div>
+                                </div>
+
+                    <!-- Subida de Foto -->
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-camera me-2"></i>Foto del Equipo
+                        </label>
+                        <div class="neo-file-upload" onclick="document.getElementById('equipo_foto').click()">
+                            <input type="file" id="equipo_foto" name="equipo_foto" accept="image/*" onchange="previewImage(this)">
+                            <i class="fas fa-cloud-upload-alt fa-3x mb-2" style="color: #00ff88;"></i>
+                            <p class="mb-0">Haga clic para subir una foto del equipo</p>
+                            <small class="text-muted">Formatos: JPG, PNG, GIF (Máx. 5MB)</small>
+                                </div>
+                        <div id="imagePreview" class="text-center" style="display: none;">
+                            <img id="previewImg" class="neo-preview-image" alt="Vista previa">
+                            </div>
+                        </div>
+                    </div>
+
+                <!-- Sección 3: Descripción del Problema -->
+                <div class="neo-section">
+                    <div class="neo-section-header">
+                        <i class="fas fa-exclamation-triangle neo-section-icon"></i>
+                        <h2 class="neo-section-title">⚠️ Descripción del Problema</h2>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="problema_categoria">
+                                    <i class="fas fa-list me-2"></i>Categoría del Problema *
+                                </label>
+                                <select id="problema_categoria" name="problema_categoria" class="neo-select" required>
+                                    <option value="">Seleccionar categoría</option>
+                                    <option value="hardware">🔧 Hardware</option>
+                                    <option value="software">💻 Software</option>
+                                    <option value="bateria">🔋 Batería</option>
+                                    <option value="pantalla">📱 Pantalla</option>
+                                    <option value="audio">🔊 Audio</option>
+                                    <option value="conectividad">📶 Conectividad</option>
+                                    <option value="carga">🔌 Carga</option>
+                                    <option value="botones">🔘 Botones</option>
+                                    <option value="camara">📷 Cámara</option>
+                                    <option value="otro">❓ Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                                    <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="problema_tipo">
+                                    <i class="fas fa-tools me-2"></i>Tipo de Problema
+                                            </label>
+                                <select id="problema_tipo" name="problema_tipo" class="neo-select">
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="no_enciende">No enciende</option>
+                                    <option value="se_apaga">Se apaga solo</option>
+                                    <option value="pantalla_negra">Pantalla en negro</option>
+                                    <option value="no_carga">No carga</option>
+                                    <option value="lento">Funciona lento</option>
+                                    <option value="no_suena">No suena</option>
+                                    <option value="no_conecta">No conecta a WiFi</option>
+                                    <option value="botones_no_funcionan">Botones no funcionan</option>
+                                    <option value="camara_no_funciona">Cámara no funciona</option>
+                                    <option value="otro">Otro problema</option>
+                                </select>
+                                        </div>
+                        </div>
+                    </div>
+
+                    <div class="neo-form-group">
+                        <label class="neo-label" for="problema_descripcion">
+                            <i class="fas fa-edit me-2"></i>Descripción Detallada del Problema *
+                                            </label>
+                        <textarea id="problema_descripcion" name="problema_descripcion" class="neo-textarea" 
+                                  placeholder="Describa detalladamente el problema que presenta el equipo..." required rows="4"></textarea>
+                                        </div>
+                                    </div>
+
+                <!-- Sección 4: Datos del Servicio -->
+                <div class="neo-section">
+                    <div class="neo-section-header">
+                        <i class="fas fa-cogs neo-section-icon"></i>
+                        <h2 class="neo-section-title">⚙️ Datos del Servicio</h2>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_estado">
+                                    <i class="fas fa-flag me-2"></i>Estado Inicial *
+                                            </label>
+                                <select id="servicio_estado" name="servicio_estado" class="neo-select" required>
+                                    <option value="en_espera_revision">🟡 En Espera de Revisión</option>
+                                    <option value="en_diagnostico">🔍 En Diagnóstico</option>
+                                    <option value="presupuesto_enviado">📋 Presupuesto Enviado</option>
+                                    <option value="aprobado_por_cliente">✅ Aprobado por Cliente</option>
+                                    <option value="en_reparacion">⚙️ En Reparación</option>
+                                </select>
+                                        </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_tecnico">
+                                    <i class="fas fa-user-tie me-2"></i>Técnico Asignado
+                                            </label>
+                                <select id="servicio_tecnico" name="servicio_tecnico" class="neo-select">
+                                    <option value="">Sin asignar</option>
+                                    <option value="tecnico1">Técnico 1</option>
+                                    <option value="tecnico2">Técnico 2</option>
+                                    <option value="tecnico3">Técnico 3</option>
+                                </select>
+                                        </div>
+                                    </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_prioridad">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Prioridad *
+                                </label>
+                                <select id="servicio_prioridad" name="servicio_prioridad" class="neo-select" required>
+                                    <option value="baja">🟢 Baja</option>
+                                    <option value="media" selected>🟡 Media</option>
+                                    <option value="alta">🟠 Alta</option>
+                                    <option value="urgente">🔴 Urgente</option>
+                                </select>
+                                </div>
+                                </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_tipo">
+                                    <i class="fas fa-wrench me-2"></i>Tipo de Servicio *
+                                </label>
+                                <select id="servicio_tipo" name="servicio_tipo" class="neo-select" required>
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="revision">🔍 Revisión</option>
+                                    <option value="reparacion">🔧 Reparación</option>
+                                    <option value="mantenimiento">🛠️ Mantenimiento</option>
+                                    <option value="garantia">🛡️ Garantía</option>
+                                    <option value="diagnostico">📋 Diagnóstico</option>
+                                    <option value="otro">❓ Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                                <div class="row">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_fecha_ingreso">
+                                    <i class="fas fa-calendar-plus me-2"></i>Fecha de Ingreso *
+                                </label>
+                                <input type="date" id="servicio_fecha_ingreso" name="servicio_fecha_ingreso" 
+                                       class="neo-input" required>
+                                        </div>
+                                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_fecha_entrega">
+                                    <i class="fas fa-calendar-check me-2"></i>Fecha Estimada de Entrega
+                                </label>
+                                <input type="date" id="servicio_fecha_entrega" name="servicio_fecha_entrega" 
+                                       class="neo-input">
+                                    </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="servicio_costo_estimado">
+                                    <i class="fas fa-dollar-sign me-2"></i>Costo Estimado (Bs.)
+                                            </label>
+                                <input type="number" id="servicio_costo_estimado" name="servicio_costo_estimado" 
+                                       class="neo-input" placeholder="0.00" step="0.01" min="0">
+                                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 5: Observaciones Internas -->
+                <div class="neo-section">
+                    <div class="neo-section-header">
+                        <i class="fas fa-clipboard-list neo-section-icon"></i>
+                        <h2 class="neo-section-title">📝 Observaciones Internas</h2>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label" for="observaciones_internas">
+                            <i class="fas fa-edit me-2"></i>Notas Internas del Técnico
+                                            </label>
+                        <textarea id="observaciones_internas" name="observaciones_internas" class="neo-textarea" 
+                                  placeholder="Notas internas, observaciones técnicas, recomendaciones..." rows="3"></textarea>
+                                        </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="atendido_por">
+                                    <i class="fas fa-user-check me-2"></i>Atendido Por
+                                            </label>
+                                <input type="text" id="atendido_por" name="atendido_por" class="neo-input" 
+                                       placeholder="Nombre del empleado que atendió">
+                                        </div>
+                                    </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="cliente_notificado">
+                                    <i class="fas fa-bell me-2"></i>Notificaciones
+                                </label>
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="cliente_notificado" name="cliente_notificado" value="1">
+                                    <label for="cliente_notificado">Cliente Notificado</label>
+                                </div>
+                                </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label" for="whatsapp_enviado">
+                                    <i class="fab fa-whatsapp me-2"></i>Comunicación
+                                </label>
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" id="whatsapp_enviado" name="whatsapp_enviado" value="1">
+                                    <label for="whatsapp_enviado">WhatsApp Enviado</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                    <!-- Campos ocultos para datos de desbloqueo -->
+                    <input type="hidden" id="clave_desbloqueo" name="clave_desbloqueo" value="">
+                    <input type="hidden" id="tipo_desbloqueo_hidden" name="tipo_desbloqueo" value="">
+                    <input type="hidden" id="estado_desbloqueo_hidden" name="estado_desbloqueo" value="">
+                    <input type="hidden" id="notas_desbloqueo_hidden" name="notas_desbloqueo" value="">
+                    </div>
+                </div>
+
+                <!-- Modal de Desbloqueo -->
+                <div class="modal fade" id="modalDesbloqueo" tabindex="-1" aria-labelledby="modalDesbloqueoLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content neo-modal">
+                            <div class="modal-header">
+                                <h5 class="modal-title neo-title" id="modalDesbloqueoLabel">
+                                    <i class="fas fa-lock me-2"></i>Configurar Datos de Desbloqueo
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                                        <div class="neo-form-group">
+                                            <label class="neo-label">Tipo de Desbloqueo:</label>
+                                            <select id="modal_tipo_desbloqueo" class="neo-input" onchange="cambiarModoDesbloqueo()">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="patron">Patrón (Teléfonos/Tablets)</option>
+                                                <option value="pin">PIN</option>
+                                                <option value="password">Contraseña</option>
+                                                <option value="huella">Huella Dactilar</option>
+                                                <option value="reconocimiento">Reconocimiento Facial</option>
+                                                <option value="ninguno">Sin desbloqueo</option>
+                                            </select>
+                            </div>
+                                </div>
+                                    <div class="col-md-6">
+                                        <div class="neo-form-group">
+                                            <label class="neo-label">Estado:</label>
+                                            <select id="modal_estado_desbloqueo" class="neo-input">
+                                                <option value="activo">Activo</option>
+                                                <option value="desactivado">Desactivado</option>
+                                                <option value="bloqueado">Bloqueado</option>
+                                                <option value="desconocido">Desconocido</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sección de Patrón -->
+                                <div id="seccion_patron" class="mt-4" style="display: none;">
+                                    <div class="neo-form-group">
+                                        <label class="neo-label">Dibujar Patrón de Desbloqueo:</label>
+                                        <div class="patron-container">
+                                            <canvas id="canvasPatron" width="300" height="300" 
+                                                    style="border: 2px solid #e0e0e0; border-radius: 15px; cursor: crosshair; background: #f8f9fa;"></canvas>
+                                            <div class="mt-2">
+                                                <button type="button" class="btn neo-button btn-sm" onclick="limpiarPatron()">
+                                                    <i class="fas fa-eraser me-1"></i>Limpiar
+                                                </button>
+                                                <button type="button" class="btn neo-button btn-sm" onclick="guardarPatron()">
+                                                    <i class="fas fa-save me-1"></i>Guardar Patrón
+                                                </button>
+                                            </div>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Dibuja el patrón de desbloqueo del dispositivo</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sección de PIN/Contraseña -->
+                                <div id="seccion_clave" class="mt-4" style="display: none;">
+                                    <div class="neo-form-group">
+                                        <label class="neo-label" id="label_clave">Contraseña/PIN:</label>
+                                        <input type="password" id="modal_clave_desbloqueo" class="neo-input" 
+                                               placeholder="Ingresa la contraseña o PIN">
+                                        <div class="mt-2">
+                                            <button type="button" class="btn neo-button btn-sm" onclick="mostrarOcultarClave()">
+                                                <i class="fas fa-eye me-1"></i>Mostrar/Ocultar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sección de Notas -->
+                                <div class="mt-4">
+                                    <div class="neo-form-group">
+                                        <label class="neo-label">Notas Adicionales:</label>
+                                        <textarea id="modal_notas_desbloqueo" class="neo-input" rows="3" 
+                                                  placeholder="Información adicional sobre el desbloqueo del dispositivo"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn neo-button-secondary" data-bs-dismiss="modal">
+                                    <i class="fas fa-times me-1"></i>Cancelar
+                                </button>
+                                <button type="button" class="btn neo-button" onclick="guardarDatosDesbloqueo()">
+                                    <i class="fas fa-save me-1"></i>Guardar Datos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="neo-section">
+                <div class="row">
+                        <div class="col-md-3">
+                            <button type="submit" class="neo-button neo-button-primary w-100">
+                                <i class="fas fa-save me-2"></i>Guardar Orden
+                                </button>
+                            </div>
+                        <div class="col-md-3">
+                            <button type="button" class="neo-button w-100" onclick="guardarBorrador()">
+                                <i class="fas fa-file-alt me-2"></i>Guardar Borrador
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="neo-button w-100" onclick="imprimirTicket()">
+                                <i class="fas fa-print me-2"></i>Imprimir Ticket
+                            </button>
+                    </div>
+                        <div class="col-md-3">
+                            <button type="button" class="neo-button neo-button-danger w-100" onclick="cancelarOrden()">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </button>
+                </div>
+        </div>
+                </div>
+
+                <!-- Código QR -->
+                <div class="neo-section" id="qrSection" style="display: none;">
+                    <div class="neo-section-header">
+                        <i class="fas fa-qrcode neo-section-icon"></i>
+                        <h2 class="neo-section-title">📱 Código QR de la Orden</h2>
+                    </div>
+                    <div class="neo-qr-container">
+                        <div id="qrcode"></div>
+                        <p class="mt-2 mb-0">Escanea este código para acceder a la información de la orden</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts adicionales -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+<script>
+        // Variables globales
+        let clientesExistentes = [];
+        let ordenActual = null;
+
+        // Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+            inicializarFormulario();
+            cargarClientesExistentes();
+            configurarFechaActual();
+        });
+
+        // Inicializar formulario
+        function inicializarFormulario() {
+            // Configurar validaciones
+            configurarValidaciones();
+            
+            // Configurar autocompletado
+            configurarAutocompletado();
+            
+            // Configurar eventos
+            configurarEventos();
+        }
+
+        // Configurar validaciones
+        function configurarValidaciones() {
+            // Validar IMEI
+            document.getElementById('equipo_imei1').addEventListener('input', function() {
+                validarIMEI(this);
+            });
+            
+            document.getElementById('equipo_imei2').addEventListener('input', function() {
+                validarIMEI(this);
+            });
+
+            // Validación de número de serie
+            document.getElementById('equipo_serial').addEventListener('input', function() {
+                validarNumeroSerie(this);
+            });
+
+            // Actualizar validación cuando cambie el tipo de dispositivo
+            document.getElementById('equipo_tipo').addEventListener('change', function() {
+                const serialInput = document.getElementById('equipo_serial');
+                validarNumeroSerie(serialInput);
+            });
+
+            // Validar formulario antes de enviar
+document.getElementById('formNuevaOrden').addEventListener('submit', function(e) {
+                if (!validarFormulario()) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Validar IMEI
+        function validarIMEI(input) {
+            const imei = input.value.replace(/\D/g, '');
+            if (imei.length === 15) {
+                input.style.borderColor = '#00ff88';
+                input.style.boxShadow = '0 0 0 3px rgba(0, 255, 136, 0.3)';
+            } else if (imei.length > 0) {
+                input.style.borderColor = '#dc3545';
+                input.style.boxShadow = '0 0 0 3px rgba(220, 53, 69, 0.3)';
+            } else {
+                input.style.borderColor = '';
+                input.style.boxShadow = '';
+            }
+            input.value = imei;
+        }
+
+        // Función para validar número de serie según tipo de dispositivo
+        function validarNumeroSerie(input) {
+            const tipoEquipo = document.getElementById('equipo_tipo').value;
+            let minLength = 5;
+            let maxLength = 20;
+            
+            // Ajustar límites según tipo de dispositivo
+            switch(tipoEquipo) {
+                case 'telefono':
+                    minLength = 8;
+                    maxLength = 15;
+                    break;
+                case 'tablet':
+                    minLength = 10;
+                    maxLength = 18;
+                    break;
+                case 'laptop':
+                    minLength = 12;
+                    maxLength = 20;
+                    break;
+                case 'desktop':
+                    minLength = 12;
+                    maxLength = 20;
+                    break;
+                case 'smartwatch':
+                    minLength = 8;
+                    maxLength = 12;
+                    break;
+                case 'auriculares':
+                    minLength = 8;
+                    maxLength = 15;
+                    break;
+                default:
+                    minLength = 5;
+                    maxLength = 20;
+            }
+            
+            let value = input.value;
+            
+            // Aplicar patrón alfanumérico (solo letras y números)
+            value = value.replace(/[^A-Za-z0-9]/g, '');
+            
+            // Aplicar límite de longitud
+            if (value.length > maxLength) {
+                value = value.substring(0, maxLength);
+            }
+            
+            input.value = value;
+            
+            // Actualizar mensaje de ayuda
+            const helpText = input.parentElement.querySelector('.text-muted');
+            if (helpText) {
+                helpText.textContent = `${tipoEquipo.charAt(0).toUpperCase() + tipoEquipo.slice(1)}: ${minLength}-${maxLength} caracteres alfanuméricos`;
+            }
+            
+            // Validar longitud con indicadores visuales
+            if (value.length >= minLength && value.length <= maxLength) {
+                input.style.borderColor = '#00ff88';
+                input.style.boxShadow = '0 0 0 3px rgba(0, 255, 136, 0.3)';
+            } else if (value.length > 0) {
+                input.style.borderColor = '#dc3545';
+                input.style.boxShadow = '0 0 0 3px rgba(220, 53, 69, 0.3)';
+            } else {
+                input.style.borderColor = '';
+                input.style.boxShadow = '';
+            }
+        }
+
+        // Validar formulario completo
+        function validarFormulario() {
+    let valido = true;
+            const camposRequeridos = document.querySelectorAll('[required]');
+    
+    camposRequeridos.forEach(campo => {
+                if (!campo.value.trim()) {
+                    campo.style.borderColor = '#dc3545';
+                    campo.style.boxShadow = '0 0 0 3px rgba(220, 53, 69, 0.3)';
+            valido = false;
+        } else {
+                    campo.style.borderColor = '';
+                    campo.style.boxShadow = '';
+                }
+            });
+
+            // Validar IMEI
+            const imei1 = document.getElementById('equipo_imei1').value;
+            if (imei1 && imei1.length > 0 && imei1.length !== 15) {
+                mostrarAlerta('El IMEI 1 debe tener exactamente 15 dígitos', 'danger');
+                valido = false;
+            }
+
+            // Validar número de serie si se proporciona
+            const numeroSerie = document.getElementById('equipo_serial').value;
+            if (numeroSerie.trim()) {
+                const tipoEquipo = document.getElementById('equipo_tipo').value;
+                let minLength = 5, maxLength = 20;
+                
+                switch(tipoEquipo) {
+                    case 'telefono': minLength = 8; maxLength = 15; break;
+                    case 'tablet': minLength = 10; maxLength = 18; break;
+                    case 'laptop': minLength = 12; maxLength = 20; break;
+                    case 'desktop': minLength = 12; maxLength = 20; break;
+                    case 'smartwatch': minLength = 8; maxLength = 12; break;
+                    case 'auriculares': minLength = 8; maxLength = 15; break;
+                }
+                
+                if (numeroSerie.length < minLength || numeroSerie.length > maxLength) {
+                    mostrarAlerta(`El número de serie debe tener entre ${minLength} y ${maxLength} caracteres para ${tipoEquipo}`, 'danger');
+                    valido = false;
+                }
+            }
+
+            return valido;
+        }
+
+        // Variables globales para el patrón
+        let patronDibujado = [];
+        let isDrawing = false;
+        let canvas, ctx;
+
+        // Función para abrir el modal de desbloqueo
+        function abrirModalDesbloqueo() {
+            const modal = new bootstrap.Modal(document.getElementById('modalDesbloqueo'));
+            modal.show();
+            
+            // Inicializar canvas
+            canvas = document.getElementById('canvasPatron');
+            ctx = canvas.getContext('2d');
+            inicializarCanvas();
+            configurarEventosCanvas();
+        }
+
+        // Inicializar el canvas para dibujar patrones
+        function inicializarCanvas() {
+            patronDibujado = [];
+            dibujarPatron(); // Usar la función mejorada
+        }
+
+        // Configurar eventos del canvas cuando se abre el modal
+        function configurarEventosCanvas() {
+            if (!canvas) return;
+            
+            // Remover event listeners existentes
+            canvas.removeEventListener('mousedown', manejarMouseDown);
+            canvas.removeEventListener('mousemove', manejarMouseMove);
+            canvas.removeEventListener('mouseup', manejarMouseUp);
+            
+            // Agregar nuevos event listeners
+            canvas.addEventListener('mousedown', manejarMouseDown);
+            canvas.addEventListener('mousemove', manejarMouseMove);
+            canvas.addEventListener('mouseup', manejarMouseUp);
+        }
+
+        function manejarMouseDown(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const dot = encontrarPuntoMasCercano(x, y);
+            if (dot) {
+                // Verificar si el punto ya está en el patrón
+                const yaExiste = patronDibujado.some(p => p.row === dot.row && p.col === dot.col);
+                if (!yaExiste) {
+                    patronDibujado.push(dot);
+                    dibujarPatron();
+                }
+            }
+        }
+
+        function manejarMouseMove(e) {
+            if (isDrawing) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const dot = encontrarPuntoMasCercano(x, y);
+                if (dot) {
+                    // Verificar si el punto ya está en el patrón
+                    const yaExiste = patronDibujado.some(p => p.row === dot.row && p.col === dot.col);
+                    if (!yaExiste) {
+                        patronDibujado.push(dot);
+                        dibujarPatron();
+                    }
+                }
+            }
+        }
+
+        function manejarMouseUp(e) {
+            isDrawing = false;
+        }
+
+        // Encontrar el punto más cercano al clic
+        function encontrarPuntoMasCercano(x, y) {
+            const spacing = 80;
+            const startX = 50;
+            const startY = 50;
+            const threshold = 30;
+            
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const dotX = startX + col * spacing;
+                    const dotY = startY + row * spacing;
+                    const distance = Math.sqrt((x - dotX) ** 2 + (y - dotY) ** 2);
+                    
+                    if (distance < threshold) {
+                        return { row, col, x: dotX, y: dotY };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Dibujar el patrón actual
+        function dibujarPatron() {
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar grilla de puntos
+            const dotSize = 15;
+            const spacing = 80;
+            const startX = 50;
+            const startY = 50;
+            
+            ctx.fillStyle = '#00ff88';
+            ctx.strokeStyle = '#00cc6a';
+            ctx.lineWidth = 3;
+            
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const x = startX + col * spacing;
+                    const y = startY + row * spacing;
+                    
+                    // Verificar si este punto está en el patrón
+                    const enPatron = patronDibujado.some(p => p.row === row && p.col === col);
+                    
+                    if (enPatron) {
+                        // Punto seleccionado - más grande y de color diferente
+                        ctx.fillStyle = '#ff6b6b';
+                        ctx.strokeStyle = '#ff5252';
+                        ctx.lineWidth = 4;
+                    } else {
+                        // Punto normal
+                        ctx.fillStyle = '#00ff88';
+                        ctx.strokeStyle = '#00cc6a';
+                        ctx.lineWidth = 3;
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, dotSize, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+            
+            // Dibujar líneas conectando los puntos del patrón
+            if (patronDibujado.length > 1) {
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                ctx.beginPath();
+                ctx.moveTo(patronDibujado[0].x, patronDibujado[0].y);
+                
+                for (let i = 1; i < patronDibujado.length; i++) {
+                    ctx.lineTo(patronDibujado[i].x, patronDibujado[i].y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // Limpiar patrón
+        function limpiarPatron() {
+            patronDibujado = [];
+            dibujarPatron();
+        }
+
+        // Guardar patrón
+        function guardarPatron() {
+            if (patronDibujado.length < 4) {
+                mostrarAlerta('El patrón debe tener al menos 4 puntos', 'warning');
+                return;
+            }
+            
+            const patronString = patronDibujado.map(dot => `${dot.row}${dot.col}`).join('-');
+            document.getElementById('modal_clave_desbloqueo').value = patronString;
+            mostrarAlerta('Patrón guardado correctamente', 'success');
+        }
+
+        // Cambiar modo de desbloqueo
+        function cambiarModoDesbloqueo() {
+            const tipo = document.getElementById('modal_tipo_desbloqueo').value;
+            const seccionPatron = document.getElementById('seccion_patron');
+            const seccionClave = document.getElementById('seccion_clave');
+            const labelClave = document.getElementById('label_clave');
+            const inputClave = document.getElementById('modal_clave_desbloqueo');
+            
+            seccionPatron.style.display = 'none';
+            seccionClave.style.display = 'none';
+            
+            if (tipo === 'patron') {
+                seccionPatron.style.display = 'block';
+                limpiarPatron();
+            } else if (['pin', 'password'].includes(tipo)) {
+                seccionClave.style.display = 'block';
+                labelClave.textContent = tipo === 'pin' ? 'PIN:' : 'Contraseña:';
+                inputClave.placeholder = tipo === 'pin' ? 'Ingresa el PIN' : 'Ingresa la contraseña';
+                inputClave.type = 'password';
+            }
+        }
+
+        // Mostrar/ocultar clave
+        function mostrarOcultarClave() {
+            const input = document.getElementById('modal_clave_desbloqueo');
+            const boton = event.target;
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                boton.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Ocultar';
+            } else {
+                input.type = 'password';
+                boton.innerHTML = '<i class="fas fa-eye me-1"></i>Mostrar';
+            }
+        }
+
+        // Actualizar tipo de desbloqueo en el formulario principal
+        function actualizarTipoDesbloqueo() {
+            const tipo = document.getElementById('tipo_desbloqueo').value;
+            const tipoModal = document.getElementById('modal_tipo_desbloqueo');
+            tipoModal.value = tipo;
+            cambiarModoDesbloqueo();
+        }
+
+        // Guardar datos de desbloqueo
+        function guardarDatosDesbloqueo() {
+            const tipo = document.getElementById('modal_tipo_desbloqueo').value;
+            const estado = document.getElementById('modal_estado_desbloqueo').value;
+            const clave = document.getElementById('modal_clave_desbloqueo').value;
+            const notas = document.getElementById('modal_notas_desbloqueo').value;
+            
+            // Actualizar campos del formulario principal
+            document.getElementById('tipo_desbloqueo').value = tipo;
+            document.getElementById('estado_desbloqueo').value = estado;
+            document.getElementById('notas_desbloqueo').value = notas;
+            document.getElementById('clave_desbloqueo').value = clave;
+            
+            // Actualizar campos ocultos para envío
+            document.getElementById('tipo_desbloqueo_hidden').value = tipo;
+            document.getElementById('estado_desbloqueo_hidden').value = estado;
+            document.getElementById('notas_desbloqueo_hidden').value = notas;
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalDesbloqueo'));
+            modal.hide();
+            
+            mostrarAlerta('Datos de desbloqueo guardados correctamente', 'success');
+        }
+
+        // Configurar autocompletado
+        function configurarAutocompletado() {
+            const inputNombre = document.getElementById('cliente_nombre');
+            const inputCedula = document.getElementById('cliente_cedula');
+            const suggestions = document.getElementById('cliente_suggestions');
+            let timeout;
+            
+            // Buscar cliente cuando se escribe el nombre
+            inputNombre.addEventListener('input', function() {
+                clearTimeout(timeout);
+                const query = this.value.trim();
+                if (query.length >= 3) {
+                    timeout = setTimeout(() => buscarClienteExacto(), 800);
+                } else {
+                    suggestions.style.display = 'none';
+                }
+            });
+
+            // Buscar cliente cuando se escribe la cédula
+            inputCedula.addEventListener('input', function() {
+                clearTimeout(timeout);
+                const query = this.value.trim();
+                if (query.length >= 3) {
+                    timeout = setTimeout(() => buscarClienteExacto(), 800);
+                }
+            });
+
+            // Ocultar sugerencias al hacer clic fuera
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.neo-autocomplete')) {
+                    suggestions.style.display = 'none';
+                }
+            });
+        }
+
+        // Buscar cliente exacto por nombre o cédula
+        function buscarClienteExacto() {
+            const nombre = document.getElementById('cliente_nombre').value.trim();
+            const cedula = document.getElementById('cliente_cedula').value.trim();
+            
+            if (!nombre && !cedula) return;
+            
+            fetch('/api/buscar-cliente-exacto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nombre: nombre,
+                    cedula: cedula
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.existe && data.cliente) {
+                    // Cliente encontrado, autocompletar datos
+                    autocompletarDatosCliente(data.cliente);
+                    mostrarAlerta(`Cliente "${data.cliente.nombre}" encontrado. Datos completados automáticamente.`, 'info');
+                } else {
+                    // Cliente no existe, verificar duplicados
+                    verificarDuplicado(nombre, cedula);
+                }
+            })
+            .catch(error => {
+                console.error('Error buscando cliente:', error);
+            });
+        }
+
+        // Autocompletar datos del cliente
+        function autocompletarDatosCliente(cliente) {
+            document.getElementById('cliente_nombre').value = cliente.nombre || '';
+            // Intentar obtener cédula de varios campos posibles
+            const cedula = cliente.cedula_rif || cliente.rif || cliente.id || '';
+            document.getElementById('cliente_cedula').value = cedula;
+            document.getElementById('cliente_telefono').value = cliente.telefono || '';
+            document.getElementById('cliente_telefono2').value = cliente.telefono2 || '';
+            document.getElementById('cliente_email').value = cliente.email || '';
+            document.getElementById('cliente_direccion').value = cliente.direccion || '';
+        }
+
+        // Verificar si el cliente ya existe (para evitar duplicados)
+        function verificarDuplicado(nombre, cedula) {
+            if (!nombre && !cedula) return;
+            
+            fetch('/api/buscar-clientes?q=' + encodeURIComponent(nombre || cedula))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.clientes && data.clientes.length > 0) {
+                        mostrarAlerta('⚠️ Un cliente similar ya existe. Verifique si desea usar ese cliente existente.', 'warning');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error verificando duplicados:', error);
+                });
+        }
+
+        // Buscar clientes (búsqueda predictiva para el autocomplete dropdown)
+        function buscarClientes(query) {
+            const resultados = clientesExistentes.filter(cliente => 
+                cliente.nombre.toLowerCase().includes(query) ||
+                (cliente.id || cliente.cedula_rif || '').toLowerCase().includes(query)
+            );
+            
+            mostrarSugerencias(resultados);
+        }
+
+        // Mostrar sugerencias
+        function mostrarSugerencias(clientes) {
+            const suggestions = document.getElementById('cliente_suggestions');
+            suggestions.innerHTML = '';
+            
+            if (clientes.length === 0) {
+                suggestions.style.display = 'none';
+                return;
+            }
+            
+            clientes.forEach(cliente => {
+                const item = document.createElement('div');
+                item.className = 'neo-autocomplete-item';
+                item.innerHTML = `
+                    <strong>${cliente.nombre}</strong><br>
+                    <small class="text-muted">${cliente.id || cliente.cedula_rif || ''} - ${cliente.telefono || ''}</small>
+                `;
+                item.addEventListener('click', function() {
+                    seleccionarCliente(cliente);
+                });
+                suggestions.appendChild(item);
+            });
+            
+            suggestions.style.display = 'block';
+        }
+
+        // Seleccionar cliente
+        function seleccionarCliente(cliente) {
+            document.getElementById('cliente_nombre').value = cliente.nombre;
+            // Intentar obtener cédula de varios campos posibles
+            const cedula = cliente.cedula_rif || cliente.rif || cliente.id || '';
+            document.getElementById('cliente_cedula').value = cedula;
+            document.getElementById('cliente_telefono').value = cliente.telefono || '';
+            if (cliente.telefono2) document.getElementById('cliente_telefono2').value = cliente.telefono2;
+            if (cliente.email) document.getElementById('cliente_email').value = cliente.email;
+            if (cliente.direccion) document.getElementById('cliente_direccion').value = cliente.direccion;
+            
+            document.getElementById('cliente_suggestions').style.display = 'none';
+            mostrarAlerta('Cliente seleccionado correctamente', 'success');
+        }
+
+        // Cargar clientes existentes
+        function cargarClientesExistentes() {
+            // Cargar clientes desde el servidor
+            fetch('/api/listar-clientes')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.clientes) {
+                        clientesExistentes = data.clientes;
+                        console.log('Clientes cargados:', clientesExistentes.length);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando clientes:', error);
+                    clientesExistentes = [];
+                });
+        }
+
+        // Configurar eventos
+        function configurarEventos() {
+            // Auto-calcular fecha de entrega
+            document.getElementById('servicio_fecha_ingreso').addEventListener('change', function() {
+                calcularFechaEntrega();
+            });
+
+            // Generar número de orden
+            generarNumeroOrden();
+        }
+
+        // Calcular fecha de entrega
+        function calcularFechaEntrega() {
+            const fechaIngreso = document.getElementById('servicio_fecha_ingreso').value;
+            if (fechaIngreso) {
+                const fecha = new Date(fechaIngreso);
+                fecha.setDate(fecha.getDate() + 7); // 7 días por defecto
+                document.getElementById('servicio_fecha_entrega').value = fecha.toISOString().split('T')[0];
+            }
+        }
+
+        // Generar número de orden
+        function generarNumeroOrden() {
+            const numero = 'OS-' + Date.now().toString().slice(-8);
+            ordenActual = numero;
+            console.log('Número de orden generado:', numero);
+        }
+
+        // Configurar fecha actual
+        function configurarFechaActual() {
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('servicio_fecha_ingreso').value = hoy;
+            calcularFechaEntrega();
+        }
+
+
+        // Preview de imagen
+        function previewImage(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('previewImg');
+                    const container = document.getElementById('imagePreview');
+                    preview.src = e.target.result;
+                    container.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Guardar borrador
+        function guardarBorrador() {
+            const form = document.getElementById('formNuevaOrden');
+            const formData = new FormData(form);
+            formData.append('tipo', 'borrador');
+            
+            // Validar campos mínimos para borrador
+            const camposMinimos = ['cliente_nombre', 'cliente_cedula', 'cliente_telefono', 'equipo_marca', 'equipo_modelo', 'equipo_imei1'];
+            let camposFaltantes = [];
+            
+            camposMinimos.forEach(campo => {
+                const elemento = document.querySelector(`[name="${campo}"]`);
+                if (!elemento || !elemento.value.trim()) {
+                    camposFaltantes.push(campo);
+                }
+            });
+            
+            if (camposFaltantes.length > 0) {
+                mostrarAlerta('Por favor complete al menos los campos básicos: Cliente, Equipo e IMEI', 'warning');
+                return;
+            }
+            
+            // Enviar formulario
+            fetch('/servicio-tecnico/nueva-orden', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    mostrarAlerta('Borrador guardado correctamente', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/servicio-tecnico';
+                    }, 2000);
+                } else {
+                    mostrarAlerta('Error al guardar el borrador', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarAlerta('Error al guardar el borrador', 'danger');
+            });
+        }
+
+        // Imprimir ticket
+        function imprimirTicket() {
+            if (!validarFormulario()) {
+                mostrarAlerta('Complete todos los campos requeridos antes de imprimir', 'warning');
+                return;
+            }
+            
+            // Generar contenido del ticket
+            const ticketContent = generarContenidoTicket();
+            
+            // Abrir ventana de impresión
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(ticketContent);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        // Generar contenido del ticket
+        function generarContenidoTicket() {
+            const formData = new FormData(document.getElementById('formNuevaOrden'));
+            const cliente = formData.get('cliente_nombre');
+            const equipo = `${formData.get('equipo_marca')} ${formData.get('equipo_modelo')}`;
+            const problema = formData.get('problema_descripcion');
+            
+            return `
+                <html>
+                <head>
+                    <title>Ticket de Orden - ${ordenActual}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; border-bottom: 2px solid #00ff88; padding-bottom: 10px; }
+                        .info { margin: 10px 0; }
+                        .label { font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>ORDEN DE SERVICIO TÉCNICO</h2>
+                        <h3>N° ${ordenActual}</h3>
+                    </div>
+                    <div class="info">
+                        <div class="label">Cliente:</div>
+                        <div>${cliente}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Equipo:</div>
+                        <div>${equipo}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Problema:</div>
+                        <div>${problema}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Fecha:</div>
+                        <div>${new Date().toLocaleDateString()}</div>
+                    </div>
+                </body>
+                </html>
+            `;
+        }
+
+        // Cancelar orden
+        function cancelarOrden() {
+            if (confirm('¿Está seguro de que desea cancelar? Se perderán todos los datos ingresados.')) {
+                window.location.href = '/servicio-tecnico';
+            }
+        }
+
+        // Mostrar alerta
+        function mostrarAlerta(mensaje, tipo = 'info') {
+            const alerta = document.createElement('div');
+            alerta.className = `neo-alert neo-alert-${tipo} alert-dismissible fade show position-fixed`;
+            alerta.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alerta.innerHTML = `
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alerta);
+            
+            setTimeout(() => {
+                if (alerta.parentNode) {
+                    alerta.remove();
+                }
+            }, 5000);
+        }
+
+        // Generar QR después de guardar
+        function generarQR(numeroOrden) {
+            const qrSection = document.getElementById('qrSection');
+            const qrContainer = document.getElementById('qrcode');
+            
+            qrContainer.innerHTML = '';
+            QRCode.toCanvas(qrContainer, numeroOrden, {
+                width: 200,
+                height: 200,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) console.error(error);
+                else {
+                    qrSection.style.display = 'block';
+                    qrSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        }
+</script>
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Nota de Entrega {{ nota.numero }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #d1d9e6,
+            -20px -20px 60px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .neo-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 25px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px rgba(102, 126, 234, 0.3),
+            -20px -20px 60px rgba(118, 75, 162, 0.3);
+        color: white;
+    }
+
+    .neo-input {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 20px;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff;
+        color: #2d3748;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    .neo-input:focus {
+        outline: none;
+        box-shadow: 
+            inset 8px 8px 16px #d1d9e6,
+            inset -8px -8px 16px #ffffff;
+    }
+
+    .neo-button {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 24px;
+        box-shadow: 
+            6px 6px 12px #d1d9e6,
+            -6px -6px 12px #ffffff;
+        color: #4a5568;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .neo-button:hover {
+        box-shadow: 
+            8px 8px 16px #d1d9e6,
+            -8px -8px 16px #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .neo-button-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 
+            6px 6px 12px rgba(102, 126, 234, 0.3),
+            -6px -6px 12px rgba(118, 75, 162, 0.3);
+    }
+
+    .producto-row {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 
+            5px 5px 10px #d1d9e6,
+            -5px -5px 10px #ffffff;
+    }
+
+    .remove-product {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .add-product {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        padding: 12px 24px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="neo-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-edit me-3"></i>
+                        Editar Nota de Entrega {{ nota.numero }}
+                    </h1>
+                    <p class="mb-0 mt-2">Modificar documento de entrega de mercancía</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('ver_nota_entrega', id=nota.numero) }}" class="neo-button">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario -->
+        <form method="POST" id="notaForm">
+            <div class="neo-card">
+                <!-- Información Básica -->
+                <h5 class="mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Información Básica
+                </h5>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Cliente *</label>
+                        <select name="cliente_id" class="neo-input" required>
+                            {% for id, cliente in clientes.items() %}
+                            <option value="{{ id }}" {% if id == nota.cliente_id %}selected{% endif %}>{{ cliente.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha *</label>
+                        <input type="date" name="fecha" class="neo-input" value="{{ nota.fecha }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Hora</label>
+                        <input type="time" name="hora" class="neo-input" value="{{ nota.hora }}">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Modalidad de Pago *</label>
+                        <select name="modalidad_pago" class="neo-input" required onchange="toggleCredito()">
+                            <option value="contado" {% if nota.modalidad_pago == 'contado' %}selected{% endif %}>Contado</option>
+                            <option value="credito" {% if nota.modalidad_pago == 'credito' %}selected{% endif %}>Crédito</option>
+                            <option value="consignacion" {% if nota.modalidad_pago == 'consignacion' %}selected{% endif %}>Consignación</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4" id="diasCreditoDiv" style="display: {% if nota.modalidad_pago == 'credito' %}block{% else %}none{% endif %};">
+                        <label class="form-label">Días de Crédito</label>
+                        <input type="number" name="dias_credito" class="neo-input" value="{{ nota.dias_credito or 30 }}" min="1" max="365">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Descuento (%)</label>
+                        <input type="number" name="porcentaje_descuento" class="neo-input" value="{{ ((nota.descuento / nota.subtotal_usd) * 100) if nota.subtotal_usd > 0 else 0 }}" min="0" max="100" step="0.01">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-3">
+                    <div class="col-12">
+                        <label class="form-label">Observaciones</label>
+                        <textarea name="observaciones" class="neo-input" rows="3" placeholder="Observaciones adicionales...">{{ nota.observaciones }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Productos -->
+            <div class="neo-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0">
+                        <i class="fas fa-boxes me-2"></i>
+                        Productos
+                    </h5>
+                    <button type="button" class="add-product" onclick="agregarProducto()">
+                        <i class="fas fa-plus me-2"></i>
+                        Agregar Producto
+                    </button>
+                </div>
+
+                <div id="productosContainer">
+                    <!-- Los productos se cargarán dinámicamente aquí -->
+                </div>
+
+                <!-- Totales -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="text-end">
+                            <h6>Subtotal USD: $<span id="subtotal">0.00</span></h6>
+                            <h6>Descuento: $<span id="descuento">0.00</span></h6>
+                            <h5>Total USD: $<span id="total">0.00</span></h5>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-end">
+                            <h6>Tasa BCV: <span id="tasaBcv">{{ "%.2f"|format(nota.tasa_bcv) }}</span></h6>
+                            <h5>Total Bs: <span id="totalBs">0.00</span></h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="neo-card">
+                <div class="text-center">
+                    <button type="submit" class="neo-button neo-button-primary me-3">
+                        <i class="fas fa-save me-2"></i>
+                        Guardar Cambios
+                    </button>
+                    <a href="{{ url_for('ver_nota_entrega', id=nota.numero) }}" class="neo-button">
+                        <i class="fas fa-times me-2"></i>
+                        Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Datos de inventario para autocompletado
+const inventario = {{ inventario | tojson }};
+
+// Cargar productos existentes al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    cargarProductosExistentes();
+    cargarTasaBcv();
+});
+
+function cargarProductosExistentes() {
+    const productos = {{ nota.productos | tojson }};
+    const cantidades = {{ nota.cantidades | tojson }};
+    const precios = {{ nota.precios | tojson }};
+    
+    for (let i = 0; i < productos.length; i++) {
+        agregarProducto(productos[i], cantidades[i], precios[i]);
+    }
+    
+    calcularTotales();
+}
+
+function toggleCredito() {
+    const modalidad = document.querySelector('select[name="modalidad_pago"]').value;
+    const diasCreditoDiv = document.getElementById('diasCreditoDiv');
+    
+    if (modalidad === 'credito') {
+        diasCreditoDiv.style.display = 'block';
+    } else {
+        diasCreditoDiv.style.display = 'none';
+    }
+}
+
+function agregarProducto(producto = '', cantidad = 1, precio = 0) {
+    const container = document.getElementById('productosContainer');
+    const index = container.children.length;
+    
+    const productoRow = document.createElement('div');
+    productoRow.className = 'producto-row';
+    productoRow.innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Producto</label>
+                <select name="productos[]" class="neo-input" onchange="actualizarPrecio(${index})" required>
+                    <option value="">Seleccionar producto...</option>
+                    ${Object.entries(inventario).map(([id, prod]) => 
+                        `<option value="${prod.nombre}" data-precio="${prod.precio || 0}" ${prod.nombre === producto ? 'selected' : ''}>${prod.nombre}</option>`
+                    ).join('')}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Cantidad</label>
+                <input type="number" name="cantidades[]" class="neo-input" value="${cantidad}" min="1" onchange="calcularTotales()" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Precio USD</label>
+                <input type="number" name="precios[]" class="neo-input" value="${precio}" min="0" step="0.01" onchange="calcularTotales()" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Subtotal</label>
+                <input type="text" class="neo-input" readonly value="$${(cantidad * precio).toFixed(2)}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="remove-product w-100" onclick="removerProducto(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(productoRow);
+    calcularTotales();
+}
+
+function removerProducto(button) {
+    const container = document.getElementById('productosContainer');
+    if (container.children.length > 1) {
+        button.closest('.producto-row').remove();
+        calcularTotales();
+    }
+}
+
+function actualizarPrecio(index) {
+    const select = document.querySelectorAll('select[name="productos[]"]')[index];
+    const precioInput = document.querySelectorAll('input[name="precios[]"]')[index];
+    const option = select.selectedOptions[0];
+    
+    if (option && option.dataset.precio) {
+        precioInput.value = option.dataset.precio;
+        calcularTotales();
+    }
+}
+
+function calcularTotales() {
+    const cantidades = document.querySelectorAll('input[name="cantidades[]"]');
+    const precios = document.querySelectorAll('input[name="precios[]"]');
+    const subtotales = document.querySelectorAll('.producto-row input[readonly]');
+    const porcentajeDescuento = parseFloat(document.querySelector('input[name="porcentaje_descuento"]').value) || 0;
+    
+    let subtotal = 0;
+    
+    for (let i = 0; i < cantidades.length; i++) {
+        const cantidad = parseFloat(cantidades[i].value) || 0;
+        const precio = parseFloat(precios[i].value) || 0;
+        const subtotalProducto = cantidad * precio;
+        
+        subtotales[i].value = `$${subtotalProducto.toFixed(2)}`;
+        subtotal += subtotalProducto;
+    }
+    
+    const descuento = subtotal * (porcentajeDescuento / 100);
+    const total = subtotal - descuento;
+    const tasaBcv = parseFloat(document.getElementById('tasaBcv').textContent) || 36.00;
+    const totalBs = total * tasaBcv;
+    
+    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+    document.getElementById('descuento').textContent = descuento.toFixed(2);
+    document.getElementById('total').textContent = total.toFixed(2);
+    document.getElementById('totalBs').textContent = totalBs.toFixed(2);
+}
+
+function cargarTasaBcv() {
+    // Cargar tasa BCV actual
+    fetch('/api/tasa-bcv')
+        .then(response => response.json())
+        .then(data => {
+            if (data.tasa) {
+                document.getElementById('tasaBcv').textContent = data.tasa.toFixed(2);
+                calcularTotales();
+            }
+        })
+        .catch(error => {
+            console.log('Error cargando tasa BCV:', error);
+        });
+}
+
+// Recalcular cuando cambie el descuento
+document.querySelector('input[name="porcentaje_descuento"]').addEventListener('input', calcularTotales);
+</script>
+{% endblock %}

@@ -92,6 +92,6 @@ El sistema ahora está **ultra simplificado** como solicitaste:
 
 ---
 
-*Cambios aplicados para KISVIC - Gestión Fiscal y Contable*
+*Cambios aplicados - Gestión Fiscal y Contable*
 *Fecha: Enero 2025*
 *Estado: ✅ PROBLEMA COMPLETAMENTE RESUELTO - DROPDOWN SIMPLIFICADO*

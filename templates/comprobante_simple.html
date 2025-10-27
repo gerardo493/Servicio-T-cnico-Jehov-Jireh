@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante de Retiro de Equipo</title>
+    <style>
+        @page {
+            margin: 10px;
+            size: A4;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 11px;
+            line-height: 1.3;
+            margin: 0;
+            padding: 15px;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        .header {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            border-radius: 15px;
+            box-shadow: 
+                6px 6px 12px #bebebe,
+                -6px -6px 12px #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .header-text {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 16px;
+            margin: 0 0 8px 0;
+            font-weight: 700;
+            color: #2c3e50;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .header h2 {
+            font-size: 12px;
+            margin: 0 0 6px 0;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        .header p {
+            margin: 3px 0;
+            font-size: 10px;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+        
+        .logo-container {
+            flex-shrink: 0;
+        }
+        
+        .logo {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            padding: 8px;
+            box-shadow: 
+                6px 6px 12px #bebebe,
+                -6px -6px 12px #ffffff;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            object-fit: contain;
+            transition: all 0.3s ease;
+        }
+        
+        .logo:hover {
+            transform: translateY(-3px);
+            box-shadow: 
+                10px 10px 20px #bebebe,
+                -10px -10px 20px #ffffff;
+        }
+        
+        .section {
+            margin-bottom: 10px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            padding: 8px 12px;
+            font-weight: 700;
+            font-size: 11px;
+            border-radius: 10px;
+            margin-bottom: 6px;
+            box-shadow: 
+                3px 3px 6px #bebebe,
+                -3px -3px 6px #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 10px;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            border-radius: 15px;
+            box-shadow: 
+                4px 4px 8px #bebebe,
+                -4px -4px 8px #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            overflow: hidden;
+        }
+        
+        .data-table td {
+            padding: 5px 8px;
+            border: none;
+            vertical-align: top;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .data-table .label {
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            font-weight: 700;
+            width: 30%;
+            color: #495057;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .data-table .value {
+            width: 70%;
+            color: #2c3e50;
+            font-weight: 500;
+            font-size: 11px;
+        }
+        
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .signature-section {
+            margin-top: 10px;
+            page-break-inside: avoid;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        
+        .signature-box {
+            flex: 1;
+            text-align: center;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            border-radius: 10px;
+            padding: 12px 8px;
+            min-height: 50px;
+            box-shadow: 
+                3px 3px 6px #bebebe,
+                -3px -3px 6px #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .signature-line {
+            border-bottom: 2px solid #bdc3c7;
+            margin: 8px 0 5px 0;
+            height: 20px;
+            background: linear-gradient(90deg, transparent, #ecf0f1, transparent);
+        }
+        
+        .signature-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .terms {
+            margin-top: 10px;
+            font-size: 8px;
+            line-height: 1.2;
+            text-align: justify;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 
+                3px 3px 6px #bebebe,
+                -3px -3px 6px #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .terms h3 {
+            font-size: 10px;
+            margin: 0 0 8px 0;
+            font-weight: 700;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+            border-bottom: 1px solid #3498db;
+            padding-bottom: 4px;
+        }
+        
+        .terms p {
+            margin: 6px 0;
+            color: #34495e;
+        }
+        
+        .highlight {
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 8px;
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 
+                8px 8px 16px #bebebe,
+                -8px -8px 16px #ffffff;
+            transition: all 0.3s ease;
+        }
+        
+        .print-button:hover {
+            background: linear-gradient(145deg, #2980b9, #1f618d);
+            transform: translateY(-2px);
+            box-shadow: 
+                12px 12px 24px #bebebe,
+                -12px -12px 24px #ffffff;
+        }
+        
+        .print-button:active {
+            transform: translateY(0);
+            box-shadow: 
+                4px 4px 8px #bebebe,
+                -4px -4px 8px #ffffff;
+        }
+        
+        
+        @media print {
+            .print-button {
+                display: none;
+            }
+            body { 
+                margin: 0; 
+                padding: 10px;
+                background: white !important;
+                font-size: 10px !important;
+                color: #000 !important;
+            }
+            .header, .section-title, .data-table, .signature-box, .terms, .footer {
+                box-shadow: none !important;
+                background: white !important;
+                border: 1px solid #000 !important;
+                margin-bottom: 8px !important;
+            }
+            .data-table {
+                border-collapse: collapse;
+            }
+            .data-table td {
+                border: 1px solid #000 !important;
+                padding: 4px 6px !important;
+            }
+            .section {
+                margin-bottom: 6px !important;
+            }
+            .terms {
+                font-size: 8px !important;
+                padding: 10px !important;
+            }
+            .signature-box {
+                min-height: 40px !important;
+                padding: 10px !important;
+            }
+            .header h1 {
+                font-size: 14px !important;
+                color: #000 !important;
+            }
+            .header h2 {
+                font-size: 12px !important;
+                color: #000 !important;
+            }
+            .section-title {
+                font-size: 11px !important;
+                color: #000 !important;
+                background: #f0f0f0 !important;
+            }
+            .logo {
+                width: 50px !important;
+                height: 50px !important;
+                box-shadow: none !important;
+                background: white !important;
+                border: 1px solid #000 !important;
+                padding: 4px !important;
+            }
+            .header-content {
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+            }
+            .header-text {
+                flex: 1 !important;
+                text-align: center !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Encabezado -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo-container">
+                <img src="/static/logo.png" alt="Logo" class="logo">
+            </div>
+            <div class="header-text">
+                <h1>COMPROBANTE DE RETIRO DE EQUIPO</h1>
+                <h2>Servicio Técnico Jehová Jireh</h2>
+                <p>Orden: {{ data.numero_orden }} | Fecha: {{ data.fecha_retiro }}</p>
+                <p>Tel: 0424-123-4567 | Email: info@jehovajireh.com</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Datos del Cliente -->
+    <div class="section">
+        <div class="section-title">DATOS DEL CLIENTE</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Nombre Completo:</td>
+                <td class="value">{{ data.cliente.nombre }}</td>
+            </tr>
+            <tr>
+                <td class="label">Cédula/RIF:</td>
+                <td class="value">{{ data.cliente.cedula_rif }}</td>
+            </tr>
+            <tr>
+                <td class="label">Teléfono:</td>
+                <td class="value">{{ data.cliente.telefono }}</td>
+            </tr>
+            <tr>
+                <td class="label">Correo Electrónico:</td>
+                <td class="value">{{ data.cliente.email or 'No registrado' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 2. Datos del Equipo -->
+    <div class="section">
+        <div class="section-title">DATOS DEL EQUIPO</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Marca:</td>
+                <td class="value">{{ data.equipo.marca }}</td>
+            </tr>
+            <tr>
+                <td class="label">Modelo:</td>
+                <td class="value">{{ data.equipo.modelo }}</td>
+            </tr>
+            <tr>
+                <td class="label">Color:</td>
+                <td class="value">{{ data.equipo.color }}</td>
+            </tr>
+            <tr>
+                <td class="label">IMEI 1:</td>
+                <td class="value">{{ data.equipo.imei_1 }}</td>
+            </tr>
+            <tr>
+                <td class="label">IMEI 2:</td>
+                <td class="value">{{ data.equipo.imei_2 or 'No aplica' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Accesorios Entregados:</td>
+                <td class="value">{{ data.equipo.accesorios or 'Ninguno' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Estado del Equipo:</td>
+                <td class="value">{{ data.equipo.estado_retiro or 'Funcionando correctamente' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 3. Detalles del Servicio -->
+    <div class="section">
+        <div class="section-title">DETALLES DEL SERVICIO</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Servicio Realizado:</td>
+                <td class="value">{{ data.servicio.descripcion or 'Reparación general' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Observaciones:</td>
+                <td class="value">{{ data.servicio.observaciones or 'Sin observaciones' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Técnico Responsable:</td>
+                <td class="value">{{ data.servicio.tecnico or 'No asignado' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Garantía del Servicio:</td>
+                <td class="value">{{ data.servicio.garantia or '90 días' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 4. Firmas -->
+    <div class="section">
+        <div class="section-title">FIRMAS</div>
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Cliente</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Técnico</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 5. Términos y Condiciones -->
+    <div class="terms">
+        <h3>TÉRMINOS Y CONDICIONES</h3>
+        
+        <p>Con la firma de este documento el cliente da fe de que el equipo móvil y electrodoméstico es de su propiedad y conoce su procedencia.</p>
+        
+        <p><span class="highlight">Servicio Técnico Jehová Jireh</span> NO se hace responsable por daños ocultos en equipos celulares, electrodomésticos o de computación mojados, golpeados, apagados con fallas de software que no dan imagen ni función táctil que no permitan su verificación al entrar para ser reparados.</p>
+        
+        <p>Las garantías de las reparaciones y accesorios comenzarán a aplicarse a partir de la fecha de entrega fijada en esta orden y <span class="highlight">Servicio Técnico Jehová Jireh</span> NO las asumirá si los equipos reparados y los accesorios han sido manipulados por terceros, mojados, golpeados, modificados y con evidente manejo inadecuado. NO se asumirán garantías sin la presentación de este documento.</p>
+        
+        <p>Las reparaciones de software y sistemas operativos pueden acarrear pérdida de información, liberación, bloqueos por cuenta Google y en algunos casos por daños ocultos pueden afectarse. <span class="highlight">Servicio Técnico Jehová Jireh</span> no se responsabiliza por esas fallas y el cliente asume este riesgo.</p>
+        
+        <p><span class="highlight">Servicio Técnico Jehová Jireh</span> no asumirá garantías de cambio de puerto de carga, pantallas y micas táctiles después de ser entregadas y verificadas por el cliente en nuestras instalaciones.</p>
+        
+        <p>En caso de hurtos a nuestras instalaciones <span class="highlight">NO nos hacemos responsables</span> de los equipos dejados en el mismo.</p>
+        
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Documento generado el {{ data.fecha_generacion }}</p>
+    </div>
+
+    <!-- Botón de impresión -->
+    <button class="print-button" onclick="window.print()">🖨️ Imprimir Comprobante</button>
+
+    <script>
+        // Auto-imprimir después de 2 segundos
+        setTimeout(function() {
+            window.print();
+        }, 2000);
+    </script>
+</body>
+</html>

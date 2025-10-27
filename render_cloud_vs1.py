@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 RENDER CLOUD VS1 - Script de Automatización para Despliegue en Render
-Sistema de Gestión Comercial KISVIC
+Sistema de Gestión Comercial
 """
 
 import os
@@ -23,7 +23,7 @@ class RenderCloudDeployer:
         print("=" * 60)
         print("🚀 RENDER CLOUD VS1 - DESPLIEGUE AUTOMÁTICO")
         print("=" * 60)
-        print("Sistema de Gestión Comercial KISVIC")
+        print("Sistema de Gestión Comercial")
         print("Versión: 1.0")
         print("=" * 60)
         print()
@@ -141,7 +141,7 @@ class RenderCloudDeployer:
         """Hace el primer commit"""
         try:
             print("💾 Haciendo commit inicial...")
-            commit_message = "🚀 Configuración inicial para despliegue en Render - KISVIC Sistema"
+            commit_message = "🚀 Configuración inicial para despliegue en Render - Sistema"
             subprocess.run(['git', 'commit', '-m', commit_message], check=True)
             print("✅ Commit inicial realizado correctamente")
             return True

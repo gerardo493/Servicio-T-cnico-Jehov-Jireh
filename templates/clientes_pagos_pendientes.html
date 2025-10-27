@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes con Pagos Pendientes{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos para pagos pendientes */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(-1px);
+}
+
+.neo-button-warning {
+    background: linear-gradient(145deg, #f6ad55, #ed8936);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-button-danger {
+    background: linear-gradient(145deg, #e53e3e, #c53030);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.neo-badge {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.neo-badge-danger {
+    background: linear-gradient(145deg, #e53e3e, #c53030);
+    color: white;
+}
+
+.neo-badge-warning {
+    background: linear-gradient(145deg, #f6ad55, #ed8936);
+    color: white;
+}
+
+.neo-stats-card {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.neo-stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+}
+
+.neo-stats-label {
+    color: #4a5568;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.neo-table {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-table th {
+    background: #e0e5ec;
+    border: none;
+    color: #2d3748;
+    font-weight: 600;
+    padding: 15px;
+}
+
+.neo-table td {
+    background: #e0e5ec;
+    border: none;
+    color: #4a5568;
+    padding: 15px;
+    border-bottom: 1px solid rgba(163, 177, 198, 0.3);
+}
+
+.neo-table tbody tr:hover {
+    background: rgba(229, 62, 62, 0.1);
+}
+
+.prioridad-alta {
+    border-left: 4px solid #e53e3e;
+}
+
+.prioridad-media {
+    border-left: 4px solid #f6ad55;
+}
+
+.prioridad-baja {
+    border-left: 4px solid #63b3ed;
+}
+</style>
+
+<div class="neo-container">
+    <!-- Header -->
+    <div class="neo-card">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="neo-title mb-2">
+                        <i class="fas fa-exclamation-triangle" style="color: #e53e3e;"></i>
+                        Clientes con Pagos Pendientes
+                    </h2>
+                    <p class="text-muted mb-0">Gestiona la cobranza de clientes con saldos pendientes</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/clientes" class="btn neo-button">
+                        <i class="fas fa-arrow-left me-2"></i>Volver a Clientes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="neo-stats-card">
+                <div class="neo-stats-number" style="color: #e53e3e;">{{ total_clientes }}</div>
+                <div class="neo-stats-label">Clientes con Deuda</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-stats-card">
+                <div class="neo-stats-number" style="color: #f6ad55;">${{ "%.2f"|format(total_pendiente) }}</div>
+                <div class="neo-stats-label">Total Pendiente</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-stats-card">
+                <div class="neo-stats-number" style="color: #63b3ed;">
+                    {% if total_clientes > 0 %}
+                        ${{ "%.2f"|format(total_pendiente / total_clientes) }}
+                    {% else %}
+                        $0.00
+                    {% endif %}
+                </div>
+                <div class="neo-stats-label">Promedio por Cliente</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Clientes con Pagos Pendientes -->
+    <div class="neo-card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table neo-table mb-0">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-user me-2"></i>Cliente</th>
+                            <th><i class="fas fa-id-card me-2"></i>Identificación</th>
+                            <th><i class="fas fa-phone me-2"></i>Contacto</th>
+                            <th><i class="fas fa-dollar-sign me-2"></i>Monto Pendiente</th>
+                            <th><i class="fas fa-calendar me-2"></i>Días Pendiente</th>
+                            <th><i class="fas fa-exclamation-circle me-2"></i>Prioridad</th>
+                            <th><i class="fas fa-cogs me-2"></i>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente_id, cliente in clientes.items() %}
+                        <tr class="
+                            {% if cliente.get('dias_pendiente', 0) > 30 %}prioridad-alta
+                            {% elif cliente.get('dias_pendiente', 0) > 15 %}prioridad-media
+                            {% else %}prioridad-baja{% endif %}
+                        ">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px; background: linear-gradient(145deg, #e53e3e, #c53030);">
+                                            <i class="fas fa-user text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ cliente.get('nombre', 'Sin nombre') }}</div>
+                                        <small class="text-muted">{{ cliente.get('email', 'Sin email') }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <span class="neo-badge">{{ cliente.get('tipo_id', 'V') }}</span>
+                                    <div class="mt-1">{{ cliente.get('cedula_rif', 'Sin cédula') }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div><i class="fas fa-phone me-1"></i>{{ cliente.get('telefono', 'Sin teléfono') }}</div>
+                                    {% if cliente.get('telefono2') %}
+                                    <div><i class="fas fa-mobile-alt me-1"></i>{{ cliente.telefono2 }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-bold" style="color: #e53e3e;">
+                                    ${{ "%.2f"|format(cliente.get('total_por_cobrar', 0)) }}
+                                </div>
+                                <small class="text-muted">
+                                    Notas de Entrega: ${{ "%.2f"|format(cliente.get('total_facturado', 0)) }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="fw-bold">
+                                    {{ cliente.get('dias_pendiente', 0) }} días
+                                </div>
+                                <small class="text-muted">
+                                    {% if cliente.get('dias_pendiente', 0) > 30 %}
+                                        <span style="color: #e53e3e;">Crítico</span>
+                                    {% elif cliente.get('dias_pendiente', 0) > 15 %}
+                                        <span style="color: #f6ad55;">Alto</span>
+                                    {% else %}
+                                        <span style="color: #63b3ed;">Normal</span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {% if cliente.get('dias_pendiente', 0) > 30 %}
+                                    <span class="neo-badge neo-badge-danger">Alta</span>
+                                {% elif cliente.get('dias_pendiente', 0) > 15 %}
+                                    <span class="neo-badge neo-badge-warning">Media</span>
+                                {% else %}
+                                    <span class="neo-badge">Baja</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="/clientes/{{ cliente_id }}" class="btn btn-sm neo-button" title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="https://wa.me/58{{ cliente.get('telefono', '').replace('+58', '').replace('+', '') }}?text=Hola {{ cliente.get('nombre', 'Cliente') }}, le recordamos que tiene un pago pendiente de ${{ "%.2f"|format(cliente.get('total_por_cobrar', 0)) }}. Por favor contacte con nosotros." 
+                                       class="btn btn-sm neo-button-warning" 
+                                       target="_blank" 
+                                       title="Enviar WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                    <a href="mailto:{{ cliente.get('email', '') }}?subject=Recordatorio de Pago Pendiente&body=Estimado {{ cliente.get('nombre', 'Cliente') }},%0D%0A%0D%0ALe recordamos que tiene un pago pendiente de ${{ "%.2f"|format(cliente.get('total_por_cobrar', 0)) }}.%0D%0A%0D%0APor favor contacte con nosotros para regularizar su situación.%0D%0A%0D%0AGracias por su atención." 
+                                       class="btn btn-sm neo-button" 
+                                       title="Enviar Email">
+                                        <i class="fas fa-envelope"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-check-circle fa-3x mb-3" style="color: #00ff88;"></i>
+                                    <div>¡Excelente! No hay clientes con pagos pendientes</div>
+                                    <small>Todos los clientes están al día con sus pagos</small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Animaciones suaves
+document.addEventListener('DOMContentLoaded', function() {
+    // Animar cards al cargar
+    const cards = document.querySelectorAll('.neo-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Animar estadísticas
+    const statsCards = document.querySelectorAll('.neo-stats-card');
+    statsCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.8)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'scale(1)';
+        }, (index * 100) + 200);
+    });
+});
+</script>
+{% endblock %}

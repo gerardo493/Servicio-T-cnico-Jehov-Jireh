@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .roles-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card-roles {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+    }
+
+    .roles-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+    }
+
+    .rol-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .rol-admin-principal { background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; }
+    .rol-admin { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .rol-tecnico { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .rol-vendedor { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .rol-cajero { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+    .rol-lectura { background: linear-gradient(135deg, #6b7280, #4b5563); color: white; }
+
+    .select-rol {
+        padding: 0.5rem;
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+    }
+</style>
+
+<div class="roles-container">
+    <div class="container">
+        <div class="roles-header">
+            <h1><i class="fas fa-users-cog me-3"></i>Gestión de Usuarios y Roles</h1>
+            <p class="mb-0">Administra los roles y permisos de los usuarios del sistema</p>
+        </div>
+
+            <!-- Botón Crear Usuario -->
+            <div class="text-end mb-4">
+                <a href="/usuarios/nuevo" class="btn-save" style="display: inline-block; text-decoration: none;">
+                    <i class="fas fa-user-plus me-2"></i>Crear Nuevo Usuario
+                </a>
+            </div>
+
+            <!-- Tabla de Usuarios -->
+            <div class="neo-card-roles">
+                <h3><i class="fas fa-users me-2"></i>Usuarios del Sistema</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Rol Actual</th>
+                            <th>Cambiar Rol</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for username, datos in usuarios.items() %}
+                        <tr>
+                            <td><strong>{{ username }}</strong></td>
+                            <td><span class="rol-badge rol-{{ datos.rol.lower().replace(' ', '-') }}">{{ datos.rol }}</span></td>
+                            <td>
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="accion" value="asignar_rol">
+                                    <input type="hidden" name="username" value="{{ username }}">
+                                    <select name="rol" class="select-rol" onchange="this.form.submit()">
+                                        {% for rol_disponible in roles.get('roles_disponibles', []) %}
+                                        <option value="{{ rol_disponible }}" {% if datos.rol == rol_disponible %}selected{% endif %}>{{ rol_disponible }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar usuario {{ username }}?');">
+                                    <input type="hidden" name="accion" value="eliminar_usuario">
+                                    <input type="hidden" name="username" value="{{ username }}">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        {% if not usuarios %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                No hay usuarios registrados
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        <!-- Detalle de Permisos por Rol -->
+        <div class="neo-card-roles">
+            <h3><i class="fas fa-shield-alt me-2"></i>Permisos por Rol</h3>
+            <div class="row">
+                {% for rol, permisos in roles.get('permisos_por_rol', {}).items() %}
+                <div class="col-md-6 mb-3">
+                    <div class="neo-card-roles" style="padding: 1.5rem;">
+                        <h5><span class="rol-badge rol-{{ rol.lower().replace(' ', '-') }}">{{ rol }}</span></h5>
+                        <ul class="list-unstyled mt-3">
+                            {% for permiso, habilitado in permisos.items() %}
+                            <li>
+                                <i class="fas fa-{{ 'check-circle' if habilitado else 'times-circle' }} me-2 text-{{ 'success' if habilitado else 'danger' }}"></i>
+                                {{ permiso.replace('_', ' ')|title }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

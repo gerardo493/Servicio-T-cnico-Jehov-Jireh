@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Nota de Entrega{% endblock %}
+
+{% block extra_head %}
+<!-- CSS Neomórfico ya incluido en base.html -->
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="neo-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-clipboard-list me-3"></i>
+                        Nueva Nota de Entrega
+                    </h1>
+                    <p class="mb-0 mt-2">Crear documento de entrega de mercancía</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('mostrar_notas_entrega') }}" class="neo-button">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="neo-card">
+    
+            <h5 class="mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                Información de la Nota
+            </h5>
+            
+            <form method="POST">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Cliente *</label>
+                        <select name="cliente_id" class="neo-input" required>
+                            <option value="">Seleccionar cliente...</option>
+                            {% for id, cliente in clientes.items() %}
+                            <option value="{{ id }}">{{ cliente.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha *</label>
+                        <input type="date" name="fecha" class="neo-input" value="{{ moment().strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Hora</label>
+                        <input type="time" name="hora" class="neo-input" value="{{ moment().strftime('%H:%M') }}">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Modalidad de Pago *</label>
+                        <select name="modalidad_pago" class="neo-input" required>
+                            <option value="contado">Contado</option>
+                            <option value="credito">Crédito</option>
+                            <option value="consignacion">Consignación</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Observaciones</label>
+                        <input type="text" name="observaciones" class="neo-input" placeholder="Observaciones adicionales...">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Producto *</label>
+                        <select name="productos[]" class="neo-input" id="productoSelect" required onchange="cargarPrecioProducto()">
+                            <option value="">Seleccionar producto...</option>
+                            {% for id, producto in inventario.items() %}
+                            <option value="{{ producto.nombre }}" data-precio="{{ producto.precio }}" data-stock="{{ producto.cantidad }}">
+                                {{ producto.nombre }} - Stock: {{ producto.cantidad }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Cantidad *</label>
+                        <input type="number" name="cantidades[]" class="neo-input" id="cantidadInput" value="1" min="1" required onchange="validarStock()">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Precio USD *</label>
+                        <input type="number" name="precios[]" class="neo-input" id="precioInput" value="0.00" min="0" step="0.01" required>
+                    </div>
+                </div>
+
+                <!-- Información del producto seleccionado -->
+                <div class="row mt-3" id="productoInfo" style="display: none;">
+                    <div class="col-12">
+                        <div class="neo-card" style="padding: 1.5rem; margin-bottom: 1rem;">
+                            <h6 class="mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Información del Producto
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>Stock Disponible:</strong>
+                                    <span id="stockDisponible" class="text-success">-</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Precio Unitario:</strong>
+                                    <span id="precioUnitario" class="text-primary">-</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Subtotal:</strong>
+                                    <span id="subtotalCalculado" class="text-info">-</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Estado:</strong>
+                                    <span id="estadoStock" class="badge">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-12 text-center">
+                        <button type="submit" class="neo-button neo-button-primary me-3">
+                            <i class="fas fa-save me-2"></i>
+                            Crear Nota de Entrega
+                        </button>
+                        <a href="{{ url_for('mostrar_notas_entrega') }}" class="neo-button">
+                            <i class="fas fa-times me-2"></i>
+                            Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Función para cargar precio del producto seleccionado
+function cargarPrecioProducto() {
+    const select = document.getElementById('productoSelect');
+    const precioInput = document.getElementById('precioInput');
+    const cantidadInput = document.getElementById('cantidadInput');
+    const productoInfo = document.getElementById('productoInfo');
+    
+    if (select.value) {
+        const option = select.selectedOptions[0];
+        const precio = parseFloat(option.dataset.precio) || 0;
+        const stock = parseInt(option.dataset.stock) || 0;
+        
+        // Cargar precio
+        precioInput.value = precio.toFixed(2);
+        
+        // Mostrar información del producto
+        document.getElementById('stockDisponible').textContent = stock;
+        document.getElementById('precioUnitario').textContent = '$' + precio.toFixed(2);
+        
+        // Calcular subtotal
+        const cantidad = parseInt(cantidadInput.value) || 1;
+        const subtotal = precio * cantidad;
+        document.getElementById('subtotalCalculado').textContent = '$' + subtotal.toFixed(2);
+        
+        // Estado del stock
+        const estadoStock = document.getElementById('estadoStock');
+        if (stock >= cantidad) {
+            estadoStock.textContent = 'Disponible';
+            estadoStock.className = 'badge bg-success';
+        } else {
+            estadoStock.textContent = 'Stock Insuficiente';
+            estadoStock.className = 'badge bg-danger';
+        }
+        
+        // Mostrar información
+        productoInfo.style.display = 'block';
+        
+        // Validar stock
+        validarStock();
+    } else {
+        // Limpiar campos
+        precioInput.value = '0.00';
+        productoInfo.style.display = 'none';
+    }
+}
+
+// Función para validar stock
+function validarStock() {
+    const select = document.getElementById('productoSelect');
+    const cantidadInput = document.getElementById('cantidadInput');
+    const estadoStock = document.getElementById('estadoStock');
+    
+    if (select.value && cantidadInput.value) {
+        const option = select.selectedOptions[0];
+        const stock = parseInt(option.dataset.stock) || 0;
+        const cantidad = parseInt(cantidadInput.value) || 0;
+        
+        if (stock >= cantidad) {
+            estadoStock.textContent = 'Disponible';
+            estadoStock.className = 'badge bg-success';
+            cantidadInput.setCustomValidity('');
+        } else {
+            estadoStock.textContent = 'Stock Insuficiente';
+            estadoStock.className = 'badge bg-danger';
+            cantidadInput.setCustomValidity('La cantidad solicitada excede el stock disponible');
+        }
+        
+        // Recalcular subtotal
+        const precio = parseFloat(document.getElementById('precioInput').value) || 0;
+        const subtotal = precio * cantidad;
+        document.getElementById('subtotalCalculado').textContent = '$' + subtotal.toFixed(2);
+    }
+}
+
+// Función para agregar más productos (futura funcionalidad)
+function agregarProducto() {
+    // Esta función se puede implementar para agregar múltiples productos
+    console.log('Función para agregar más productos - En desarrollo');
+}
+
+// Validación del formulario
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    form.addEventListener('submit', function(e) {
+        const select = document.getElementById('productoSelect');
+        const cantidadInput = document.getElementById('cantidadInput');
+        
+        if (select.value && cantidadInput.value) {
+            const option = select.selectedOptions[0];
+            const stock = parseInt(option.dataset.stock) || 0;
+            const cantidad = parseInt(cantidadInput.value) || 0;
+            
+            if (stock < cantidad) {
+                e.preventDefault();
+                alert('La cantidad solicitada excede el stock disponible. Stock: ' + stock + ', Solicitado: ' + cantidad);
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -13,7 +13,7 @@ def obtener_tasas_bcv():
         resp = requests.get(url, timeout=10, verify=False)
         if resp.status_code != 200:
             print("Error al conectar con BCV")
-            return 35.1234, 38.9012  # Tasas de ejemplo por si falla
+            return 201.4665, 220.1234  # Tasas más actuales por si falla
         
         soup = BeautifulSoup(resp.text, 'html.parser')
         tasa_usd = None
@@ -24,7 +24,8 @@ def obtener_tasas_bcv():
             txt = strong.text.strip().replace('.', '').replace(',', '.')
             try:
                 posible = float(txt)
-                if 10 < posible < 500:
+                # Rango más amplio para incluir tasas actuales
+                if 1 < posible < 1000:
                     if tasa_usd is None:
                         tasa_usd = posible
                     elif tasa_eur is None and abs(posible - tasa_usd) > 1:
@@ -33,16 +34,16 @@ def obtener_tasas_bcv():
             except:
                 continue
         
-        # Si no se encontraron tasas, usar valores por defecto
+        # Si no se encontraron tasas, usar valores por defecto más actuales
         if tasa_usd is None:
-            tasa_usd = 35.1234
+            tasa_usd = 201.4665
         if tasa_eur is None:
-            tasa_eur = 38.9012
+            tasa_eur = 220.1234
             
         return tasa_usd, tasa_eur
     except Exception as e:
         print(f"Error obteniendo tasas BCV: {e}")
-        return 35.1234, 38.9012  # Tasas de ejemplo por si falla
+        return 201.4665, 220.1234  # Tasas más actuales por si falla
 
 def obtener_tasa_euro():
     """Obtiene la tasa EUR/BS desde la página oficial del BCV."""
@@ -111,6 +112,15 @@ def calcular_conversion(monto, moneda_origen, tasa_usd, tasa_eur):
     except Exception as e:
         print(f"Error en el cálculo: {e}")
         return None
+
+def obtener_tasa_bcv_actual():
+    """Obtiene la tasa USD/BS actual del BCV."""
+    try:
+        tasa_usd, _ = obtener_tasas_bcv()
+        return tasa_usd
+    except Exception as e:
+        print(f"Error obteniendo tasa BCV: {e}")
+        return 201.4665  # Valor de fallback más actual
 
 def main():
     print("\n=== TASAS DE CAMBIO BCV ===")

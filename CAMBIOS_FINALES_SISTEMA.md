@@ -174,6 +174,6 @@ El sistema de recordatorios WhatsApp ha sido **ultra simplificado** y está func
 
 ---
 
-*Sistema ultra simplificado para KISVIC - Gestión Fiscal y Contable*
+*Sistema ultra simplificado - Gestión Fiscal y Contable*
 *Fecha: Enero 2025*
 *Estado: ✅ PROBLEMA COMPLETAMENTE RESUELTO - SISTEMA ULTRA SIMPLE Y FUNCIONAL*

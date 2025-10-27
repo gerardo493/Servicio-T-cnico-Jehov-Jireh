@@ -1,0 +1,110 @@
+{
+    "empresa": {
+        "nombre": "",
+        "rif": "",
+        "direccion": "",
+        "ciudad": "",
+        "estado": "",
+        "pais": "Venezuela",
+        "telefono": "",
+        "whatsapp": "",
+        "email": "",
+        "website": "",
+        "instagram": "",
+        "descripcion": "",
+        "horario": "administrador",
+        "logo_path": "static/logo.png"
+    },
+    "tasas": {
+        "actualizacion_automatica": true,
+        "intervalo_actualizacion": 3600,
+        "tasa_usd_defecto": 216.37,
+        "fuente_tasa": "bcv",
+        "notificar_cambios": true
+    },
+    "notificaciones": {
+        "whatsapp_habilitado": true,
+        "whatsapp_api_key": "",
+        "email_habilitado": true,
+        "email_smtp_server": "smtp.gmail.com",
+        "email_smtp_port": 587,
+        "email_usuario": "gerardojaime72@gmail.com",
+        "email_password": "Angel1998*",
+        "email_remitente": "gerardojaime72@gmail.com"
+    },
+    "documentos": {
+        "formato_numero_orden": "OS-{YYYYMMDD}{####}",
+        "formato_numero_factura": "FAC-{YYYYMMDD}{####}",
+        "formato_numero_nota": "",
+        "prefijo_factura": "FAC-",
+        "prefijo_nota": "NE-",
+        "prefijo_orden": "OS-",
+        "mostrar_logo": true,
+        "mostrar_codigo_barras": false
+    },
+    "inventario": {
+        "control_stock": true,
+        "stock_minimo_default": 5,
+        "alertas_existencia_minima": false,
+        "control_caducidad": false,
+        "dias_alerta_caducidad": 30
+    },
+    "usuarios": {
+        "permiso_eliminar_ordenes": "admin",
+        "permiso_ver_reportes": "admin",
+        "permiso_modificar_precios": "admin"
+    },
+    "backup": {
+        "automatico": false,
+        "intervalo_horas": 24,
+        "mantener_backups_dias": 30
+    },
+    "alertas": {
+        "vencimiento_notas_entrega": false,
+        "stock_minimo": false,
+        "cuotas_vencidas": false,
+        "pagos_pendientes": false,
+        "productos_agotados": false,
+        "productos_caducando": false,
+        "ordenes_pendientes": false,
+        "ordenes_urgentes": false,
+        "cumpleanos_clientes": false,
+        "clientes_nuevos": false,
+        "estadisticas_semanales": false,
+        "estadisticas_mensuales": false,
+        "canal_notificacion": "email",
+        "horario_alertas": "08:00"
+    },
+    "metodos_pago": {
+        "efectivo": {
+            "habilitado": true
+        },
+        "transferencia": {
+            "habilitado": true
+        },
+        "pago_movil": {
+            "habilitado": true
+        },
+        "zelle": {
+            "habilitado": true
+        },
+        "paypal": {
+            "habilitado": true
+        },
+        "binance": {
+            "habilitado": true
+        },
+        "banco_nombre": "",
+        "tipo_cuenta": "corriente",
+        "numero_cuenta": "",
+        "titular_cuenta": "",
+        "telefono_pago_movil": "",
+        "cedula_pago_movil": "",
+        "email_zelle": "",
+        "email_binance": "",
+        "aceptar_efectivo_usd": true,
+        "aceptar_efectivo_bs": true,
+        "notificar_pago_cliente": true,
+        "notificar_nota_entregada": true
+    }
+}

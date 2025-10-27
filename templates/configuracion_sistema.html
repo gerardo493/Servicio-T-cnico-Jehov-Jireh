@@ -1,0 +1,1742 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .config-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card-config {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s;
+    }
+
+    .neo-card-config:hover {
+        transform: translateY(-2px);
+        box-shadow: 25px 25px 70px #c4c4c7, -25px -25px 70px #ffffff;
+    }
+
+    .config-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 20px 20px 60px #c4c4c4, -20px -20px 60px #ffffff;
+    }
+
+    .config-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        overflow-x: auto;
+        padding: 0.5rem 0;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .config-tab {
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #e8e8e8 0%, #d1d1d1 100%);
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        position: relative;
+    }
+
+    .config-tab:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+    }
+
+    .config-tab.active {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+        border-color: #4f46e5;
+    }
+
+    .config-tab-content {
+        display: none;
+    }
+
+    .config-tab-content.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .neo-form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .neo-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .neo-input, select.neo-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f0f0f3;
+        transition: all 0.3s;
+        font-size: 0.95rem;
+    }
+
+    .neo-input:focus, select.neo-input:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        background: #ffffff;
+    }
+
+    .neo-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        border-radius: 10px;
+        transition: all 0.3s;
+        background: linear-gradient(135deg, #f8f8f8 0%, #e8e8e8 100%);
+    }
+
+    .neo-checkbox:hover {
+        background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+        transform: translateX(5px);
+    }
+
+    .neo-checkbox input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        accent-color: #4f46e5;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 1rem 2.5rem;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 5px 5px 15px rgba(16, 185, 129, 0.3);
+        font-size: 1.1rem;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-3px);
+        box-shadow: 8px 8px 20px rgba(16, 185, 129, 0.5);
+    }
+
+    .btn-save:active {
+        transform: translateY(0);
+    }
+
+    .btn-save.saving {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .alert-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        display: none;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-icon {
+        font-size: 1.2rem;
+        color: #4f46e5;
+    }
+
+    .help-text {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.25rem;
+        font-style: italic;
+    }
+
+    .config-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: rgba(79, 70, 229, 0.1);
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #4f46e5;
+        margin-left: 0.5rem;
+    }
+
+    .search-tabs {
+        margin-bottom: 1rem;
+    }
+
+    .search-tabs input {
+        border-radius: 20px;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .tab-counter {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+
+    .highlight {
+        background: #fef3c7 !important;
+        animation: highlight 0.5s ease;
+    }
+
+    @keyframes highlight {
+        0%, 100% { background: #fef3c7; }
+        50% { background: #fde68a; }
+    }
+</style>
+
+<div class="config-container">
+    <div class="container-fluid">
+        <div class="config-header">
+            <h1><i class="fas fa-cog me-3"></i>Configuración del Sistema</h1>
+            <p class="mb-3">Administra todas las configuraciones del sistema</p>
+            <div class="search-tabs">
+                <input type="text" id="searchTabs" class="form-control neo-input" placeholder="🔍 Buscar sección de configuración..." 
+                       onkeyup="filtrarTabs(this.value)">
+            </div>
+        </div>
+
+        <div class="alert alert-success d-none" id="successAlert" role="alert" style="margin-top: 1rem; padding: 1.5rem; border-radius: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-size: 1.1rem; font-weight: 600; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);">
+            <i class="fas fa-check-circle me-2"></i><strong>¡Configuración guardada exitosamente!</strong>
+        </div>
+
+        <form method="POST" action="/configuracion" enctype="multipart/form-data">
+            <div class="config-tabs">
+                <div class="config-tab active" onclick="mostrarTab('empresa')"><i class="fas fa-building"></i> Empresa</div>
+                <div class="config-tab" onclick="mostrarTab('tasas')"><i class="fas fa-exchange-alt"></i> Tasas</div>
+                <div class="config-tab" onclick="mostrarTab('notificaciones')"><i class="fas fa-bell"></i> Notificaciones</div>
+                <div class="config-tab" onclick="mostrarTab('alertas')"><i class="fas fa-exclamation-triangle"></i> Alertas</div>
+                <div class="config-tab" onclick="mostrarTab('impresion')"><i class="fas fa-print"></i> Impresión</div>
+                <div class="config-tab" onclick="mostrarTab('estados')"><i class="fas fa-tasks"></i> Estados</div>
+                <div class="config-tab" onclick="mostrarTab('pagos')"><i class="fas fa-money-bill-wave"></i> Pagos</div>
+                <div class="config-tab" onclick="mostrarTab('categorias')"><i class="fas fa-tags"></i> Categorías</div>
+                <div class="config-tab" onclick="mostrarTab('seguridad')"><i class="fas fa-shield-alt"></i> Seguridad</div>
+                <div class="config-tab" onclick="mostrarTab('visual')"><i class="fas fa-palette"></i> Visual</div>
+                <div class="config-tab" onclick="mostrarTab('inventario')"><i class="fas fa-boxes"></i> Inventario</div>
+                <div class="config-tab" onclick="mostrarTab('proveedores')"><i class="fas fa-truck"></i> Proveedores</div>
+                <div class="config-tab" onclick="mostrarTab('calendario')"><i class="fas fa-calendar"></i> Calendario</div>
+                <div class="config-tab" onclick="mostrarTab('contadores')"><i class="fas fa-hashtag"></i> Contadores</div>
+                <div class="config-tab" onclick="mostrarTab('reportes')"><i class="fas fa-chart-bar"></i> Reportes</div>
+                <div class="config-tab" onclick="mostrarTab('integraciones')"><i class="fas fa-plug"></i> Integraciones</div>
+                <div class="config-tab" onclick="mostrarTab('equipos')"><i class="fas fa-mobile-alt"></i> Equipos Clientes</div>
+                <div class="config-tab" onclick="mostrarTab('documentos')"><i class="fas fa-file-alt"></i> Documentos</div>
+                <div class="config-tab" onclick="mostrarTab('usuarios')"><i class="fas fa-users"></i> Permisos</div>
+                <div class="config-tab" onclick="mostrarTab('backup')"><i class="fas fa-cloud-download-alt"></i> Backup</div>
+            </div>
+
+            <!-- EMPRESA -->
+            <div id="tab-empresa" class="config-tab-content active">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-building me-2"></i>Datos de la Empresa</h3>
+                    <p class="text-muted mb-3">Configure la información principal de su empresa que aparecerá en los documentos.</p>
+                    
+                    <h5 class="mb-3"><i class="fas fa-info-circle section-icon"></i> Información Legal</h5>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-tag"></i> Nombre de la Empresa</label>
+                                <input type="text" name="empresa_nombre" class="neo-input" value="{{ config.empresa.nombre }}" 
+                                       placeholder="Ej: Reparaciones G-FIVE">
+                                <small class="help-text">Este nombre aparecerá en facturas y documentos oficiales</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-id-card"></i> RIF</label>
+                                <input type="text" name="empresa_rif" class="neo-input" value="{{ config.empresa.rif }}" 
+                                       placeholder="J-12345678-9">
+                                <small class="help-text">Registro de Información Fiscal</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4"><i class="fas fa-map-marker-alt section-icon"></i> Ubicación</h5>
+                    <div class="neo-form-group">
+                        <label class="neo-label"><i class="fas fa-location-dot"></i> Dirección Principal</label>
+                        <input type="text" name="empresa_direccion" class="neo-input" value="{{ config.empresa.direccion }}" 
+                               placeholder="Av. Principal, Edificio, Piso, Ciudad">
+                        <small class="help-text">Dirección completa para documentos oficiales</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-city"></i> Ciudad</label>
+                                <input type="text" name="empresa_ciudad" class="neo-input" value="{{ config.empresa.get('ciudad', '') }}" 
+                                       placeholder="Caracas">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-state"></i> Estado</label>
+                                <input type="text" name="empresa_estado" class="neo-input" value="{{ config.empresa.get('estado', '') }}" 
+                                       placeholder="Distrito Capital">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-flag"></i> País</label>
+                                <input type="text" name="empresa_pais" class="neo-input" value="{{ config.empresa.get('pais', 'Venezuela') }}" 
+                                       placeholder="Venezuela">
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4"><i class="fas fa-phone section-icon"></i> Contacto</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-phone-alt"></i> Teléfono Principal</label>
+                                <input type="tel" name="empresa_telefono" class="neo-input" value="{{ config.empresa.telefono }}" 
+                                       placeholder="+58 212 1234567">
+                                <small class="help-text">Número principal de contacto</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-mobile-alt"></i> WhatsApp</label>
+                                <input type="tel" name="empresa_whatsapp" class="neo-input" value="{{ config.empresa.get('whatsapp', '') }}" 
+                                       placeholder="+58 412 1234567">
+                                <small class="help-text">Para notificaciones automáticas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-at"></i> Email</label>
+                                <input type="email" name="empresa_email" class="neo-input" value="{{ config.empresa.email }}" 
+                                       placeholder="info@empresa.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 mt-4"><i class="fas fa-globe section-icon"></i> Web y Redes</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fas fa-globe"></i> Sitio Web</label>
+                                <input type="url" name="empresa_website" class="neo-input" value="{{ config.empresa.website }}" 
+                                       placeholder="https://www.empresa.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label"><i class="fab fa-instagram"></i> Instagram</label>
+                                <input type="text" name="empresa_instagram" class="neo-input" value="{{ config.empresa.get('instagram', '') }}" 
+                                       placeholder="@empresa">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-image section-icon"></i> Logo de la Empresa</h5>
+                    <div class="neo-form-group">
+                        <label class="neo-label"><i class="fas fa-image"></i> Subir Logo</label>
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <div class="logo-preview-container">
+                                {% if config.empresa.get('logo_path') %}
+                                <img id="logoPreview" src="/{{ config.empresa.get('logo_path', 'static/logo.png') }}" 
+                                     alt="Logo actual" style="max-height: 100px; border-radius: 10px; padding: 10px; background: white;">
+                                {% else %}
+                                <img id="logoPreview" src="/static/logo.png" alt="Logo actual" 
+                                     style="max-height: 100px; border-radius: 10px; padding: 10px; background: white;">
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <input type="file" name="empresa_logo" id="empresa_logo" accept="image/*" class="form-control neo-input" 
+                                       onchange="previewLogo(this)">
+                                <small class="help-text">Formatos: JPG, PNG, SVG. Tamaño recomendado: 200x200px</small>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('empresa_logo').value=''; document.getElementById('logoPreview').src='/static/logo.png';">
+                            <i class="fas fa-times"></i> Limpiar
+                        </button>
+                    </div>
+
+                    <h5 class="mb-3 mt-4"><i class="fas fa-info-circle section-icon"></i> Información Adicional</h5>
+                    <div class="neo-form-group">
+                        <label class="neo-label"><i class="fas fa-info"></i> Descripción o Eslogan</label>
+                        <input type="text" name="empresa_descripcion" class="neo-input" value="{{ config.empresa.get('descripcion', '') }}" 
+                               placeholder="Tu mejor opción en reparaciones">
+                        <small class="help-text">Aparecerá en facturas y documentos</small>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label"><i class="fas fa-clock"></i> Horario de Atención</label>
+                        <input type="text" name="empresa_horario" class="neo-input" value="{{ config.empresa.get('horario', '') }}" 
+                               placeholder="Lun-Vie: 8:00 AM - 6:00 PM">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TASAS -->
+            <div id="tab-tasas" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-exchange-alt me-2"></i>Configuración de Tasas de Cambio</h3>
+                    <p class="text-muted mb-3">Gestiona las tasas de cambio utilizadas en el sistema para cálculos monetarios.</p>
+                    
+                    <h5 class="mb-3"><i class="fas fa-sync-alt section-icon"></i> Actualización Automática</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="actualizacion_automatica" id="actualizacion_automatica" {% if config.tasas.actualizacion_automatica %}checked{% endif %}>
+                        <label for="actualizacion_automatica">
+                            <strong>Actualización Automática desde BCV</strong>
+                            <span class="help-text d-block">El sistema obtendrá la tasa oficial del Banco Central de Venezuela automáticamente</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="notificar_cambios" id="notificar_cambios" {% if config.tasas.notificar_cambios %}checked{% endif %}>
+                        <label for="notificar_cambios">
+                            <strong>Notificar Cambios de Tasa</strong>
+                            <span class="help-text d-block">Recibir alertas cuando la tasa cambie significativamente</span>
+                        </label>
+                    </div>
+                    
+                    <div class="alert alert-info mb-3" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Tasa Actual del Sistema:</strong> 
+                        <span id="tasaActual">Cargando...</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="actualizarTasaManual()">
+                            <i class="fas fa-sync"></i> Actualizar Ahora
+                        </button>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración de Tasas</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-dollar-sign"></i> Tasa USD Manual
+                                    <span class="config-badge">Backup</span>
+                                </label>
+                                <input type="number" step="0.01" name="tasa_usd_defecto" class="neo-input" 
+                                       value="{{ config.tasas.tasa_usd_defecto }}" 
+                                       placeholder="216.37">
+                                <small class="help-text">Se usa si falla la obtención automática desde BCV</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-clock"></i> Intervalo de Actualización
+                                </label>
+                                <input type="number" name="intervalo_actualizacion" class="neo-input" 
+                                       value="{{ config.tasas.intervalo_actualizacion }}">
+                                <small class="help-text">Tiempo en segundos entre actualizaciones (3600 = 1 hora)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-database"></i> Fuente de Tasas
+                        </label>
+                        <select name="fuente_tasa" class="neo-input" id="fuenteTasa">
+                            <option value="bcv" {% if config.tasas.fuente_tasa == 'bcv' %}selected{% endif %}>
+                                BCV (Banco Central de Venezuela) - Recomendado
+                            </option>
+                            <option value="manual" {% if config.tasas.fuente_tasa == 'manual' %}selected{% endif %}>
+                                Manual - Configuración personalizada
+                            </option>
+                        </select>
+                        <small class="help-text">
+                            BCV obtiene la tasa oficial del gobierno venezolano | Manual requiere configuración manual constante
+                        </small>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-chart-line section-icon"></i> Historial de Tasas</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" id="guardar_historial_tasas" {% if config.get('tasas', {}).get('guardar_historial', True) %}checked{% endif %}>
+                        <label for="guardar_historial_tasas">Guardar Historial de Tasas</label>
+                        <small class="help-text d-block">Registra todas las tasas históricas para reportes y análisis</small>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-percentage"></i> Umbral de Cambio Significativo (%)
+                        </label>
+                        <input type="number" step="0.1" class="neo-input" value="5" min="0" max="100">
+                        <small class="help-text">Notifica cuando la tasa cambie más de este porcentaje (0-100)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTIFICACIONES -->
+            <div id="tab-notificaciones" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-bell me-2"></i>Configuración de Notificaciones</h3>
+                    <p class="text-muted mb-3">Configure cómo el sistema enviará notificaciones a clientes y usuarios.</p>
+                    
+                    <div class="alert alert-info mb-3" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Sistema de Notificaciones:</strong> Configure WhatsApp y Email para notificar automáticamente a los clientes sobre sus órdenes de servicio.
+                    </div>
+                    
+                    <h5 class="mb-3"><i class="fab fa-whatsapp section-icon"></i> WhatsApp</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="whatsapp_habilitado" id="whatsapp_habilitado" 
+                               {% if config.notificaciones.whatsapp_habilitado %}checked{% endif %}>
+                        <label for="whatsapp_habilitado">
+                            <strong>Habilitar Notificaciones por WhatsApp</strong>
+                            <span class="help-text d-block">Envía mensajes automáticos a clientes con enlaces directos de WhatsApp Web</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-key"></i> API Key / Token (Opcional)
+                            <span class="config-badge">Opcional</span>
+                        </label>
+                        <input type="password" name="whatsapp_api_key" class="neo-input" 
+                               value="{{ config.notificaciones.whatsapp_api_key }}" 
+                               placeholder="Dejar vacío para usar enlaces directos">
+                        <small class="help-text">Si usa servicios como Twilio API, coloque su token aquí. Si está vacío, usará enlaces directos de WhatsApp.</small>
+                    </div>
+                    
+                    <div class="alert alert-success" style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 0.75rem;">
+                        <i class="fas fa-check-circle"></i> 
+                        <strong>Nota:</strong> El sistema actualmente usa enlaces directos de WhatsApp Web, por lo que no se requiere configuración adicional.
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-envelope section-icon"></i> Email (SMTP)</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="email_habilitado" id="email_habilitado" 
+                               {% if config.notificaciones.email_habilitado %}checked{% endif %}>
+                        <label for="email_habilitado">
+                            <strong>Habilitar Notificaciones por Email</strong>
+                            <span class="help-text d-block">Enviar correos electrónicos a clientes (requiere servidor SMTP configurado)</span>
+                        </label>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-server"></i> Servidor SMTP
+                                </label>
+                                <input type="text" name="email_smtp_server" class="neo-input" 
+                                       value="{{ config.notificaciones.email_smtp_server }}" 
+                                       placeholder="smtp.gmail.com">
+                                <small class="help-text">Ejemplo: smtp.gmail.com, smtp.outlook.com</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-network-wired"></i> Puerto SMTP
+                                </label>
+                                <input type="number" name="email_smtp_port" class="neo-input" 
+                                       value="{{ config.notificaciones.email_smtp_port }}" 
+                                       placeholder="587">
+                                <small class="help-text">587 (TLS) o 465 (SSL)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-user"></i> Usuario Email
+                                </label>
+                                <input type="email" name="email_usuario" class="neo-input" 
+                                       value="{{ config.notificaciones.email_usuario }}" 
+                                       placeholder="tu-email@gmail.com">
+                                <small class="help-text">Email para autenticación SMTP</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-lock"></i> Contraseña / App Password
+                                </label>
+                                <input type="password" name="email_password" class="neo-input" 
+                                       value="{{ config.notificaciones.email_password }}" 
+                                       placeholder="Tu contraseña o App Password">
+                                <small class="help-text">Para Gmail, use "Contraseña de aplicación"</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-reply"></i> Email Remitente
+                        </label>
+                        <input type="email" name="email_remitente" class="neo-input" 
+                               value="{{ config.notificaciones.email_remitente }}" 
+                               placeholder="notificaciones@empresa.com">
+                        <small class="help-text">Email que aparecerá como remitente en los correos</small>
+                    </div>
+                    
+                    <div class="alert alert-warning" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 0.75rem;">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Configuración de Gmail:</strong> Para usar Gmail, debe generar una "Contraseña de aplicación" desde su cuenta de Google. No use su contraseña normal.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ALERTAS -->
+            <div id="tab-alertas" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-exclamation-triangle me-2"></i>Alertas y Recordatorios del Sistema</h3>
+                    <p class="text-muted mb-3">Configure qué alertas desea recibir para mantenerse informado sobre su negocio.</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Sistema de Alertas:</strong> Las alertas le notificarán automáticamente sobre eventos importantes que requieran su atención.
+                        <br><small class="text-muted">🔔 <strong>Nota:</strong> El envío automático de alertas está en desarrollo. Actualmente puede generar reportes manualmente desde el servidor.</small>
+                    </div>
+                    
+                    <div class="alert alert-warning mb-4" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem;">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>📧 Email configurado:</strong> <span id="emailConfig">Cargando...</span>
+                        <br><small class="text-muted">Las alertas se enviarán a este correo cuando esté completamente habilitado.</small>
+                    </div>
+                    
+                    <h5 class="mb-3"><i class="fas fa-file-invoice section-icon"></i> Alertas Financieras</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="vencimiento_notas_entrega" id="vencimiento_notas_entrega" {% if config.get('alertas', {}).get('vencimiento_notas_entrega', False) %}checked{% endif %}>
+                        <label for="vencimiento_notas_entrega">
+                            <strong>Vencimiento de Notas de Entrega</strong>
+                            <span class="help-text d-block">Notificar cuando las notas de entrega estén próximas a vencer o ya vencieran</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="cuotas_vencidas" id="cuotas_vencidas" {% if config.get('alertas', {}).get('cuotas_vencidas', False) %}checked{% endif %}>
+                        <label for="cuotas_vencidas">
+                            <strong>Cuotas Vencidas</strong>
+                            <span class="help-text d-block">Alertar sobre cuotas de pagos que han vencido sin cobrar</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="pagos_pendientes" id="pagos_pendientes" {% if config.get('alertas', {}).get('pagos_pendientes', False) %}checked{% endif %}>
+                        <label for="pagos_pendientes">
+                            <strong>Pagos Pendientes</strong>
+                            <span class="help-text d-block">Notificar sobre pagos pendientes de clientes</span>
+                        </label>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-boxes section-icon"></i> Alertas de Inventario</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="stock_minimo" id="stock_minimo" {% if config.get('alertas', {}).get('stock_minimo', False) %}checked{% endif %}>
+                        <label for="stock_minimo">
+                            <strong>Stock Mínimo</strong>
+                            <span class="help-text d-block">Alertar cuando el inventario esté por debajo del nivel mínimo configurado</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="productos_agotados" id="productos_agotados" {% if config.get('alertas', {}).get('productos_agotados', False) %}checked{% endif %}>
+                        <label for="productos_agotados">
+                            <strong>Productos Agotados</strong>
+                            <span class="help-text d-block">Notificar cuando productos se queden sin stock</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="productos_caducando" id="productos_caducando" {% if config.get('alertas', {}).get('productos_caducando', False) %}checked{% endif %}>
+                        <label for="productos_caducando">
+                            <strong>Productos Próximos a Caducar</strong>
+                            <span class="help-text d-block">Avisar sobre productos que caducarán pronto</span>
+                        </label>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-tools section-icon"></i> Alertas de Servicios</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="ordenes_pendientes" id="ordenes_pendientes" {% if config.get('alertas', {}).get('ordenes_pendientes', False) %}checked{% endif %}>
+                        <label for="ordenes_pendientes">
+                            <strong>Órdenes en Espera</strong>
+                            <span class="help-text d-block">Notificar sobre órdenes de servicio que están en espera</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="ordenes_urgentes" id="ordenes_urgentes" {% if config.get('alertas', {}).get('ordenes_urgentes', False) %}checked{% endif %}>
+                        <label for="ordenes_urgentes">
+                            <strong>Órdenes Urgentes</strong>
+                            <span class="help-text d-block">Alertar sobre órdenes marcadas como urgentes</span>
+                        </label>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-users section-icon"></i> Alertas de Clientes</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="cumpleanos_clientes" id="cumpleanos_clientes" {% if config.get('alertas', {}).get('cumpleanos_clientes', False) %}checked{% endif %}>
+                        <label for="cumpleanos_clientes">
+                            <strong>Cumpleaños de Clientes</strong>
+                            <span class="help-text d-block">Recordar cumpleaños de clientes para enviar felicitaciones</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="clientes_nuevos" id="clientes_nuevos" {% if config.get('alertas', {}).get('clientes_nuevos', False) %}checked{% endif %}>
+                        <label for="clientes_nuevos">
+                            <strong>Clientes Nuevos</strong>
+                            <span class="help-text d-block">Notificar cuando se registren nuevos clientes</span>
+                        </label>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-chart-line section-icon"></i> Reportes Automáticos</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="estadisticas_semanales" id="estadisticas_semanales" {% if config.get('alertas', {}).get('estadisticas_semanales', False) %}checked{% endif %}>
+                        <label for="estadisticas_semanales">
+                            <strong>Estadísticas Semanales</strong>
+                            <span class="help-text d-block">Enviar un reporte semanal con resumen de ventas y servicios</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="estadisticas_mensuales" id="estadisticas_mensuales" {% if config.get('alertas', {}).get('estadisticas_mensuales', False) %}checked{% endif %}>
+                        <label for="estadisticas_mensuales">
+                            <strong>Estadísticas Mensuales</strong>
+                            <span class="help-text d-block">Enviar un reporte mensual completo del negocio</span>
+                        </label>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4" style="background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 1rem;">
+                        <i class="fas fa-rocket"></i> 
+                        <strong>Generar Reportes Manualmente:</strong>
+                        <br><br>
+                        <button type="button" class="btn btn-success btn-sm me-2" onclick="generarYEnviarReporte('semanal')">
+                            <i class="fab fa-whatsapp me-1"></i> Generar Reporte Semanal
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="generarYEnviarReporte('mensual')">
+                            <i class="fab fa-whatsapp me-1"></i> Generar Reporte Mensual
+                        </button>
+                        <br><br>
+                        <small class="text-muted">Haz clic para generar un reporte y obtener el enlace de WhatsApp para enviarlo.</small>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración de Alertas</h5>
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-bell"></i> Canal de Notificación Principal
+                        </label>
+                        <select name="canal_notificacion" class="neo-input">
+                            <option value="email" {% if config.get('alertas', {}).get('canal_notificacion', 'email') == 'email' %}selected{% endif %}>Email</option>
+                            <option value="whatsapp" {% if config.get('alertas', {}).get('canal_notificacion') == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
+                            <option value="ambos" {% if config.get('alertas', {}).get('canal_notificacion') == 'ambos' %}selected{% endif %}>Ambos</option>
+                        </select>
+                        <small class="help-text">Canal preferido para recibir las alertas</small>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label">
+                            <i class="fas fa-clock"></i> Horario de Alertas (Hora Local)
+                        </label>
+                        <input type="time" name="horario_alertas" class="neo-input" value="{{ config.get('alertas', {}).get('horario_alertas', '08:00') }}">
+                        <small class="help-text">Hora del día para enviar las alertas no urgentes</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IMPRESIÓN -->
+            <div id="tab-impresion" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-print me-2"></i>Configuración de Impresión</h3>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="logo_personalizado" id="logo_personalizado" {% if config.get('impresion', {}).get('logo_personalizado', False) %}checked{% endif %}>
+                        <label for="logo_personalizado">Logo Personalizado</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="encabezados_personalizables" id="encabezados_personalizables" {% if config.get('impresion', {}).get('encabezados_personalizables', False) %}checked{% endif %}>
+                        <label for="encabezados_personalizables">Encabezados Personalizables</label>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Margen Superior (mm)</label>
+                                <input type="number" name="margen_superior" class="neo-input" value="{{ config.get('impresion', {}).get('margen_superior', '20') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Margen Inferior (mm)</label>
+                                <input type="number" name="margen_inferior" class="neo-input" value="{{ config.get('impresion', {}).get('margen_inferior', '20') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Margen Izquierdo (mm)</label>
+                                <input type="number" name="margen_izquierdo" class="neo-input" value="{{ config.get('impresion', {}).get('margen_izquierdo', '15') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Margen Derecho (mm)</label>
+                                <input type="number" name="margen_derecho" class="neo-input" value="{{ config.get('impresion', {}).get('margen_derecho', '15') }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Orientación</label>
+                                <select name="orientacion" class="neo-input">
+                                    <option value="vertical" {% if config.get('impresion', {}).get('orientacion', 'vertical') == 'vertical' %}selected{% endif %}>Vertical</option>
+                                    <option value="horizontal" {% if config.get('impresion', {}).get('orientacion') == 'horizontal' %}selected{% endif %}>Horizontal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tamaño Fuente</label>
+                                <input type="number" name="tamano_fuente" class="neo-input" value="{{ config.get('impresion', {}).get('tamano_fuente', '12') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color Texto</label>
+                                <input type="color" name="color_texto" class="neo-input" value="{{ config.get('impresion', {}).get('color_texto', '#000000') }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EQUIPOS CLIENTES -->
+            <div id="tab-equipos" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-mobile-alt me-2"></i>Equipos Entregados por Cliente</h3>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="equipos_habilitado" id="equipos_habilitado" {% if config.get('equipos_clientes', {}).get('habilitado', True) %}checked{% endif %}>
+                        <label for="equipos_habilitado">Habilitar Gestión de Equipos</label>
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Modelos Disponibles (separados por coma)</label>
+                        <input type="text" name="modelos_disponibles" class="neo-input" value="{{ config.get('equipos_clientes', {}).get('modelos_disponibles', [])|join(', ') }}" 
+                               placeholder="iPhone, Samsung, Xiaomi, Huawei...">
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Estados de Equipos (separados por coma)</label>
+                        <input type="text" name="estados_equipos" class="neo-input" value="{{ config.get('equipos_clientes', {}).get('estados_equipos', [])|join(', ') }}" 
+                               placeholder="Funcional, Reparado, Entregado...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- DOCUMENTOS -->
+            <div id="tab-documentos" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-file-alt me-2"></i>Documentos</h3>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Formato Número Orden</label>
+                        <input type="text" name="formato_numero_orden" class="neo-input" value="{{ config.get('documentos', {}).get('formato_numero_orden', 'OS-{YYYYMMDD}{####}') }}">
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Formato Número Factura</label>
+                        <input type="text" name="formato_numero_factura" class="neo-input" value="{{ config.get('documentos', {}).get('formato_numero_factura', 'FAC-{YYYYMMDD}{####}') }}">
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="mostrar_logo" id="mostrar_logo" {% if config.get('documentos', {}).get('mostrar_logo', True) %}checked{% endif %}>
+                        <label for="mostrar_logo">Mostrar Logo en Documentos</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="mostrar_codigo_barras" id="mostrar_codigo_barras" {% if config.get('documentos', {}).get('mostrar_codigo_barras', False) %}checked{% endif %}>
+                        <label for="mostrar_codigo_barras">Mostrar Código de Barras</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESTADOS -->
+            <div id="tab-estados" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-tasks me-2"></i>Estados de Órdenes</h3>
+                    <p class="text-muted">Configuración de estados disponibles para órdenes de servicio</p>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Estados Habilitados</label>
+                        <div class="neo-checkbox"><input type="checkbox" checked disabled> Recibido</div>
+                        <div class="neo-checkbox"><input type="checkbox" checked disabled> En Diagnóstico</div>
+                        <div class="neo-checkbox"><input type="checkbox" checked disabled> En Reparación</div>
+                        <div class="neo-checkbox"><input type="checkbox" checked disabled> Reparado</div>
+                        <div class="neo-checkbox"><input type="checkbox" checked disabled> Entregado</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGOS -->
+            <div id="tab-pagos" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-money-bill-wave me-2"></i>Métodos de Pago</h3>
+                    <p class="text-muted mb-3">Configure los métodos de pago aceptados y su información detallada.</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Métodos de Pago:</strong> Habilite o deshabilite los métodos de pago que acepta en su negocio. Configure los detalles de cada uno.
+                    </div>
+                    
+                    {% set metodos = config.get('metodos_pago', {}) %}
+                    <h5 class="mb-3"><i class="fas fa-hand-holding-usd section-icon"></i> Métodos Disponibles</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="pago_efectivo" id="pago_efectivo" {% if metodos.get('efectivo', {}).get('habilitado', True) %}checked{% endif %}>
+                                <label for="pago_efectivo">
+                                    <strong>💵 Efectivo</strong>
+                                    <span class="help-text d-block">Aceptar pagos en efectivo</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="pago_transferencia" id="pago_transferencia" {% if metodos.get('transferencia', {}).get('habilitado', True) %}checked{% endif %}>
+                                <label for="pago_transferencia">
+                                    <strong>🏦 Transferencia Bancaria</strong>
+                                    <span class="help-text d-block">Transferencias a cuenta bancaria</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="pago_pago_movil" id="pago_pago_movil" {% if metodos.get('pago_movil', {}).get('habilitado', True) %}checked{% endif %}>
+                                <label for="pago_pago_movil">
+                                    <strong>📱 Pago Móvil</strong>
+                                    <span class="help-text d-block">Pagos a través de Pago Móvil Venezuela</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="pago_zelle" id="pago_zelle" {% if metodos.get('zelle', {}).get('habilitado', True) %}checked{% endif %}>
+                                <label for="pago_zelle">
+                                    <strong>💳 Zelle</strong>
+                                    <span class="help-text d-block">Pagos a través de Zelle</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="pago_paypal" id="pago_paypal" {% if metodos.get('paypal', {}).get('habilitado', False) %}checked{% endif %}>
+                                <label for="pago_paypal">
+                                    <strong>🌐 PayPal</strong>
+                                    <span class="help-text d-block">Pagos a través de PayPal</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="pago_binance" id="pago_binance" {% if metodos.get('binance', {}).get('habilitado', False) %}checked{% endif %}>
+                                <label for="pago_binance">
+                                    <strong>₿ Binance</strong>
+                                    <span class="help-text d-block">Pagos con Binance (Criptomonedas)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración de Información Bancaria</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-university"></i> Banco
+                                </label>
+                                <input type="text" name="banco_nombre" class="neo-input" value="{{ config.get('metodos_pago', {}).get('banco_nombre', '') }}" placeholder="Banesco, Mercantil...">
+                                <small class="help-text">Nombre del banco principal</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-credit-card"></i> Tipo de Cuenta
+                                </label>
+                                <select name="tipo_cuenta" class="neo-input">
+                                    <option value="corriente" {% if config.get('metodos_pago', {}).get('tipo_cuenta', 'corriente') == 'corriente' %}selected{% endif %}>Corriente</option>
+                                    <option value="ahorro" {% if config.get('metodos_pago', {}).get('tipo_cuenta') == 'ahorro' %}selected{% endif %}>Ahorro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-hashtag"></i> Número de Cuenta
+                                </label>
+                                <input type="text" name="numero_cuenta" class="neo-input" value="{{ config.get('metodos_pago', {}).get('numero_cuenta', '') }}" placeholder="0208-xxxx-xxxxx-xxxxxxx-2">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-user"></i> Titular de la Cuenta
+                                </label>
+                                <input type="text" name="titular_cuenta" class="neo-input" value="{{ config.get('metodos_pago', {}).get('titular_cuenta', config.get('empresa', {}).get('nombre', '')) }}" placeholder="Nombre del titular">
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-phone"></i> Teléfono Pago Móvil
+                                </label>
+                                <input type="text" name="telefono_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('telefono_pago_movil', '') }}" placeholder="0412-1234567">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-info-circle section-icon"></i> Información de Métodos de Pago</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-envelope"></i> Email Zelle
+                                </label>
+                                <input type="email" name="email_zelle" class="neo-input" value="{{ config.get('metodos_pago', {}).get('email_zelle', '') }}" placeholder="correo@ejemplo.com">
+                                <small class="help-text">Correo de Zelle para recibir pagos</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-envelope"></i> Email Binance
+                                </label>
+                                <input type="email" name="email_binance" class="neo-input" value="{{ config.get('metodos_pago', {}).get('email_binance', '') }}" placeholder="correo@ejemplo.com">
+                                <small class="help-text">Correo asociado a Binance</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-phone"></i> Teléfono Pago Móvil
+                                </label>
+                                <input type="text" name="telefono_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('telefono_pago_movil', '') }}" placeholder="0412-1234567">
+                                <small class="help-text">Teléfono registrado en Pago Móvil</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-id-card"></i> Cédula RIF Pago Móvil
+                                </label>
+                                <input type="text" name="cedula_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('cedula_pago_movil', '') }}" placeholder="V-12345678 o J-12345678-9">
+                                <small class="help-text">Cédula o RIF registrado en Pago Móvil</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cash-register section-icon"></i> Configuración de Efectivo</h5>
+                    <div class="alert alert-warning mb-3" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem;">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Nota:</strong> Configure si acepta efectivo en USD y/o Bolívares
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="aceptar_efectivo_usd" id="aceptar_efectivo_usd" {% if config.get('metodos_pago', {}).get('aceptar_efectivo_usd', True) %}checked{% endif %}>
+                                <label for="aceptar_efectivo_usd">
+                                    <strong>Aceptar Efectivo en USD</strong>
+                                    <span class="help-text d-block">Permitir pagos en efectivo en dólares americanos</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="aceptar_efectivo_bs" id="aceptar_efectivo_bs" {% if config.get('metodos_pago', {}).get('aceptar_efectivo_bs', True) %}checked{% endif %}>
+                                <label for="aceptar_efectivo_bs">
+                                    <strong>Aceptar Efectivo en Bs</strong>
+                                    <span class="help-text d-block">Permitir pagos en efectivo en bolívares</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-bell section-icon"></i> Notificaciones de Pagos</h5>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="notificar_pago_cliente" id="notificar_pago_cliente" {% if config.get('metodos_pago', {}).get('notificar_pago_cliente', False) %}checked{% endif %}>
+                        <label for="notificar_pago_cliente">
+                            <strong>Notificar al Cliente al Registrar Pago</strong>
+                            <span class="help-text d-block">Enviar mensaje automático cuando se registre un pago</span>
+                        </label>
+                    </div>
+                    
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="notificar_nota_entregada" id="notificar_nota_entregada" {% if config.get('metodos_pago', {}).get('notificar_nota_entregada', False) %}checked{% endif %}>
+                        <label for="notificar_nota_entregada">
+                            <strong>Notificar al Marcar Nota como Entregada</strong>
+                            <span class="help-text d-block">Enviar mensaje cuando se marque una nota de entrega como entregada</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CATEGORÍAS -->
+            <div id="tab-categorias" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-tags me-2"></i>Categorías</h3>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Tipos de Clientes</label>
+                        <input type="text" class="neo-input" value="{{ config.get('categorias', {}).get('tipos_clientes', ['VIP', 'Regular', 'Corporativo'])|join(', ') }}">
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Prioridades</label>
+                        <input type="text" class="neo-input" value="{{ config.get('categorias', {}).get('prioridades', ['Baja', 'Media', 'Alta', 'Urgente'])|join(', ') }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEGURIDAD -->
+            <div id="tab-seguridad" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-shield-alt me-2"></i>Seguridad</h3>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Tiempo de Sesión (segundos)</label>
+                        <input type="number" name="tiempo_sesion" class="neo-input" value="{{ config.get('seguridad', {}).get('tiempo_sesion', 3600) }}">
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Intentos de Login Permitidos</label>
+                        <input type="number" name="intentos_login" class="neo-input" value="{{ config.get('seguridad', {}).get('intentos_login', 5) }}">
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="complejidad_contraseña" {% if config.get('seguridad', {}).get('complejidad_contraseña', True) %}checked{% endif %}>
+                        <label>Complejidad de Contraseñas Requerida</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISUAL -->
+            <div id="tab-visual" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-palette me-2"></i>Aparencia Visual</h3>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Tema</label>
+                        <select name="tema" class="neo-input">
+                            <option value="automatico" {% if config.get('visual', {}).get('tema', 'automatico') == 'automatico' %}selected{% endif %}>Automático</option>
+                            <option value="claro" {% if config.get('visual', {}).get('tema') == 'claro' %}selected{% endif %}>Claro</option>
+                            <option value="oscuro" {% if config.get('visual', {}).get('tema') == 'oscuro' %}selected{% endif %}>Oscuro</option>
+                        </select>
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Color Primario</label>
+                        <input type="color" name="color_primario" class="neo-input" value="{{ config.get('visual', {}).get('color_primario', '#4f46e5') }}">
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Idioma</label>
+                        <select name="idioma" class="neo-input">
+                            <option value="es" {% if config.get('visual', {}).get('idioma', 'es') == 'es' %}selected{% endif %}>Español</option>
+                            <option value="en" {% if config.get('visual', {}).get('idioma') == 'en' %}selected{% endif %}>Inglés</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INVENTARIO -->
+            <div id="tab-inventario" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-boxes me-2"></i>Inventario</h3>
+                    <div class="neo-checkbox"><input type="checkbox" name="control_stock" {% if config.get('inventario', {}).get('control_stock', True) %}checked{% endif %}><label>Control de Stock</label></div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Stock Mínimo por Defecto</label>
+                        <input type="number" name="stock_minimo_default" class="neo-input" value="{{ config.get('inventario', {}).get('stock_minimo_default', 5) }}">
+                    </div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('inventario', {}).get('codigos_barras', False) %}checked{% endif %}><label>Usar Códigos de Barras</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('inventario', {}).get('seriales', True) %}checked{% endif %}><label>Control de Seriales</label></div>
+                </div>
+            </div>
+
+            <!-- PROVEEDORES -->
+            <div id="tab-proveedores" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-truck me-2"></i>Proveedores</h3>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('proveedores', {}).get('habilitado', False) %}checked{% endif %}><label>Habilitar Gestión de Proveedores</label></div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Términos de Pago (días)</label>
+                        <input type="number" class="neo-input" value="{{ config.get('proveedores', {}).get('terminos_pago', 30) }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CALENDARIO -->
+            <div id="tab-calendario" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-calendar me-2"></i>Calendario</h3>
+                    {% set calendario = config.get('calendario', {}) %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Hora Inicio</label>
+                                <input type="time" class="neo-input" value="{{ calendario.get('horarios_atencion', {}).get('inicio', '08:00') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Hora Fin</label>
+                                <input type="time" class="neo-input" value="{{ calendario.get('horarios_atencion', {}).get('fin', '17:00') }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if calendario.get('agenda_habilitada', False) %}checked{% endif %}><label>Habilitar Agenda</label></div>
+                </div>
+            </div>
+
+            <!-- CONTADORES -->
+            <div id="tab-contadores" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-hashtag me-2"></i>Contadores de Documentos</h3>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('contadores', {}).get('reset_anual', True) %}checked{% endif %}><label>Reset Anual</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('contadores', {}).get('prefijo_ano', True) %}checked{% endif %}><label>Prefijo de Año</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('contadores', {}).get('validacion_secuencial', True) %}checked{% endif %}><label>Validación Secuencial</label></div>
+                </div>
+            </div>
+
+            <!-- REPORTES -->
+            <div id="tab-reportes" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-chart-bar me-2"></i>Reportes</h3>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('reportes', {}).get('habilitados', True) %}checked{% endif %}><label>Habilitar Reportes</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('reportes', {}).get('exportacion_excel', True) %}checked{% endif %}><label>Exportar a Excel</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('reportes', {}).get('exportacion_pdf', True) %}checked{% endif %}><label>Exportar a PDF</label></div>
+                </div>
+            </div>
+
+            <!-- INTEGRACIONES -->
+            <div id="tab-integraciones" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-plug me-2"></i>Integraciones</h3>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('integraciones', {}).get('api_externas', False) %}checked{% endif %}><label>APIs Externas</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('integraciones', {}).get('sincronizacion_nube', False) %}checked{% endif %}><label>Sincronización con Nube</label></div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('integraciones', {}).get('webhooks', False) %}checked{% endif %}><label>Webhooks</label></div>
+                </div>
+            </div>
+
+            <!-- USUARIOS -->
+            <div id="tab-usuarios" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-users me-2"></i>Permisos de Usuarios</h3>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Permiso Eliminar Órdenes</label>
+                        <select name="permiso_eliminar_ordenes" class="neo-input">
+                            <option value="admin" {% if config.get('usuarios', {}).get('permiso_eliminar_ordenes', 'admin') == 'admin' %}selected{% endif %}>Admin</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Permiso Ver Reportes</label>
+                        <select name="permiso_ver_reportes" class="neo-input">
+                            <option value="admin">Admin</option>
+                            <option value="all">Todos</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BACKUP -->
+            <div id="tab-backup" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-cloud-download-alt me-2"></i>Backup</h3>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('backup', {}).get('automatico', False) %}checked{% endif %}><label>Backup Automático</label></div>
+                    <div class="neo-form-group">
+                        <label class="neo-label">Intervalo (horas)</label>
+                        <input type="number" name="backup_intervalo" class="neo-input" value="{{ config.get('backup', {}).get('intervalo_horas', 24) }}">
+                    </div>
+                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('backup', {}).get('compresion', True) %}checked{% endif %}><label>Comprimir Backups</label></div>
+                </div>
+            </div>
+
+            <!-- Botón de Guardar -->
+            <div class="text-center">
+                <button type="submit" class="btn-save">
+                    <i class="fas fa-save me-2"></i>Guardar Configuración
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentTab = 'empresa';
+
+function mostrarTab(tabName) {
+    console.log('Mostrando tab:', tabName);
+    
+    // Actualizar variable global
+    currentTab = tabName;
+    
+    // Ocultar todos los contenidos
+    document.querySelectorAll('.config-tab-content').forEach(tab => {
+        tab.classList.remove('active');
+        tab.style.display = 'none';
+    });
+    
+    // Desactivar todas las pestañas
+    document.querySelectorAll('.config-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Activar el contenido seleccionado
+    const contentTab = document.getElementById(`tab-${tabName}`);
+    if (!contentTab) {
+        console.error('No se encontró el tab:', tabName);
+        return;
+    }
+    
+    contentTab.classList.add('active');
+    contentTab.style.display = 'block';
+    
+    // Activar la pestaña seleccionada (si existe event)
+    if (typeof event !== 'undefined' && event.target) {
+        event.target.classList.add('active');
+    }
+    
+    // Scroll suave al contenido
+    setTimeout(() => {
+        if (contentTab) {
+            contentTab.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
+}
+
+function filtrarTabs(searchText) {
+    const tabs = document.querySelectorAll('.config-tab');
+    const searchLower = searchText.toLowerCase();
+    
+    let foundCount = 0;
+    
+    tabs.forEach(tab => {
+        const text = tab.textContent.toLowerCase();
+        if (text.includes(searchLower) || searchText === '') {
+            tab.style.display = 'flex';
+            foundCount++;
+        } else {
+            tab.style.display = 'none';
+        }
+    });
+    
+    // Si hay coincidencia única, mostrar esa sección automáticamente
+    if (foundCount === 1 && searchText !== '') {
+        const visibleTab = Array.from(tabs).find(t => t.style.display !== 'none');
+        if (visibleTab) {
+            const tabName = visibleTab.getAttribute('onclick').match(/'(\w+)'/)[1];
+            mostrarTab(tabName);
+        }
+    }
+}
+
+// Función para generar y enviar reportes
+function generarYEnviarReporte(tipo) {
+    const btn = event.target.closest('button');
+    const textoOriginal = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Generando...';
+    btn.disabled = true;
+    
+    fetch(`/api/generar-reporte-${tipo}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar modal con el enlace de WhatsApp
+            mostrarModalReporte(data.mensaje, tipo);
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Listo';
+            setTimeout(() => {
+                btn.innerHTML = textoOriginal;
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            alert('Error generando reporte: ' + (data.error || 'Error desconocido'));
+            btn.innerHTML = textoOriginal;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al generar el reporte');
+        btn.innerHTML = textoOriginal;
+        btn.disabled = false;
+    });
+}
+
+function mostrarModalReporte(mensaje, tipo) {
+    // Crear modal dinámico
+    const modalHTML = `
+        <div class="modal fade" id="modalReporte" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-check-circle me-2"></i>Reporte ${tipo.toUpperCase()} Generado
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fab fa-whatsapp me-2"></i>
+                            <strong>Mensaje Listo para Enviar:</strong>
+                            <pre style="background: #f8f9fa; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; overflow-x: auto;">${mensaje.trim()}</pre>
+                        </div>
+                        <div class="text-center mt-4">
+                            <p class="text-muted mb-3">
+                                Para enviar por WhatsApp, usa uno de estos métodos:
+                            </p>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <button class="btn btn-outline-primary w-100" onclick="abrirWhatsAppWeb('${mensaje.trim()}')">
+                                        <i class="fab fa-whatsapp me-2"></i>Abrir WhatsApp Web
+                                    </button>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <button class="btn btn-outline-success w-100" onclick="copiarMensaje('${mensaje.trim().replace(/'/g, "\\'")}')">
+                                        <i class="fas fa-copy me-2"></i>Copiar Mensaje
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal anterior si existe
+    const modalExistente = document.getElementById('modalReporte');
+    if (modalExistente) {
+        modalExistente.remove();
+    }
+    
+    // Agregar modal al DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('modalReporte'));
+    modal.show();
+    
+    // Limpiar al cerrar
+    document.getElementById('modalReporte').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function abrirWhatsAppWeb(mensaje) {
+    // Obtener número de WhatsApp de la empresa
+    fetch('/api/configuracion')
+        .then(response => response.json())
+        .then(config => {
+            const whatsapp = config.empresa?.whatsapp || '';
+            if (whatsapp) {
+                let telefono = whatsapp.replace(/\D/g, ''); // Solo números
+                if (!telefono.startsWith('58')) {
+                    telefono = '58' + telefono;
+                }
+                
+                const mensajeCodificado = encodeURIComponent(mensaje);
+                const enlace = `https://wa.me/${telefono}?text=${mensajeCodificado}`;
+                
+                window.open(enlace, '_blank');
+            } else {
+                alert('⚠️ Debe configurar un número de WhatsApp en la sección "Empresa"');
+            }
+        });
+}
+
+function copiarMensaje(mensaje) {
+    navigator.clipboard.writeText(mensaje).then(() => {
+        alert('✅ Mensaje copiado al portapapeles');
+    }).catch(() => {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = mensaje;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        alert('✅ Mensaje copiado al portapapeles');
+    });
+}
+
+// Inicializar todo al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando configuración...');
+    
+    // Cargar email configurado para alertas
+    fetch('/api/configuracion')
+        .then(response => response.json())
+        .then(config => {
+            const emailConfig = document.getElementById('emailConfig');
+            if (emailConfig) {
+                const email = config.empresa?.email || 'No configurado';
+                const whatsapp = config.empresa?.whatsapp || 'No configurado';
+                emailConfig.innerHTML = email !== 'No configurado' ? `<strong>${email}</strong>` : `<em style="color: #dc3545;">⚠️ Debe configurar un email en la sección "Empresa"</em>`;
+                if (email !== 'No configurado') {
+                    emailConfig.style.color = '#28a745';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando configuración:', error);
+            const emailConfig = document.getElementById('emailConfig');
+            if (emailConfig) {
+                emailConfig.innerHTML = '<em style="color: #dc3545;">Error cargando</em>';
+            }
+        });
+    
+    // Restaurar tab activo DESPUÉS de que todo esté cargado
+    setTimeout(() => {
+        try {
+            const activeTab = localStorage.getItem('activeConfigTab') || 'empresa';
+            console.log('Restaurando tab activo:', activeTab);
+            mostrarTab(activeTab);
+        } catch (e) {
+            console.error('Error restaurando tab:', e);
+            // Si falla, mostrar el tab empresa por defecto
+            setTimeout(() => mostrarTab('empresa'), 100);
+        }
+    }, 100);
+    
+    // Guardar tab activo antes de cambiar
+    document.querySelectorAll('.config-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            try {
+                const tabName = this.getAttribute('onclick').match(/'(\w+)'/)[1];
+                localStorage.setItem('activeConfigTab', tabName);
+                console.log('Guardado tab:', tabName);
+            } catch (e) {
+                console.error('Error guardando tab:', e);
+            }
+        });
+    });
+    
+    // Manejar el envío del formulario - SIMPLIFICADO
+    const form = document.querySelector('form[action="/configuracion"]');
+    if (form) {
+        console.log('✅ Formulario encontrado, agregando listener submit');
+        form.addEventListener('submit', function(e) {
+            console.log('🚀 FORMULARIO SIENDO ENVIADO...');
+            console.log('📋 Campos del formulario:', Object.keys(this.elements).length);
+            const btn = document.querySelector('.btn-save');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
+                btn.disabled = true;
+            }
+            // NO prevenir el envío - permitir POST normal
+        });
+    } else {
+        console.error('❌ No se encontró el formulario');
+    }
+    
+    // Detectar si viene de un redirect exitoso y mostrar alerta
+    const urlParams = new URLSearchParams(window.location.search);
+    const flash = urlParams.get('success');
+    
+    // Verificar si hay mensaje flash en la página
+    setTimeout(() => {
+        const flashMessage = document.querySelector('.alert-success, .flash-message');
+        if (flashMessage || urlParams.get('config_saved')) {
+            console.log('✅ CONFIGURACIÓN GUARDADA CON ÉXITO!');
+            console.log('🎉 Todos los cambios han sido aplicados correctamente');
+            
+            // Mostrar alerta visual
+            const alertDiv = document.getElementById('successAlert');
+            if (alertDiv) {
+                alertDiv.classList.remove('d-none');
+                alertDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Ocultar después de 5 segundos
+                setTimeout(() => {
+                    alertDiv.classList.add('d-none');
+                }, 5000);
+            }
+            
+            // Limpiar URL
+            if (urlParams.get('config_saved')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+    }, 500);
+});
+
+// Agregar ayuda contextual
+document.querySelectorAll('.neo-label').forEach(label => {
+    const originalText = label.textContent;
+    label.title = originalText;
+});
+
+// Función para previsualizar el logo
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const preview = document.getElementById('logoPreview');
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Cargar tasa actual al abrir la pestaña de tasas
+function cargarTasaActual() {
+    fetch('/api/tasa-bcv')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Respuesta API tasa-bcv:', data);
+            const tasaIng = document.getElementById('tasaActual');
+            if (tasaIng) {
+                if (data.tasa) {
+                    let advertencia = '';
+                    if (data.advertencia) {
+                        advertencia = ' <small style="color: #ff9800;">(No del BCV)</small>';
+                    }
+                    tasaIng.innerHTML = `<strong style="color: #4f46e5;">${data.tasa}</strong> Bs. x USD${advertencia}`;
+                } else if (data.error) {
+                    tasaIng.textContent = `Error: ${data.error}`;
+                } else {
+                    tasaIng.textContent = 'No disponible';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando tasa:', error);
+            const tasaIng = document.getElementById('tasaActual');
+            if (tasaIng) {
+                tasaIng.textContent = 'Error al cargar';
+            }
+        });
+}
+
+// Función para actualizar tasa manualmente
+function actualizarTasaManual() {
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+    btn.disabled = true;
+    
+    fetch('/forzar-actualizacion-tasa-bcv')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Respuesta forzar actualización:', data);
+            if (data.success || data.tasa) {
+                btn.innerHTML = '<i class="fas fa-check"></i> Actualizado';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                    btn.disabled = false;
+                    // Recargar la tasa después de un momento
+                    setTimeout(cargarTasaActual, 500);
+                }, 2000);
+            } else {
+                btn.innerHTML = '<i class="fas fa-times"></i> Error';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-danger');
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('btn-danger');
+                    btn.classList.add('btn-outline-primary');
+                    btn.disabled = false;
+                }, 2000);
+            }
+        })
+        .catch(error => {
+            console.error('Error actualizando tasa:', error);
+            btn.innerHTML = '<i class="fas fa-times"></i> Error';
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }, 2000);
+        });
+}
+
+// Detectar cuando se abre la pestaña de tasas
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.config-tab');
+    
+    // Verificar si la pestaña de tasas está activa al cargar
+    const tabTasas = Array.from(tabs).find(tab => tab.getAttribute('onclick').includes('tasas'));
+    if (tabTasas && tabTasas.classList.contains('active')) {
+        // Si ya está activa, cargar la tasa inmediatamente
+        setTimeout(cargarTasaActual, 100);
+    }
+    
+    // Agregar listeners para cuando se hace clic en una pestaña
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            if (this.getAttribute('onclick').includes('tasas')) {
+                setTimeout(cargarTasaActual, 300);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+
+

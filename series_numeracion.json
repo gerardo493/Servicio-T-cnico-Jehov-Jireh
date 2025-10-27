@@ -1,21 +1,22 @@
 {
-    "series": {
-        "FAC": {
-            "nombre": "Facturas Generales",
-            "prefijo": "FAC-",
-            "siguiente_numero": 1,
-            "longitud_numero": 6,
-            "activa": true,
-            "descripcion": "Serie principal para facturas generales",
-            "tipo": "general",
-            "sucursal": "principal"
-        }
+  "series": {
+    "FACTURA": {
+      "prefijo": "FAC-",
+      "siguiente_numero": 1,
+      "longitud_numero": 8,
+      "formato": "FAC-{numero:08d}",
+      "activa": true
     },
-    "configuracion": {
-        "serie_default": "FAC",
-        "permitir_edicion_manual": true,
-        "formato_fecha": false,
-        "reiniciar_anual": false,
-        "validar_consecutivos": true
+    "NOTA_ENTREGA": {
+      "prefijo": "NE-",
+      "siguiente_numero": 1,
+      "longitud_numero": 8,
+      "formato": "NE-{numero:08d}",
+      "activa": true
     }
+  },
+  "auditoria": {
+    "total_documentos_emitidos": 0,
+    "ultima_actualizacion": "2025-01-19"
+  }
 }

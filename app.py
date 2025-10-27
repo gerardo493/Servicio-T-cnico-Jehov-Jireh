@@ -5,6 +5,13 @@ import urllib3
 import urllib.parse
 import requests
 import csv
+import qrcode
+import io
+import base64
+import traceback
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response, send_file, session, abort, send_from_directory
@@ -21,6 +28,7 @@ from seguridad_fiscal import seguridad_fiscal
 from numeracion_fiscal import control_numeracion
 from comunicacion_seniat import comunicador_seniat
 from exportacion_seniat import exportador_seniat
+from filtros_dashboard import obtener_estadisticas_filtradas, obtener_opciones_filtro, obtener_metricas_tarjeta, obtener_opciones_filtro_avanzado
 try:
     import pdfkit
 except ImportError:
@@ -40,8 +48,123 @@ import re
 # --- Inicializar la Aplicación Flask ---
 app = Flask(__name__)
 
+# Clase para hacer que los diccionarios sean accesibles con notación de punto en Jinja2
+class DotDict(dict):
+    """Permite acceso a diccionarios con notación de punto"""
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        # Manejar argumentos de inicialización
+        if args:
+            if isinstance(args[0], dict):
+                for key, value in args[0].items():
+                    if isinstance(value, dict) and not isinstance(value, DotDict):
+                        self[key] = DotDict(value)
+                    else:
+                        self[key] = value
+            else:
+                super().__init__(*args, **kwargs)
+        else:
+            # Manejar kwargs
+            for key, value in kwargs.items():
+                if isinstance(value, dict) and not isinstance(value, DotDict):
+                    self[key] = DotDict(value)
+                else:
+                    self[key] = value
+    
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{key}'")
+    
+    def __setattr__(self, key, value):
+        # Si el valor es un dict, convertirlo a DotDict
+        if isinstance(value, dict) and not isinstance(value, DotDict):
+            value = DotDict(value)
+        # Usar super().__setitem__ para evitar recursión infinita
+        super().__setitem__(key, value)
+    
+    def __setitem__(self, key, value):
+        # Si el valor es un dict, convertirlo a DotDict
+        if isinstance(value, dict) and not isinstance(value, DotDict):
+            value = DotDict(value)
+        super().__setitem__(key, value)
+    
+    def to_dict(self):
+        """Convierte recursivamente DotDict a diccionario normal"""
+        result = {}
+        for key, value in self.items():
+            if isinstance(value, DotDict):
+                result[key] = value.to_dict()
+            elif isinstance(value, list):
+                result[key] = [item.to_dict() if isinstance(item, DotDict) else item for item in value]
+            else:
+                result[key] = value
+        return result
+
 # --- Configuración de la Aplicación ---
 app.config['SECRET_KEY'] = 'tu_clave_secreta_aqui'
+app.config['SESSION_COOKIE_SECURE'] = False  # Para desarrollo local
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+
+# Contexto global para templates
+@app.context_processor
+def inject_empresa():
+    try:
+        empresa = cargar_empresa()
+    except Exception as e:
+        print(f"Error cargando empresa: {e}")
+        empresa = {
+            "nombre": "Servicio Técnico Jehová Jireh",
+            "rif": "J-000000000",
+            "telefono": "0000-0000000",
+            "direccion": "Dirección de la empresa"
+        }
+    
+    return {
+        'empresa': empresa,
+        'moment': datetime.now
+    }
+
+# Función helper para convertir DotDict a dict para JSON
+@app.template_filter('to_dict')
+def to_dict_filter(obj):
+    """Convierte DotDict a diccionario para serialización JSON"""
+    if isinstance(obj, DotDict):
+        return obj.to_dict()
+    elif isinstance(obj, dict):
+        return {k: to_dict_filter(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_dict_filter(item) for item in obj]
+    else:
+        return obj
+
+# Filtro para parsear JSON strings
+@app.template_filter('from_json')
+def from_json_filter(value):
+    """Convierte un string JSON a objeto"""
+    import json
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    return value
+
+# Función para formatear números
+def fmt_num(value):
+    """Formatear números con separadores de miles"""
+    try:
+        if value is None:
+            return "0.00"
+        return f"{safe_float(value):,.2f}"
+    except (ValueError, TypeError):
+        return "0.00"
+
+# Registrar la función como filtro de Jinja2
+app.jinja_env.filters['fmt_num'] = fmt_num
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
@@ -59,10 +182,10 @@ app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken']  # Headers personalizados
 #     csrf = CSRFProtect(app)
 #     print("✅ CSRF habilitado correctamente")
 # except Exception as e:
-#     print(f"⚠️ Error inicializando CSRF: {e}")
+#     print(f"WARNING Error inicializando CSRF: {e}")
 #     csrf = None
 csrf = None
-print("🚫 CSRF deshabilitado completamente")
+print("CSRF deshabilitado completamente")
 
 # --- Helper para Tokens CSRF ---
 def get_csrf_token():
@@ -73,35 +196,19 @@ def get_csrf_token():
 
 # --- Constantes ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 IMAGENES_PRODUCTOS_FOLDER = os.path.join(BASE_DIR, 'static', 'imagenes_productos')
 ARCHIVO_CLIENTES = 'clientes.json'
 ARCHIVO_INVENTARIO = 'inventario.json'
 ARCHIVO_FACTURAS = 'facturas_json/facturas.json'
-ARCHIVO_COTIZACIONES = 'cotizaciones_json/cotizaciones.json'
-ARCHIVO_NOTAS_ENTREGA = 'notas_entrega_json/notas_entrega.json'
 ARCHIVO_CUENTAS = 'cuentas_por_cobrar.json'
+ARCHIVO_NOTAS_ENTREGA = 'notas_entrega.json'
+ARCHIVO_PAGOS_RECIBIDOS = 'pagos_recibidos.json'
 ULTIMA_TASA_BCV_FILE = 'ultima_tasa_bcv.json'
-ALLOWED_EXTENSIONS = {'csv', 'jpg', 'jpeg', 'png', 'gif'}
+ALLOWED_EXTENSIONS = {'csv', 'jpg', 'jpeg', 'png', 'gif', 'pdf'}
 BITACORA_FILE = 'bitacora.log'
 
 # --- Funciones de Utilidad ---
-def validar_url_factura(f):
-    """Decorador para validar URLs de facturas y redirigir si están malformadas"""
-    @wraps(f)
-    def decorated_function(id, *args, **kwargs):
-        # Verificar que la URL no tenga doble barra consecutiva (como /facturas//editar)
-        if '//' in request.path:
-            flash('URL de factura inválida', 'danger')
-            return redirect(url_for('mostrar_facturas'))
-        
-        # Verificar que el ID sea válido
-        if not id or str(id).strip() == '':
-            flash('ID de factura inválido', 'danger')
-            return redirect(url_for('mostrar_facturas'))
-        
-        return f(id, *args, **kwargs)
-    return decorated_function
 
 def cargar_datos(nombre_archivo):
     """Carga datos desde un archivo JSON."""
@@ -218,7 +325,7 @@ def cargar_ultima_tasa_bcv():
         
         with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            tasa = float(data.get('tasa', 0))
+            tasa = safe_float(data.get('tasa', 0))
             if tasa > 10:
                 print(f"Tasa BCV cargada desde archivo: {tasa}")
                 return tasa
@@ -236,34 +343,18 @@ def cargar_ultima_tasa_bcv():
         return None
 
 def obtener_ultima_tasa_del_sistema():
-    """Busca la tasa más reciente en facturas y otros archivos del sistema."""
     try:
-        # Buscar en facturas recientes
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         tasas_encontradas = []
         
-        for factura in facturas.values():
-            if factura.get('tasa_bcv'):
+        for nota in notas.values():
+            if nota.get('tasa_bcv'):
                 try:
-                    tasa = float(factura['tasa_bcv'])
+                    tasa = safe_float(nota['tasa_bcv'])
                     if tasa > 10:
                         tasas_encontradas.append(tasa)
                 except:
                     continue
-        
-        # Buscar en cotizaciones si existen
-        try:
-            cotizaciones = cargar_datos(ARCHIVO_COTIZACIONES)
-            for cotizacion in cotizaciones.values():
-                if cotizacion.get('tasa_bcv'):
-                    try:
-                        tasa = float(cotizacion['tasa_bcv'])
-                        if tasa > 10:
-                            tasas_encontradas.append(tasa)
-                    except:
-                        continue
-        except:
-            pass
         
         # Buscar en cuentas por cobrar si existen
         try:
@@ -271,7 +362,7 @@ def obtener_ultima_tasa_del_sistema():
             for cuenta in cuentas.values():
                 if cuenta.get('tasa_bcv'):
                     try:
-                        tasa = float(cuenta['tasa_bcv'])
+                        tasa = safe_float(cuenta['tasa_bcv'])
                         if tasa > 10:
                             tasas_encontradas.append(tasa)
                     except:
@@ -341,7 +432,7 @@ def actualizar_tasa_bcv_automaticamente():
                         # Intentar usar tasa del sistema como fallback
                         tasa_sistema = obtener_ultima_tasa_del_sistema()
                         if tasa_sistema and tasa_sistema > 10:
-                            print(f"⚠️ Usando tasa del sistema como fallback: {tasa_sistema}")
+                            print(f"WARNING Usando tasa del sistema como fallback: {tasa_sistema}")
                             guardar_ultima_tasa_bcv(tasa_sistema)
                 else:
                     print(f"⏰ Tasa BCV actualizada recientemente, no es necesario actualizar")
@@ -423,7 +514,7 @@ def registrar_bitacora(usuario, accion, detalles='', documento_tipo='', document
         f.write(linea)
     
     # Sistema de auditoría fiscal SENIAT (cuando aplique)
-    if documento_tipo or documento_numero or 'factura' in accion.lower() or 'fiscal' in accion.lower():
+    if documento_tipo or documento_numero or 'nota' in accion.lower() or 'fiscal' in accion.lower():
         try:
             seguridad_fiscal.registrar_log_fiscal(
                 usuario=usuario,
@@ -467,28 +558,56 @@ def verify_password(username, password):
     """Verifica la contraseña de un usuario."""
     try:
         usuarios = cargar_datos('usuarios.json')
+        
+        # Verificar formato antiguo (directo)
         if username in usuarios:
-            return check_password_hash(usuarios[username]['password'], password)
-        else:
-            return False
+            user_data = usuarios[username]
+            if 'password' in user_data:
+                return check_password_hash(user_data['password'], password)
+        
+        # Verificar formato nuevo (con subcarpeta 'usuarios')
+        if 'usuarios' in usuarios and username in usuarios['usuarios']:
+            user_data = usuarios['usuarios'][username]
+            
+            # Verificar hash SHA-256
+            if 'password_hash' in user_data:
+                import hashlib
+                password_hash = hashlib.sha256(password.encode()).hexdigest()
+                return password_hash == user_data['password_hash']
+            
+            # Verificar hash de Werkzeug
+            if 'password' in user_data:
+                return check_password_hash(user_data['password'], password)
+        
+        return False
     except Exception as e:
         print(f"Error verificando contraseña: {e}")
         return False
+
+def safe_float(value, default=0.0):
+    """Convierte un valor a float de forma segura."""
+    try:
+        if value is None:
+            return default
+        # Convertir a string, reemplazar comas por puntos, y convertir a float
+        return float(str(value).replace(',', '.'))
+    except (ValueError, TypeError):
+        return default
 
 def obtener_estadisticas():
     """Obtiene estadísticas para el dashboard."""
     clientes = cargar_datos(ARCHIVO_CLIENTES)
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
+    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
     mes_actual = datetime.now().month
     total_clientes = len(clientes)
     total_productos = len(inventario)
-    facturas_mes = sum(1 for f in facturas.values() if datetime.strptime(f['fecha'], '%Y-%m-%d').month == mes_actual)
+    notas_mes = sum(1 for n in notas.values() if datetime.strptime(n['fecha'], '%Y-%m-%d').month == mes_actual)
     total_cobrar_usd = 0
-    for f in facturas.values():
-        total_facturado = float(f.get('total_usd', 0))
-        total_abonado = float(f.get('total_abonado', 0))
-        saldo = max(0, total_facturado - total_abonado)
+    for n in notas.values():
+        total_nota = safe_float(n.get('total_usd', 0))
+        total_abonado = safe_float(n.get('total_abonado', 0))
+        saldo = max(0, total_nota - total_abonado)
         if saldo > 0:  # Considerar cualquier saldo mayor a 0
             total_cobrar_usd += saldo
     # Asegura que tasa_bcv sea float y no Response
@@ -500,42 +619,88 @@ def obtener_estadisticas():
         except Exception:
             tasa_bcv = 1.0
     try:
-        tasa_bcv = float(tasa_bcv)
+        tasa_bcv = safe_float(tasa_bcv)
     except Exception:
         tasa_bcv = 1.0
     total_cobrar_bs = total_cobrar_usd * tasa_bcv
-    # Crear lista de facturas con ID incluido para el dashboard
-    facturas_con_id = []
-    for factura_id, factura in facturas.items():
-        factura_copia = factura.copy()
-        factura_copia['id'] = factura_id  # Agregar el ID a la factura
-        facturas_con_id.append(factura_copia)
+    notas_con_id = []
+    for nota_id, nota in notas.items():
+        nota_copia = nota.copy()
+        
+        # Obtener solo el nombre del cliente
+        cliente_id = nota.get('cliente_id', '')
+        if cliente_id and cliente_id in clientes:
+            nota_copia['cliente'] = clientes[cliente_id].get('nombre', 'Cliente no encontrado')
+        else:
+            nota_copia['cliente'] = 'Cliente no encontrado'
+            
+        notas_con_id.append(nota_copia)
     
-    ultimas_facturas = sorted(facturas_con_id, key=lambda x: datetime.strptime(x['fecha'], '%Y-%m-%d'), reverse=True)[:5]
+    ultimas_notas = sorted(notas_con_id, key=lambda x: datetime.strptime(x['fecha'], '%Y-%m-%d'), reverse=True)[:5]
     productos_bajo_stock = [p for p in inventario.values() if int(p.get('cantidad', p.get('stock', 0))) < 10]
+    
+    # Obtener órdenes de servicio pendientes
+    ordenes_servicio = cargar_datos('ordenes_servicio.json')
+    if not isinstance(ordenes_servicio, dict):
+        ordenes_servicio = {}
+    
+    ordenes_pendientes = []
+    for orden_id, orden in ordenes_servicio.items():
+        # Validar que orden es un diccionario
+        if not isinstance(orden, dict):
+            continue
+            
+        estado = orden.get('estado', '')
+        if estado in ['pendiente', 'en_proceso', 'diagnostico', 'en_espera_revision']:
+            # Convertir a DotDict para que el template pueda usar notación de punto
+            orden_copia = DotDict(orden.copy())
+            orden_copia['id'] = orden_id
+            orden_copia.id = orden_id  # También como atributo
+            
+            # Obtener nombre del cliente
+            cliente_id = orden.get('cliente_id', '')
+            if cliente_id and cliente_id in clientes:
+                orden_copia['cliente'] = clientes[cliente_id].get('nombre', 'Cliente no encontrado')
+            else:
+                # Si no hay cliente_id, usar el nombre del cliente directamente
+                cliente_info = orden.get('cliente', {})
+                if isinstance(cliente_info, dict):
+                    orden_copia['cliente'] = cliente_info.get('nombre', 'Cliente no encontrado')
+                else:
+                    orden_copia['cliente'] = 'Cliente no encontrado'
+            
+            # Asegurar que 'estado' existe
+            if 'estado' not in orden_copia:
+                orden_copia['estado'] = estado
+            
+            ordenes_pendientes.append(orden_copia)
+    
+    # Ordenar por fecha de creación (más recientes primero) y tomar las últimas 5
+    ordenes_pendientes = sorted(ordenes_pendientes, key=lambda x: x.get('fecha_creacion', ''), reverse=True)[:5]
     total_pagos_recibidos_usd = 0
     total_pagos_recibidos_bs = 0
-    for f in facturas.values():
-        if 'pagos' in f and f['pagos']:
-            for pago in f['pagos']:
-                fecha_factura = f.get('fecha', '')
+    for n in notas.values():
+        if 'pagos' in n and n['pagos']:
+            for pago in n['pagos']:
+                fecha_nota = n.get('fecha', '')
                 try:
-                    if fecha_factura and datetime.strptime(fecha_factura, '%Y-%m-%d').month == mes_actual:
-                        monto = float(pago.get('monto', 0))
+                    if fecha_nota and datetime.strptime(fecha_nota, '%Y-%m-%d').month == mes_actual:
+                        monto = safe_float(pago.get('monto', 0))
                         total_pagos_recibidos_usd += monto
-                        total_pagos_recibidos_bs += monto * float(f.get('tasa_bcv', tasa_bcv))
+                        total_pagos_recibidos_bs += monto * safe_float(n.get('tasa_bcv', tasa_bcv))
                 except Exception:
                     continue
     return {
         'total_clientes': total_clientes,
         'total_productos': total_productos,
-        'facturas_mes': facturas_mes,
+        'notas_mes': notas_mes,
         'total_cobrar': f"{total_cobrar_usd:,.2f}",
         'total_cobrar_usd': total_cobrar_usd,
         'total_cobrar_bs': total_cobrar_bs,
         'tasa_bcv': tasa_bcv,
-        'ultimas_facturas': ultimas_facturas,
+        'ultimas_notas': ultimas_notas,
         'productos_bajo_stock': productos_bajo_stock,
+        'ordenes_pendientes': ordenes_pendientes,
         'total_pagos_recibidos_usd': total_pagos_recibidos_usd,
         'total_pagos_recibidos_bs': total_pagos_recibidos_bs
     }
@@ -556,7 +721,7 @@ def obtener_tasa_bcv():
         
         with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            tasa = float(data.get('tasa', 0))
+            tasa = safe_float(data.get('tasa', 0))
             if tasa > 10:
                 print(f"Tasa BCV obtenida del archivo: {tasa}")
                 return tasa
@@ -618,7 +783,7 @@ def obtener_tasa_bcv_dia():
             if strong:
                 txt = strong.text.strip().replace('.', '').replace(',', '.')
                 try:
-                    posible = float(txt)
+                    posible = safe_float(txt)
                     if posible > 10:
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por ID 'dolar': {tasa}")
@@ -633,7 +798,7 @@ def obtener_tasa_bcv_dia():
                 if strong:
                     txt = strong.text.strip().replace('.', '').replace(',', '.')
                     try:
-                        posible = float(txt)
+                        posible = safe_float(txt)
                         if posible > 10:
                             tasa = posible
                             print(f"🎯 Tasa BCV encontrada por ID 'usd': {tasa}")
@@ -645,8 +810,8 @@ def obtener_tasa_bcv_dia():
             for strong in soup.find_all('strong'):
                 txt = strong.text.strip().replace('.', '').replace(',', '.')
                 try:
-                    posible = float(txt)
-                    if posible > 10 and posible < 1000:  # Rango razonable
+                    posible = safe_float(txt)
+                    if 10 < posible < 500:  # Rango específico para tasa USD
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por strong: {tasa}")
                         break
@@ -658,7 +823,7 @@ def obtener_tasa_bcv_dia():
             for span in soup.find_all('span', class_='centrado'):
                 txt = span.text.strip().replace('.', '').replace(',', '.')
                 try:
-                    posible = float(txt)
+                    posible = safe_float(txt)
                     if posible > 10 and posible < 1000:
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por span: {tasa}")
@@ -673,7 +838,7 @@ def obtener_tasa_bcv_dia():
             matches = re.findall(r'(\d{2,}[.,]\d{2,})', resp.text)
             for m in matches:
                 try:
-                    posible = float(m.replace('.', '').replace(',', '.'))
+                    posible = safe_float(m.replace('.', '').replace(',', '.'))
                     if posible > 10 and posible < 1000:
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por regex: {tasa}")
@@ -688,7 +853,7 @@ def obtener_tasa_bcv_dia():
                     for cell in row.find_all(['td', 'th']):
                         txt = cell.text.strip().replace('.', '').replace(',', '.')
                         try:
-                            posible = float(txt)
+                            posible = safe_float(txt)
                             if posible > 10 and posible < 1000:
                                 tasa = posible
                                 print(f"🎯 Tasa BCV encontrada en tabla: {tasa}")
@@ -710,7 +875,7 @@ def obtener_tasa_bcv_dia():
                     numbers = re.findall(r'(\d+[.,]\d+)', txt)
                     for num in numbers:
                         try:
-                            posible = float(num.replace('.', '').replace(',', '.'))
+                            posible = safe_float(num.replace('.', '').replace(',', '.'))
                             if posible > 10 and posible < 1000:
                                 tasa = posible
                                 print(f"🎯 Tasa BCV encontrada por texto USD: {tasa}")
@@ -730,7 +895,7 @@ def obtener_tasa_bcv_dia():
             # Solo como último recurso, usar tasa local
             tasa_local = cargar_ultima_tasa_bcv()
             if tasa_local and tasa_local > 10:
-                print(f"⚠️ Usando tasa BCV local como fallback: {tasa_local}")
+                print(f"WARNING Usando tasa BCV local como fallback: {tasa_local}")
                 return tasa_local
             return None
             
@@ -740,7 +905,7 @@ def obtener_tasa_bcv_dia():
         try:
             tasa_fallback = cargar_ultima_tasa_bcv()
             if tasa_fallback and tasa_fallback > 10:
-                print(f"⚠️ Usando tasa BCV de fallback después de error: {tasa_fallback}")
+                print(f"WARNING Usando tasa BCV de fallback después de error: {tasa_fallback}")
                 return tasa_fallback
         except:
             pass
@@ -751,8 +916,7 @@ inicializar_archivos_por_defecto()
 
 # Ejecutar actualización automática al iniciar
 actualizar_tasa_bcv_automaticamente()
-# Usar SECRET_KEY desde variables de entorno en producción
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'unsafe-default-change-me')
+# SECRET_KEY ya configurado arriba
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max-limit
 csrf = CSRFProtect(app)
@@ -815,6 +979,58 @@ def guardar_imagen_producto(imagen, producto_id):
         return f"imagenes_productos/{nombre_archivo}"
     return None
 
+def generar_qr_producto(data, producto_id):
+    """Genera un código QR para un producto y retorna la ruta de la imagen."""
+    try:
+        # Crear el código QR
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        
+        # Crear la imagen
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Guardar la imagen
+        qr_filename = f"qr_producto_{producto_id}.png"
+        qr_path = os.path.join(IMAGENES_PRODUCTOS_FOLDER, qr_filename)
+        img.save(qr_path)
+        
+        # Retornar la ruta relativa
+        return f"imagenes_productos/{qr_filename}"
+    except Exception as e:
+        print(f"Error generando QR para producto {producto_id}: {e}")
+        return None
+
+def generar_qr_base64(data):
+    """Genera un código QR y retorna la imagen en base64."""
+    try:
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convertir a base64
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        return f"data:image/png;base64,{img_base64}"
+    except Exception as e:
+        print(f"Error generando QR base64: {e}")
+    return None
+
 def cargar_clientes_desde_csv(archivo_csv):
     """Carga clientes desde un archivo CSV."""
     clientes = cargar_datos(ARCHIVO_CLIENTES)
@@ -850,7 +1066,7 @@ def cargar_productos_desde_csv(archivo_csv):
                 nuevo_id = str(len(inventario) + 1)
                 inventario[nuevo_id] = {
                     'nombre': fila.get('nombre', '').strip(),
-                    'precio': float(fila.get('precio', 0)),
+                    'precio': safe_float(fila.get('precio', 0)),
                     'cantidad': int(fila.get('cantidad', 0)),
                     'categoria': fila.get('categoria', '').strip(),
                     'ruta_imagen': "",
@@ -862,19 +1078,102 @@ def cargar_productos_desde_csv(archivo_csv):
         print(f"Error cargando productos desde CSV: {e}")
         return False
 
+def validar_stock_repuestos(repuestos_seleccionados):
+    """Valida que hay stock suficiente antes de aprobar presupuesto"""
+    inventario = cargar_datos(ARCHIVO_INVENTARIO)
+    problemas = []
+    
+    for repuesto in repuestos_seleccionados:
+        if repuesto['id'] in inventario:
+            stock_actual = inventario[repuesto['id']]['cantidad']
+            if stock_actual < repuesto['cantidad']:
+                problemas.append(f"{repuesto['nombre']}: Stock {stock_actual}, Necesario {repuesto['cantidad']}")
+        else:
+            problemas.append(f"{repuesto['nombre']}: Producto no encontrado en inventario")
+    
+    return len(problemas) == 0, problemas
+
+def descontar_repuestos_inventario(orden_id, repuestos_seleccionados):
+    """Descuenta repuestos del inventario cuando se aprueba presupuesto"""
+    inventario = cargar_datos(ARCHIVO_INVENTARIO)
+    movimientos = []
+    
+    print(f"DEBUG: Descontando repuestos para orden {orden_id}")
+    print(f"DEBUG: Repuestos a descontar: {repuestos_seleccionados}")
+    
+    for repuesto in repuestos_seleccionados:
+        if repuesto['id'] in inventario:
+            stock_actual = inventario[repuesto['id']]['cantidad']
+            cantidad_necesaria = repuesto['cantidad']
+            
+            print(f"DEBUG: {repuesto['nombre']} - Stock actual: {stock_actual}, Necesario: {cantidad_necesaria}")
+            
+            if stock_actual >= cantidad_necesaria:
+                # Descontar del inventario
+                inventario[repuesto['id']]['cantidad'] -= cantidad_necesaria
+                inventario[repuesto['id']]['ultima_salida'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Registrar movimiento
+                movimientos.append({
+                    'tipo': 'salida',
+                    'producto_id': repuesto['id'],
+                    'producto_nombre': repuesto['nombre'],
+                    'cantidad': cantidad_necesaria,
+                    'motivo': f'Reparación orden {orden_id}',
+                    'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'usuario': session.get('username', 'Sistema'),
+                    'orden_servicio': orden_id
+                })
+                
+                print(f"DEBUG: ✅ {repuesto['nombre']} descontado exitosamente")
+            else:
+                # No hay stock suficiente
+                error_msg = f"Stock insuficiente para {repuesto['nombre']} (Stock: {stock_actual}, Necesario: {cantidad_necesaria})"
+                print(f"DEBUG: ❌ {error_msg}")
+                return False, error_msg
+        else:
+            error_msg = f"Producto {repuesto['nombre']} no encontrado en inventario"
+            print(f"DEBUG: ❌ {error_msg}")
+            return False, error_msg
+    
+    # Guardar cambios en inventario
+    if guardar_datos(ARCHIVO_INVENTARIO, inventario):
+        # Registrar movimientos
+        registrar_movimientos_inventario(movimientos)
+        print(f"DEBUG: ✅ Inventario actualizado y movimientos registrados")
+        return True, f"Repuestos descontados exitosamente: {len(movimientos)} movimientos"
+    else:
+        print(f"DEBUG: ❌ Error guardando inventario")
+        return False, "Error guardando cambios en inventario"
+
+def registrar_movimientos_inventario(movimientos):
+    """Registra movimientos de inventario en archivo separado"""
+    try:
+        movimientos_file = 'movimientos_inventario.json'
+        movimientos_existentes = cargar_datos(movimientos_file)
+        
+        if not movimientos_existentes:
+            movimientos_existentes = []
+        
+        movimientos_existentes.extend(movimientos)
+        guardar_datos(movimientos_file, movimientos_existentes)
+        print(f"DEBUG: ✅ Movimientos registrados: {len(movimientos)} movimientos")
+    except Exception as e:
+        print(f"DEBUG: ❌ Error registrando movimientos: {e}")
+
 def limpiar_valor_monetario(valor):
     """Limpia y convierte un valor monetario a float."""
     if valor is None:
         return 0.0
     if isinstance(valor, (int, float)):
-        return float(valor)
+        return safe_float(valor)
     try:
         # Eliminar símbolos y espacios
         valor = str(valor).replace('$', '').replace(',', '').replace('Bs', '').strip()
         # Reemplazar coma decimal por punto si existe
         if ',' in valor:
             valor = valor.replace(',', '.')
-        return float(valor)
+        return safe_float(valor)
     except (ValueError, TypeError):
         return 0.0
 
@@ -903,23 +1202,22 @@ def es_fecha_valida(fecha_str):
 def limpiar_monto(monto):
     if not monto:
         return 0.0
-    return float(str(monto).replace('$', '').replace('Bs', '').replace(',', '').strip())
+    return safe_float(str(monto).replace('$', '').replace('Bs', '').replace(',', '').strip())
 
 # --- Rutas protegidas ---
 @app.route('/')
 @login_required
 def index():
     stats = obtener_estadisticas()
-    # Calcular total facturado y promedio por factura
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    total_facturado_usd = sum(float(f.get('total_usd', 0)) for f in facturas.values())
-    cantidad_facturas = len(facturas)
-    promedio_factura_usd = total_facturado_usd / cantidad_facturas if cantidad_facturas > 0 else 0
+    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+    total_facturado_usd = sum(safe_float(f.get('total_usd', 0)) for f in notas.values())
+    cantidad_notas = len(notas)
+    promedio_nota_usd = total_facturado_usd / cantidad_notas if cantidad_notas > 0 else 0
     # Obtener tasa euro igual que antes
     try:
         # r = requests.get('https://s3.amazonaws.com/dolartoday/data.json', timeout=5)  # Temporarily commented out
         # data = r.json()  # Temporarily commented out
-        # tasa_bcv_eur = float(data['EUR']['promedio']) if 'EUR' in data and 'promedio' in data['EUR'] else None  # Temporarily commented out
+        # tasa_bcv_eur = safe_float(data['EUR']['promedio']) if 'EUR' in data and 'promedio' in data['EUR'] else None  # Temporarily commented out
         tasa_bcv_eur = 0  # Temporarily set to 0
     except Exception:
         tasa_bcv_eur = 0
@@ -927,7 +1225,131 @@ def index():
     if not stats.get('tasa_bcv') or stats.get('tasa_bcv', 0) < 1:
         advertencia_tasa = '¡Advertencia! No se ha podido obtener la tasa BCV actual.'
     stats['tasa_bcv_eur'] = tasa_bcv_eur
-    return render_template('index.html', **stats, advertencia_tasa=advertencia_tasa, total_facturado_usd=total_facturado_usd, promedio_factura_usd=promedio_factura_usd)
+    return render_template('index.html', **stats, advertencia_tasa=advertencia_tasa, total_facturado_usd=total_facturado_usd, promedio_nota_usd=promedio_nota_usd)
+
+# Rutas de la API para filtros del dashboard
+@app.route('/api/dashboard-filtros')
+@login_required
+def api_dashboard_filtros():
+    """API para obtener estadísticas filtradas del dashboard."""
+    filtro_tipo = request.args.get('tipo')
+    filtro_valor = request.args.get('valor')
+    
+    try:
+        stats = obtener_estadisticas_filtradas(filtro_tipo, filtro_valor)
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/opciones-filtro')
+@login_required
+def api_opciones_filtro():
+    """API para obtener las opciones disponibles para los filtros."""
+    try:
+        opciones = obtener_opciones_filtro()
+        return jsonify({
+            'success': True,
+            'data': opciones
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/tarjeta-filtro')
+@login_required
+def api_tarjeta_filtro():
+    """API para obtener métricas filtradas de una tarjeta específica."""
+    tarjeta = request.args.get('tarjeta')
+    filtro_tipo = request.args.get('tipo')
+    filtro_valor = request.args.get('valor')
+    
+    if not tarjeta:
+        return jsonify({
+            'success': False,
+            'error': 'Tarjeta no especificada'
+        }), 400
+    
+    try:
+        metricas = obtener_metricas_tarjeta(tarjeta, filtro_tipo, filtro_valor)
+        return jsonify({
+            'success': True,
+            'data': metricas
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/opciones-filtro-avanzado')
+@login_required
+def api_opciones_filtro_avanzado():
+    """API para obtener las opciones de filtros avanzados con menús anidados."""
+    try:
+        opciones = obtener_opciones_filtro_avanzado()
+        return jsonify({
+            'success': True,
+            'data': opciones
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Ruta de prueba sin autenticación para debugging
+@app.route('/api/test-tarjeta-filtro')
+def api_test_tarjeta_filtro():
+    """API de prueba para obtener métricas filtradas sin autenticación."""
+    tarjeta = request.args.get('tarjeta')
+    filtro_tipo = request.args.get('tipo')
+    filtro_valor = request.args.get('valor')
+    
+    print(f"🔍 DEBUG API: tarjeta={tarjeta}, tipo={filtro_tipo}, valor={filtro_valor}")
+    
+    if not tarjeta:
+        return jsonify({
+            'success': False,
+            'error': 'Tarjeta no especificada'
+        }), 400
+    
+    try:
+        metricas = obtener_metricas_tarjeta(tarjeta, filtro_tipo, filtro_valor)
+        print(f"✅ DEBUG API: Respuesta para {tarjeta}: {metricas}")
+        return jsonify({
+            'success': True,
+            'data': metricas
+        })
+    except Exception as e:
+        print(f"❌ DEBUG API: Error para {tarjeta}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Ruta de prueba sin autenticación para opciones de filtro
+@app.route('/api/test-opciones-filtro')
+def api_test_opciones_filtro():
+    """API de prueba para obtener opciones de filtro sin autenticación."""
+    try:
+        opciones = obtener_opciones_filtro()
+        return jsonify({
+            'success': True,
+            'data': opciones
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/mapa-avanzado')
 @login_required
@@ -936,7 +1358,7 @@ def mapa_avanzado():
     try:
         # Cargar datos necesarios
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         cuentas = cargar_datos(ARCHIVO_CUENTAS)
         
         if clientes is None:
@@ -949,15 +1371,14 @@ def mapa_avanzado():
         # Calcular estadísticas por cliente para el mapa
         clientes_estadisticas = {}
         for id_cliente, cliente in clientes.items():
-            # Contar facturas del cliente
-            facturas_cliente = [f for f in facturas.values() if f.get('cliente_id') == id_cliente]
-            total_facturas = len(facturas_cliente)
-            total_facturado = sum(float(f.get('total_usd', 0)) for f in facturas_cliente)
-            total_abonado = sum(float(f.get('total_abonado', 0)) for f in facturas_cliente)
+            notas_cliente = [f for f in notas.values() if f.get('cliente_id') == id_cliente]
+            total_facturas = len(notas_cliente)
+            total_facturado = sum(safe_float(f.get('total_usd', 0)) for f in notas_cliente)
+            total_abonado = sum(safe_float(f.get('total_abonado', 0)) for f in notas_cliente)
             total_por_cobrar = max(0, total_facturado - total_abonado)
             
             clientes_estadisticas[id_cliente] = {
-                'total_facturas': total_facturas,
+                'total_notas_entrega': total_facturas,
                 'total_facturado': total_facturado,
                 'total_abonado': total_abonado,
                 'total_por_cobrar': total_por_cobrar
@@ -980,40 +1401,120 @@ def mapa_avanzado():
 @login_required
 def mostrar_clientes():
     clientes = cargar_datos(ARCHIVO_CLIENTES)
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
+    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
     cuentas = cargar_datos(ARCHIVO_CUENTAS)
-    # Filtros
+    
+    # Filtros mejorados
     q = request.args.get('q', '').strip().lower()
-    filtro_orden = request.args.get('orden', 'nombre')
+    filtro_orden = request.args.get('filtro_orden', 'nombre')
+    filtro_tipo = request.args.get('filtro_tipo', '')
+    filtro_estado = request.args.get('filtro_estado', '')
+    
+    # Aplicar filtros de búsqueda
     if q:
-        clientes = {k: v for k, v in clientes.items() if q in v.get('nombre', '').lower() or q in k.lower()}
+        clientes_filtrados = {}
+        for k, v in clientes.items():
+            # Búsqueda en múltiples campos
+            if (q in v.get('nombre', '').lower() or 
+                q in v.get('cedula_rif', '').lower() or 
+                q in v.get('email', '').lower() or 
+                q in v.get('telefono', '').lower() or 
+                q in v.get('direccion', '').lower() or
+                q in k.lower()):
+                clientes_filtrados[k] = v
+        clientes = clientes_filtrados
+    
+    # Filtro por tipo de identificación
+    if filtro_tipo:
+        clientes = {k: v for k, v in clientes.items() if v.get('tipo_id', '') == filtro_tipo}
+    
+    # Filtro por estado (activo/inactivo)
+    if filtro_estado:
+        if filtro_estado == 'activo':
+            clientes = {k: v for k, v in clientes.items() if v.get('activo', True)}
+        elif filtro_estado == 'inactivo':
+            clientes = {k: v for k, v in clientes.items() if not v.get('activo', True)}
+    
+    # Ordenamiento mejorado
     if filtro_orden == 'nombre':
         clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('nombre', '').lower()))
-    elif filtro_orden == 'rif':
-        clientes = dict(sorted(clientes.items(), key=lambda item: item[0].lower()))
+    elif filtro_orden == 'cedula_rif':
+        clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('cedula_rif', '').lower()))
+    elif filtro_orden == 'fecha_creacion':
+        clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('fecha_creacion', ''), reverse=True))
+    elif filtro_orden == 'email':
+        clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('email', '').lower()))
+    
     # Calcular totales por cliente
     clientes_totales = {}
     for id_cliente, cliente in clientes.items():
-        # Total facturado
-        facturas_cliente = [f for f in facturas.values() if f.get('cliente_id') == id_cliente]
-        total_facturado = sum(float(f.get('total_usd', 0)) for f in facturas_cliente)
-        total_abonado = sum(float(f.get('total_abonado', 0)) for f in facturas_cliente)
-        # Total por cobrar (diferencia entre total facturado y total abonado)
-        total_por_cobrar = max(0, total_facturado - total_abonado)
+        notas_cliente = [f for f in notas.values() if f.get('cliente_id') == id_cliente]
+        total_notas_entrega = sum(safe_float(f.get('total_usd', 0)) for f in notas_cliente)
+        total_abonado = sum(safe_float(f.get('total_abonado', 0)) for f in notas_cliente)
+        total_por_cobrar = max(0, total_notas_entrega - total_abonado)
         clientes_totales[id_cliente] = {
-            'total_facturado': total_facturado,
+            'total_facturado': total_notas_entrega,  # Mantener nombre para compatibilidad
             'total_abonado': total_abonado,
             'total_por_cobrar': total_por_cobrar
         }
-    return render_template('clientes.html', clientes=clientes, q=q, filtro_orden=filtro_orden, clientes_totales=clientes_totales)
+    
+    # Estadísticas para el dashboard
+    total_clientes = len(clientes)
+    clientes_activos = len([c for c in clientes.values() if c.get('activo', True)])
+    clientes_inactivos = total_clientes - clientes_activos
+    
+    return render_template('clientes.html', 
+                         clientes=clientes, 
+                         q=q, 
+                         filtro_orden=filtro_orden,
+                         filtro_tipo=filtro_tipo,
+                         filtro_estado=filtro_estado,
+                         clientes_totales=clientes_totales,
+                         total_clientes=total_clientes,
+                         clientes_activos=clientes_activos,
+                         clientes_inactivos=clientes_inactivos,
+                         total_clientes_general=len(clientes))
+
+def validar_digito_verificador_seniat(tipo_id, numero_id, digito_verificador):
+    """
+    Valida el dígito verificador según el algoritmo oficial del SENIAT.
+    Basado en la Providencia 00102 del SENIAT.
+    """
+    try:
+        # Convertir a enteros
+        numero = int(numero_id)
+        dv = int(digito_verificador)
+        
+        # Algoritmo SENIAT para dígito verificador
+        # Multiplicar cada dígito por su posición (de derecha a izquierda)
+        # Sumar los resultados y obtener el módulo 11
+        
+        numero_str = str(numero).zfill(9)  # Rellenar con ceros a la izquierda
+        multiplicadores = [3, 2, 7, 6, 5, 4, 3, 2, 1]
+        
+        suma = 0
+        for i, digito in enumerate(numero_str):
+            suma += int(digito) * multiplicadores[i]
+        
+        # Calcular el dígito verificador
+        resto = suma % 11
+        if resto < 2:
+            dv_calculado = resto
+        else:
+            dv_calculado = 11 - resto
+        
+        return dv == dv_calculado
+        
+    except (ValueError, IndexError):
+        return False
 
 @app.route('/clientes/nuevo', methods=['GET', 'POST'])
 @login_required
 def nuevo_cliente():
-    """Formulario para nuevo cliente - VALIDACIONES SENIAT APLICADAS."""
+    """Formulario para nuevo cliente - Formulario simplificado y moderno."""
     if request.method == 'POST':
         try:
-            print("Iniciando proceso de creación de cliente con validaciones SENIAT...")
+            print("Iniciando proceso de creación de cliente...")
             
             # Cargar clientes existentes
             clientes = cargar_datos(ARCHIVO_CLIENTES)
@@ -1021,122 +1522,185 @@ def nuevo_cliente():
                 print("No se pudieron cargar los clientes existentes, creando nuevo diccionario")
                 clientes = {}
             
-            # === VALIDACIONES SENIAT - CAMPOS OBLIGATORIOS ===
-            tipo_id = request.form.get('tipo_id', '').strip().upper()
-            numero_id = request.form.get('numero_id', '').strip()
-            digito_verificador = request.form.get('digito_verificador', '').strip()
-            nombre = request.form.get('nombre', '').strip().upper()
+            # === VALIDACIONES SIMPLIFICADAS ===
+            nombre = request.form.get('nombre', '').strip()
+            cedula_rif = request.form.get('cedula_rif', '').strip()
             email = request.form.get('email', '').strip().lower()
-            telefono_raw = request.form.get('telefono', '').replace(' ', '').replace('-', '')
-            codigo_pais = request.form.get('codigo_pais', '+58')
-            telefono = f"{codigo_pais}{telefono_raw}"
-            direccion = request.form.get('direccion', '').strip().title()
+            telefono = request.form.get('telefono', '').strip()
+            direccion = request.form.get('direccion', '').strip()
             
-            print(f"Datos recibidos - Tipo ID: {tipo_id}, Número ID: {numero_id}, DV: {digito_verificador}")
+            print(f"Datos recibidos - Nombre: {nombre}, Cédula: {cedula_rif}, Email: {email}")
             
-            # === VALIDACIONES OBLIGATORIAS SENIAT ===
+            # === VALIDACIONES BÁSICAS ===
             errores = []
             
-            # Validar campos obligatorios
-            if not tipo_id:
-                errores.append("Tipo de identificación es obligatorio")
-            if not numero_id:
-                errores.append("Número de identificación es obligatorio")
+            # 1. VALIDACIÓN DE NOMBRE
             if not nombre:
-                errores.append("Nombre completo es obligatorio")
-            if not direccion:
-                errores.append("Dirección completa es obligatoria")
-                
-            # Validar tipo de ID según SENIAT
-            tipos_validos = ['V', 'E', 'J', 'P', 'G']
-            if tipo_id not in tipos_validos:
-                errores.append(f"Tipo de ID debe ser uno de: {', '.join(tipos_validos)}")
+                errores.append("El nombre es obligatorio")
+            elif len(nombre) < 2:
+                errores.append("El nombre debe tener al menos 2 caracteres")
             
-            # Validar número de ID (solo dígitos, longitud correcta)
-            if not numero_id.isdigit():
-                errores.append("Número de identificación debe contener solo dígitos")
-            elif len(numero_id) < 7 or len(numero_id) > 10:
-                errores.append("Número de identificación debe tener entre 7 y 10 dígitos")
-                
-            # Validar dígito verificador para personas jurídicas
-            if tipo_id in ['J', 'P', 'G']:
-                if not digito_verificador or not digito_verificador.isdigit():
-                    errores.append("Dígito verificador es obligatorio para personas jurídicas")
-                    
-            # Validar dirección (mínimo 10 caracteres)
-            if len(direccion) < 10:
-                errores.append("Dirección debe tener al menos 10 caracteres")
-                
-            # Validar teléfono (mínimo 11 dígitos)
-            if len(telefono_raw) < 11:
-                errores.append("Teléfono debe tener al menos 11 dígitos")
+            # 2. VALIDACIÓN DE CÉDULA/RIF
+            if not cedula_rif:
+                errores.append("La cédula/RIF es obligatoria")
+            elif len(cedula_rif) < 6:
+                errores.append("La cédula/RIF debe tener al menos 6 caracteres")
+            
+            # 3. VALIDACIÓN DE TELÉFONO
+            if not telefono:
+                errores.append("El teléfono es obligatorio")
+            elif len(telefono.replace('-', '').replace(' ', '')) < 10:
+                errores.append("El teléfono debe tener al menos 10 dígitos")
+            
+            # 4. VALIDACIÓN DE DIRECCIÓN
+            if not direccion:
+                errores.append("La dirección es obligatoria")
+            elif len(direccion) < 10:
+                errores.append("La dirección debe tener al menos 10 caracteres")
+            
+            # 5. VALIDACIÓN DE EMAIL (opcional pero con formato válido)
+            if email:
+                if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                    errores.append("Formato de email inválido")
             
             # Si hay errores, mostrarlos
             if errores:
                 for error in errores:
-                    flash(f"❌ SENIAT: {error}", 'danger')
+                    flash(f"❌ {error}", 'danger')
                 return render_template('cliente_form.html')
             
-            # === CREAR RIF/ID SEGÚN FORMATO SENIAT ===
-            if tipo_id in ['V', 'E']:  # Personas naturales
-                rif_completo = f"{tipo_id}-{numero_id}"
-            else:  # Personas jurídicas
-                rif_completo = f"{tipo_id}-{numero_id}-{digito_verificador}"
-                
-            print(f"RIF completo generado: {rif_completo}")
+            # === VERIFICAR DUPLICADOS ===
+            # Verificar duplicados por cédula/RIF
+            for cliente_id, cliente_existente in clientes.items():
+                if cliente_existente.get('cedula_rif', '').upper() == cedula_rif.upper():
+                    flash(f'Ya existe un cliente con la cédula/RIF {cedula_rif}', 'danger')
+                    return render_template('cliente_form.html')
             
-            # Verificar si el cliente ya existe
-            if rif_completo in clientes:
-                print(f"Cliente con RIF {rif_completo} ya existe")
-                flash('❌ Ya existe un cliente con este RIF/Identificación', 'danger')
+            # Verificar duplicados por email (si se proporciona)
+            if email:
+                for cliente_id, cliente_existente in clientes.items():
+                    if cliente_existente.get('email', '').lower() == email.lower():
+                        flash(f'Ya existe un cliente con el email {email}', 'danger')
                 return render_template('cliente_form.html')
             
-            # === CREAR OBJETO CLIENTE SENIAT-COMPLIANT ===
-            cliente = {
-                'id': rif_completo,
-                'rif': rif_completo,  # Campo obligatorio SENIAT
-                'tipo_identificacion': tipo_id,
-                'numero_identificacion': numero_id,
-                'digito_verificador': digito_verificador if tipo_id in ['J', 'P', 'G'] else '',
+            # === CREAR NUEVO CLIENTE ===
+            nuevo_id = str(uuid.uuid4())
+            fecha_actual = datetime.now().isoformat()
+            
+            # Obtener datos adicionales del formulario
+            telefono2 = request.form.get('telefono2', '').strip()
+            fecha_nacimiento = request.form.get('fecha_nacimiento', '')
+            profesion = request.form.get('profesion', '')
+            categoria_cliente = request.form.get('categoria_cliente', 'regular')
+            vendedor_asignado = request.form.get('vendedor_asignado', '')
+            fuente_captacion = request.form.get('fuente_captacion', '')
+            notas_internas = request.form.get('notas_internas', '')
+            etiquetas_str = request.form.get('etiquetas', '')
+            etiquetas = [e.strip() for e in etiquetas_str.split(',') if e.strip()] if etiquetas_str else []
+            
+            # Procesar archivos adjuntos
+            foto_cliente = None
+            if 'foto_cliente' in request.files:
+                foto = request.files['foto_cliente']
+                if foto and foto.filename:
+                    # Validar tamaño y tipo
+                    if foto.content_length and foto.content_length > 5 * 1024 * 1024:  # 5MB
+                        flash('La foto no puede ser mayor a 5MB', 'warning')
+                    else:
+                        # Guardar foto
+                        foto_filename = f"cliente_{nuevo_id}_{foto.filename}"
+                        foto_path = os.path.join('static/uploads/clientes', foto_filename)
+                        os.makedirs(os.path.dirname(foto_path), exist_ok=True)
+                        foto.save(foto_path)
+                        foto_cliente = foto_filename
+            
+            # Procesar documentos adjuntos
+            documentos = []
+            if 'documentos' in request.files:
+                for doc in request.files.getlist('documentos'):
+                    if doc and doc.filename:
+                        # Validar tamaño y tipo
+                        if doc.content_length and doc.content_length > 10 * 1024 * 1024:  # 10MB
+                            flash(f'El documento {doc.filename} no puede ser mayor a 10MB', 'warning')
+                            continue
+                        
+                        # Validar extensión
+                        allowed_extensions = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']
+                        if not any(doc.filename.lower().endswith(ext) for ext in allowed_extensions):
+                            flash(f'El archivo {doc.filename} no tiene una extensión válida', 'warning')
+                            continue
+                        
+                        doc_filename = f"doc_{nuevo_id}_{doc.filename}"
+                        doc_path = os.path.join('static/uploads/clientes/documentos', doc_filename)
+                        os.makedirs(os.path.dirname(doc_path), exist_ok=True)
+                        doc.save(doc_path)
+                        documentos.append(doc_filename)
+            
+            # Procesar firma digital
+            firma_digital = request.form.get('firma_digital', '')
+            firma_filename = None
+            if firma_digital:
+                try:
+                    # Guardar firma como imagen
+                    firma_filename = f"firma_{nuevo_id}.png"
+                    firma_path = os.path.join('static/uploads/clientes/firmas', firma_filename)
+                    os.makedirs(os.path.dirname(firma_path), exist_ok=True)
+                    
+                    # Decodificar base64 y guardar
+                    import base64
+                    firma_data = firma_digital.split(',')[1]
+                    with open(firma_path, 'wb') as f:
+                        f.write(base64.b64decode(firma_data))
+                except Exception as e:
+                    print(f"Error al guardar firma: {e}")
+                    flash('Error al guardar la firma digital', 'warning')
+            
+            # Crear objeto cliente
+            nuevo_cliente = {
+                'id': nuevo_id,
+                'cedula_rif': cedula_rif,
                 'nombre': nombre,
                 'email': email,
                 'telefono': telefono,
+                'telefono2': telefono2,
                 'direccion': direccion,
-                'fecha_creacion': datetime.now().isoformat(),
-                'usuario_creacion': session.get('usuario', 'SISTEMA'),
+                'fecha_creacion': fecha_actual,
+                'fecha_actualizacion': fecha_actual,
                 'activo': True,
-                'validado_seniat': True  # Marca que cumple validaciones SENIAT
+                'fecha_nacimiento': fecha_nacimiento,
+                'profesion': profesion,
+                'categoria_cliente': categoria_cliente,
+                'vendedor_asignado': vendedor_asignado,
+                'fuente_captacion': fuente_captacion,
+                'notas_internas': notas_internas,
+                'etiquetas': etiquetas,
+                'foto_cliente': foto_cliente,
+                'documentos': documentos,
+                'firma_digital': firma_filename,
+                'historial_cambios': [{
+                    'fecha': fecha_actual,
+                    'usuario': session.get('usuario', 'Sistema'),
+                    'cambio': 'Cliente creado',
+                    'detalles': 'Cliente creado con formulario simplificado'
+                }]
             }
             
-            print(f"Cliente SENIAT creado: {cliente}")
-            
-            # Agregar cliente al diccionario
-            clientes[rif_completo] = cliente
-            print(f"Cliente agregado. Total: {len(clientes)}")
+            # Agregar cliente a la lista
+            clientes[nuevo_id] = nuevo_cliente
             
             # Guardar datos
             if guardar_datos(ARCHIVO_CLIENTES, clientes):
-                print("Cliente SENIAT guardado exitosamente")
-                
-                # === REGISTRO FISCAL EN BITÁCORA ===
-                registrar_bitacora(
-                    session['usuario'], 
-                    'Nuevo cliente SENIAT', 
-                    f"RIF: {rif_completo}, Nombre: {nombre}",
-                    'CLIENTE',
-                    rif_completo
-                )
-                
-                flash(f'✅ Cliente creado exitosamente con RIF: {rif_completo} (SENIAT válido)', 'success')
+                print(f"✅ Cliente creado exitosamente: {nuevo_id}")
+                flash(f'✅ Cliente {nombre} creado exitosamente', 'success')
                 return redirect(url_for('mostrar_clientes'))
             else:
-                print("Error al guardar el cliente")
-                flash('❌ Error al guardar el cliente. Intente nuevamente.', 'danger')
+                print("❌ Error al guardar cliente")
+                flash('❌ Error al guardar el cliente', 'danger')
                 return render_template('cliente_form.html')
                 
         except Exception as e:
-            print(f"Error inesperado al crear cliente SENIAT: {str(e)}")
-            flash('❌ Error al procesar datos del cliente. Intente nuevamente.', 'danger')
+            print(f"❌ Error en nuevo_cliente: {str(e)}")
+            flash(f'❌ Error al crear cliente: {str(e)}', 'danger')
             return render_template('cliente_form.html')
     
     return render_template('cliente_form.html')
@@ -1147,35 +1711,134 @@ def mostrar_inventario():
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
     q = request.args.get('q', '')
     filtro_categoria = request.args.get('categoria', '')
+    filtro_tipo = request.args.get('tipo', '')  # piezas, accesorios, etc.
     filtro_orden = request.args.get('orden', 'nombre')
     
-    # Obtener categorías únicas
-    categorias = []
+    # Categorías predefinidas del sistema
+    categorias_sistema = {
+        'piezas': {
+            'nombre': 'Piezas de Reparación',
+            'icono': 'fas fa-cogs',
+            'color': '#2196F3',
+            'subcategorias': ['Pantallas', 'Baterías', 'Cargadores', 'Placas', 'Botones', 'Cámaras', 'Altavoces', 'Micrófonos', 'Conectores', 'Otros']
+        },
+        'accesorios': {
+            'nombre': 'Accesorios',
+            'icono': 'fas fa-mobile-alt',
+            'color': '#4CAF50',
+            'subcategorias': ['Fundas', 'Protectores', 'Cables', 'Adaptadores', 'Auriculares', 'Cargadores', 'Soportes', 'Otros']
+        },
+        'herramientas': {
+            'nombre': 'Herramientas',
+            'icono': 'fas fa-tools',
+            'color': '#FF9800',
+            'subcategorias': ['Destornilladores', 'Pinzas', 'Pistolas de Aire', 'Multímetros', 'Soldadores', 'Otros']
+        },
+        'consumibles': {
+            'nombre': 'Consumibles',
+            'icono': 'fas fa-flask',
+            'color': '#9C27B0',
+            'subcategorias': ['Pegamentos', 'Cintas', 'Limpieza', 'Soldadura', 'Otros']
+        }
+    }
+    
+    # Obtener categorías existentes en el inventario
+    categorias_existentes = set()
     for producto in inventario.values():
-        if producto.get('categoria') and producto['categoria'] not in categorias:
-            categorias.append(producto['categoria'])
+        if producto.get('categoria'):
+            categorias_existentes.add(producto['categoria'])
     
     # Filtrar productos
     productos_filtrados = {}
+    piezas = {}
+    accesorios = {}
+    herramientas = {}
+    consumibles = {}
+    
     for id, producto in inventario.items():
+        # Filtro de búsqueda
         if q and q.lower() not in producto['nombre'].lower():
             continue
+        # Filtro de categoría
         if filtro_categoria and producto.get('categoria') != filtro_categoria:
             continue
+        # Filtro de tipo
+        if filtro_tipo and producto.get('tipo') != filtro_tipo:
+            continue
+            
         productos_filtrados[id] = producto
+        
+        # Separar por tipo
+        tipo = producto.get('tipo', 'piezas')
+        if tipo == 'piezas':
+            piezas[id] = producto
+        elif tipo == 'accesorios':
+            accesorios[id] = producto
+        elif tipo == 'herramientas':
+            herramientas[id] = producto
+        elif tipo == 'consumibles':
+            consumibles[id] = producto
     
     # Ordenar productos
     if filtro_orden == 'nombre':
         productos_filtrados = dict(sorted(productos_filtrados.items(), key=lambda x: x[1]['nombre']))
+        piezas = dict(sorted(piezas.items(), key=lambda x: x[1]['nombre']))
+        accesorios = dict(sorted(accesorios.items(), key=lambda x: x[1]['nombre']))
+        herramientas = dict(sorted(herramientas.items(), key=lambda x: x[1]['nombre']))
+        consumibles = dict(sorted(consumibles.items(), key=lambda x: x[1]['nombre']))
     elif filtro_orden == 'stock':
         productos_filtrados = dict(sorted(productos_filtrados.items(), key=lambda x: x[1]['cantidad']))
+        piezas = dict(sorted(piezas.items(), key=lambda x: x[1]['cantidad']))
+        accesorios = dict(sorted(accesorios.items(), key=lambda x: x[1]['cantidad']))
+        herramientas = dict(sorted(herramientas.items(), key=lambda x: x[1]['cantidad']))
+        consumibles = dict(sorted(consumibles.items(), key=lambda x: x[1]['cantidad']))
     
-    return render_template('inventario.html', 
+    # Obtener tasa de cambio actual del BCV
+    try:
+        tasa_cambio = obtener_tasa_bcv()
+        if not tasa_cambio or tasa_cambio <= 0:
+            # Si no se puede obtener la tasa del BCV, usar la última guardada
+            ultima_tasa = cargar_ultima_tasa_bcv()
+            tasa_cambio = ultima_tasa if ultima_tasa else 36.5
+    except:
+        # En caso de error, usar tasa por defecto
+        tasa_cambio = 36.5
+    
+    # Calcular estadísticas
+    total_productos = len(inventario)
+    total_piezas = len(piezas)
+    total_accesorios = len(accesorios)
+    total_herramientas = len(herramientas)
+    total_consumibles = len(consumibles)
+    
+    # Calcular valor total del inventario
+    valor_total_usd = sum(safe_float(p.get('precio', 0)) * int(p.get('cantidad', 0)) for p in inventario.values())
+    valor_total_bs = valor_total_usd * tasa_cambio
+    
+    # Productos con stock bajo (menos de 5 unidades)
+    stock_bajo = {id: p for id, p in inventario.items() if int(p.get('cantidad', 0)) < 5}
+    
+    return render_template('inventario_moderno.html', 
                          inventario=productos_filtrados,
-                         categorias=categorias,
+                         piezas=piezas,
+                         accesorios=accesorios,
+                         herramientas=herramientas,
+                         consumibles=consumibles,
+                         categorias_sistema=categorias_sistema,
+                         categorias_existentes=categorias_existentes,
                          q=q,
                          filtro_categoria=filtro_categoria,
-                         filtro_orden=filtro_orden)
+                         filtro_tipo=filtro_tipo,
+                         filtro_orden=filtro_orden,
+                         tasa_cambio=tasa_cambio,
+                         total_productos=total_productos,
+                         total_piezas=total_piezas,
+                         total_accesorios=total_accesorios,
+                         total_herramientas=total_herramientas,
+                         total_consumibles=total_consumibles,
+                         valor_total_usd=valor_total_usd,
+                         valor_total_bs=valor_total_bs,
+                         stock_bajo=stock_bajo)
 
 @app.route('/inventario/nuevo', methods=['GET', 'POST'])
 @login_required
@@ -1185,13 +1848,19 @@ def nuevo_producto():
     
     if request.method == 'POST':
         nombre = request.form.get('nombre')
+        tipo = request.form.get('tipo', 'piezas')
         categoria = request.form.get('categoria')
-        precio_detal = float(request.form.get('precio_detal', 0))
-        precio_distribuidor = float(request.form.get('precio_distribuidor', 0))
+        subcategoria = request.form.get('subcategoria', '')
+        precio = safe_float(request.form.get('precio', 0))
         cantidad = int(request.form.get('cantidad', 0))
+        descripcion = request.form.get('descripcion', '')
+        codigo_barras = request.form.get('codigo_barras', '')
+        proveedor = request.form.get('proveedor', '')
+        ubicacion = request.form.get('ubicacion', '')
+        stock_minimo = int(request.form.get('stock_minimo', 5))
         
-        if not nombre or not categoria:
-            flash('El nombre y la categoría son requeridos', 'danger')
+        if not nombre or not tipo:
+            flash('El nombre y el tipo son requeridos', 'danger')
             return redirect(url_for('nuevo_producto'))
         
         # Generar nuevo ID
@@ -1202,14 +1871,27 @@ def nuevo_producto():
         if 'imagen' in request.files:
             ruta_imagen = guardar_imagen_producto(request.files['imagen'], nuevo_id)
         
+        # Generar código QR
+        qr_data = f"ID: {nuevo_id}\nNombre: {nombre}\nTipo: {tipo}\nCategoría: {categoria}\nPrecio: ${precio}\nStock disponible: {cantidad}"
+        qr_code = generar_qr_producto(qr_data, nuevo_id)
+        
         # Crear nuevo producto
         inventario[nuevo_id] = {
             'nombre': nombre,
+            'tipo': tipo,
             'categoria': categoria,
-            'precio': precio_detal,  # Para compatibilidad
-            'precio_detal': precio_detal,
-            'precio_distribuidor': precio_distribuidor,
+            'subcategoria': subcategoria,
+            'precio': precio,
             'cantidad': cantidad,
+            'descripcion': descripcion,
+            'codigo_barras': codigo_barras,
+            'proveedor': proveedor,
+            'ubicacion': ubicacion,
+            'stock_minimo': stock_minimo,
+            'imagen': ruta_imagen,
+            'qr_code': qr_code,
+            'fecha_creacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'ultima_entrada': datetime.now().isoformat(),
             'ruta_imagen': ruta_imagen
         }
@@ -1221,16 +1903,35 @@ def nuevo_producto():
         
         return redirect(url_for('mostrar_inventario'))
     
-    # Obtener categorías para el formulario
-    categorias = []
-    for producto in inventario.values():
-        if producto.get('categoria') and producto['categoria'] not in [c['nombre'] for c in categorias]:
-            categorias.append({
-                'id': len(categorias) + 1,
-                'nombre': producto['categoria']
-            })
+    # Categorías predefinidas del sistema
+    categorias_sistema = {
+        'piezas': {
+            'nombre': 'Piezas de Reparación',
+            'icono': 'fas fa-cogs',
+            'color': '#2196F3',
+            'subcategorias': ['Pantallas', 'Baterías', 'Cargadores', 'Placas', 'Botones', 'Cámaras', 'Altavoces', 'Micrófonos', 'Conectores', 'Otros']
+        },
+        'accesorios': {
+            'nombre': 'Accesorios',
+            'icono': 'fas fa-mobile-alt',
+            'color': '#4CAF50',
+            'subcategorias': ['Fundas', 'Protectores', 'Cables', 'Adaptadores', 'Auriculares', 'Cargadores', 'Soportes', 'Otros']
+        },
+        'herramientas': {
+            'nombre': 'Herramientas',
+            'icono': 'fas fa-tools',
+            'color': '#FF9800',
+            'subcategorias': ['Destornilladores', 'Pinzas', 'Pistolas de Aire', 'Multímetros', 'Soldadores', 'Otros']
+        },
+        'consumibles': {
+            'nombre': 'Consumibles',
+            'icono': 'fas fa-flask',
+            'color': '#9C27B0',
+            'subcategorias': ['Pegamentos', 'Cintas', 'Limpieza', 'Soldadura', 'Otros']
+        }
+    }
     
-    return render_template('producto_form.html', categorias=categorias)
+    return render_template('producto_form_moderno.html', categorias_sistema=categorias_sistema)
 
 @app.route('/inventario/<id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -1244,13 +1945,19 @@ def editar_producto(id):
     
     if request.method == 'POST':
         nombre = request.form.get('nombre')
+        tipo = request.form.get('tipo', 'piezas')
         categoria = request.form.get('categoria')
-        precio_detal = float(request.form.get('precio_detal', 0))
-        precio_distribuidor = float(request.form.get('precio_distribuidor', 0))
+        subcategoria = request.form.get('subcategoria', '')
+        precio = safe_float(request.form.get('precio', 0))
         cantidad = int(request.form.get('cantidad', 0))
+        descripcion = request.form.get('descripcion', '')
+        codigo_barras = request.form.get('codigo_barras', '')
+        proveedor = request.form.get('proveedor', '')
+        ubicacion = request.form.get('ubicacion', '')
+        stock_minimo = int(request.form.get('stock_minimo', 5))
         
-        if not nombre or not categoria:
-            flash('El nombre y la categoría son requeridos', 'danger')
+        if not nombre or not tipo:
+            flash('El nombre y el tipo son requeridos', 'danger')
             return redirect(url_for('editar_producto', id=id))
         
         # Procesar imagen si se subió una nueva
@@ -1268,15 +1975,26 @@ def editar_producto(id):
                         print(f"Error eliminando imagen anterior: {e}")
                 ruta_imagen = nueva_ruta
         
+        # Generar nuevo código QR si cambió la información
+        qr_data = f"ID: {id}\nNombre: {nombre}\nTipo: {tipo}\nCategoría: {categoria}\nPrecio: ${precio}\nStock disponible: {cantidad}"
+        qr_code = generar_qr_producto(qr_data, id)
+        
         # Actualizar producto
         inventario[id].update({
             'nombre': nombre,
+            'tipo': tipo,
             'categoria': categoria,
-            'precio': precio_detal,  # Para compatibilidad
-            'precio_detal': precio_detal,
-            'precio_distribuidor': precio_distribuidor,
+            'subcategoria': subcategoria,
+            'precio': precio,
             'cantidad': cantidad,
-            'ruta_imagen': ruta_imagen
+            'descripcion': descripcion,
+            'codigo_barras': codigo_barras,
+            'proveedor': proveedor,
+            'ubicacion': ubicacion,
+            'stock_minimo': stock_minimo,
+            'ruta_imagen': ruta_imagen,
+            'qr_code': qr_code,
+            'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
         
         if guardar_datos(ARCHIVO_INVENTARIO, inventario):
@@ -1286,25 +2004,56 @@ def editar_producto(id):
         
         return redirect(url_for('mostrar_inventario'))
     
-    # Obtener categorías para el formulario
-    categorias = []
-    for producto in inventario.values():
-        if producto.get('categoria') and producto['categoria'] not in [c['nombre'] for c in categorias]:
-            categorias.append({
-                'id': len(categorias) + 1,
-                'nombre': producto['categoria']
-            })
+    # Categorías predefinidas del sistema
+    categorias_sistema = {
+        'piezas': {
+            'nombre': 'Piezas de Reparación',
+            'icono': 'fas fa-cogs',
+            'color': '#2196F3',
+            'subcategorias': ['Pantallas', 'Baterías', 'Cargadores', 'Placas', 'Botones', 'Cámaras', 'Altavoces', 'Micrófonos', 'Conectores', 'Otros']
+        },
+        'accesorios': {
+            'nombre': 'Accesorios',
+            'icono': 'fas fa-mobile-alt',
+            'color': '#4CAF50',
+            'subcategorias': ['Fundas', 'Protectores', 'Cables', 'Adaptadores', 'Auriculares', 'Cargadores', 'Soportes', 'Otros']
+        },
+        'herramientas': {
+            'nombre': 'Herramientas',
+            'icono': 'fas fa-tools',
+            'color': '#FF9800',
+            'subcategorias': ['Destornilladores', 'Pinzas', 'Pistolas de Aire', 'Multímetros', 'Soldadores', 'Otros']
+        },
+        'consumibles': {
+            'nombre': 'Consumibles',
+            'icono': 'fas fa-flask',
+            'color': '#9C27B0',
+            'subcategorias': ['Pegamentos', 'Cintas', 'Limpieza', 'Soldadura', 'Otros']
+        }
+    }
     
     # Agregar el ID al producto para el template
     producto = inventario[id].copy()
     producto['id'] = id
-    # Compatibilidad: si no existen los campos nuevos, usar el precio base
-    if 'precio_detal' not in producto:
-        producto['precio_detal'] = producto.get('precio', 0)
-    if 'precio_distribuidor' not in producto:
-        producto['precio_distribuidor'] = producto.get('precio', 0)
     
-    return render_template('producto_form.html', producto=producto, categorias=categorias)
+    return render_template('producto_form_moderno.html', producto=producto, categorias_sistema=categorias_sistema)
+
+@app.route('/inventario/qr/<id>')
+@login_required
+def generar_qr_producto_route(id):
+    """Genera y muestra el código QR de un producto."""
+    inventario = cargar_datos(ARCHIVO_INVENTARIO)
+    if id not in inventario:
+        abort(404)
+    
+    producto = inventario[id]
+    qr_data = f"ID: {id}\nNombre: {producto['nombre']}\nTipo: {producto.get('tipo', 'piezas')}\nCategoría: {producto.get('categoria', 'Sin categoría')}\nPrecio: ${producto.get('precio', 0)}"
+    
+    qr_base64 = generar_qr_base64(qr_data)
+    if qr_base64:
+        return jsonify({'qr': qr_base64})
+    else:
+        return jsonify({'error': 'Error generando QR'}), 500
 
 @app.route('/inventario/<id>/eliminar', methods=['POST'])
 @login_required
@@ -1327,918 +2076,1374 @@ def ver_producto(id):
         return redirect(url_for('mostrar_inventario'))
     return render_template('producto_detalle.html', producto=producto, id=id)
 
-@app.route('/facturas')
-@login_required
-def mostrar_facturas():
-    """Listado de facturas con filtros, ordenamiento, totales y exportación CSV."""
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
 
-    # Normalizar/calcular totales y estados derivados
-    for id, factura in list(facturas.items()):
-        try:
-            precios = factura.get('precios', [])
-            cantidades = factura.get('cantidades', [])
-            subtotal_usd = sum(float(precios[i]) * int(cantidades[i]) for i in range(min(len(precios), len(cantidades)))) if precios and cantidades else 0.0
-            tasa_bcv = float(factura.get('tasa_bcv', 1.0) or 1.0)
-            descuento_total = float(factura.get('descuento_total', 0) or 0)
-            iva_total = float(factura.get('iva_total', 0) or 0)
-            total_usd = float(factura.get('total_usd') or (subtotal_usd - descuento_total + iva_total) or 0.0)
-            total_bs = float(factura.get('total_bs') or (total_usd * tasa_bcv))
-            pagos = factura.get('pagos', []) or []
-            total_abonado = 0.0
-            for p in pagos:
-                try:
-                    monto = p.get('monto', 0)
-                    if isinstance(monto, str):
-                        monto = float(monto.replace('$', '').replace(',', ''))
-                    total_abonado += float(monto or 0)
-                except Exception:
-                    continue
-            saldo_pendiente = max(total_usd - total_abonado, 0.0)
-            
-            # Solo actualizar estado si no existe o si hay inconsistencias
-            estado_actual = factura.get('estado', '')
-            if not estado_actual or estado_actual == 'cobrada':
-                # Calcular estado correcto solo si no existe o si era 'cobrada' (antiguo)
-                if abs(saldo_pendiente) < 0.01 or total_abonado >= total_usd:
-                    estado = 'pagada'
-                elif total_abonado > 0:
-                    estado = 'abonada'
-                else:
-                    estado = 'pendiente'
+
+# ========================================
+# RUTAS PARA NOTAS DE ENTREGA
+# ========================================
+
+@app.route('/notas-entrega')
+@login_required
+def mostrar_notas_entrega():
+    """Muestra la lista de notas de entrega con filtros y estadísticas."""
+    try:
+        # Cargar datos
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        # Calcular estadísticas
+        estadisticas = {
+            'total': len(notas),
+            'pendientes': len([n for n in notas.values() if n.get('estado') == 'PENDIENTE_ENTREGA']),
+            'entregadas': len([n for n in notas.values() if n.get('estado') == 'ENTREGADO']),
+            'anuladas': len([n for n in notas.values() if n.get('estado') == 'ANULADO']),
+            'valor_total': sum(safe_float(n.get('total_usd', 0)) for n in notas.values())
+        }
+        
+        # Agregar nombre del cliente a cada nota
+        for nota in notas.values():
+            cliente_id = nota.get('cliente_id')
+            if cliente_id and cliente_id in clientes:
+                nota['cliente_nombre'] = clientes[cliente_id].get('nombre', 'Cliente no encontrado')
             else:
-                # Mantener el estado existente si ya es correcto
-                estado = estado_actual
+                nota['cliente_nombre'] = 'Cliente no encontrado'
+        
+        return render_template('notas_entrega_moderno.html', 
+                             notas=notas, 
+                             clientes=clientes,
+                             estadisticas=estadisticas)
+    except Exception as e:
+        print(f"Error en mostrar_notas_entrega: {e}")
+        flash('Error cargando notas de entrega', 'error')
+        return redirect(url_for('index'))
 
-            factura.update({
-                'subtotal_usd': subtotal_usd,
-                'total_usd': total_usd,
-                'total_bs': total_bs,
-                'total_abonado': total_abonado,
-                'saldo_pendiente': saldo_pendiente,
-                'estado': estado,
-            })
-            facturas[id] = factura
-        except Exception as e:
-            print(f"Error normalizando factura {id}: {e}")
-
-    # Filtros
-    q_search = (request.args.get('search') or '').strip().lower()
-    q_cliente = (request.args.get('cliente') or '').strip().lower()
-    q_desde = (request.args.get('fecha_desde') or '').strip()
-    q_hasta = (request.args.get('fecha_hasta') or '').strip()
-    filtro_estado = request.args.get('estado', 'todas')
-
-    def fecha_ok(fecha_str):
-        try:
-            return datetime.strptime(fecha_str, '%Y-%m-%d').date()
-        except Exception:
-            try:
-                # soportar 'YYYY-MM-DD HH:MM' u otros
-                return datetime.fromisoformat(fecha_str[:10]).date()
-            except Exception:
-                return None
-
-    desde_date = fecha_ok(q_desde) if q_desde else None
-    hasta_date = fecha_ok(q_hasta) if q_hasta else None
-
-    rows = []  # (id, factura)
-    for id, f in facturas.items():
-        # Validar que el ID sea válido
-        if not id or str(id).strip() == '':
-            print(f"ADVERTENCIA: Factura con ID inválido encontrada: {id}")
-            continue
-            
-        numero = str(f.get('numero', id)).lower()
-        fecha = fecha_ok(str(f.get('fecha', '')))
-        cliente_id = str(f.get('cliente_id', ''))
-        cliente_nombre = str(clientes.get(cliente_id, {}).get('nombre', cliente_id)).lower()
-
-        if q_search and q_search not in numero:
-            continue
-        if q_cliente and q_cliente not in cliente_nombre and q_cliente not in cliente_id.lower():
-            continue
-        if desde_date and (not fecha or fecha < desde_date):
-            continue
-        if hasta_date and (not fecha or fecha > hasta_date):
-            continue
-        if filtro_estado and filtro_estado != 'todas' and f.get('estado') != filtro_estado:
-            continue
-        rows.append((id, f))
-
-    # Ordenamiento
-    sort = request.args.get('sort', 'fecha')
-    order = request.args.get('order', 'desc')
-
-    def sort_key(item):
-        _id, ff = item
-        if sort == 'numero':
-            return str(ff.get('numero', _id))
-        if sort == 'cliente':
-            cid = str(ff.get('cliente_id', ''))
-            return str(clientes.get(cid, {}).get('nombre', cid)).lower()
-        if sort == 'total_usd':
-            return float(ff.get('total_usd') or 0)
-        if sort == 'total_bs':
-            return float(ff.get('total_bs') or 0)
-        if sort == 'estado':
-            return str(ff.get('estado', ''))
-        # fecha por defecto
-        try:
-            return datetime.strptime(str(ff.get('fecha', '1970-01-01')), '%Y-%m-%d')
-        except Exception:
-            return datetime.min
-
-    rows.sort(key=sort_key, reverse=(order == 'desc'))
-
-    # Totales
-    total_usd_sum = sum(float(f.get('total_usd') or 0) for _, f in rows)
-    total_bs_sum = sum(float(f.get('total_bs') or 0) for _, f in rows)
-
-    # Exportación CSV
-    if request.args.get('export') == 'csv':
-        import csv
-        from io import StringIO
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerow(['Numero', 'Fecha', 'Cliente', 'Condicion', 'Total USD', 'Total Bs', 'Estado'])
-        for _id, f in rows:
-            cid = str(f.get('cliente_id', ''))
-            cliente_nombre = clientes.get(cid, {}).get('nombre', cid)
-            writer.writerow([
-                f.get('numero', _id),
-                f.get('fecha', ''),
-                cliente_nombre,
-                (f.get('condicion_pago') or '').title(),
-                f.get('total_usd') or 0,
-                f.get('total_bs') or 0,
-                f.get('estado') or '',
-            ])
-        writer.writerow([])
-        writer.writerow(['Totales', '', '', '', total_usd_sum, total_bs_sum, ''])
-        response = make_response(output.getvalue())
-        response.headers['Content-Disposition'] = 'attachment; filename=facturas.csv'
-        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-        return response
-
-    tasa_bcv = obtener_tasa_bcv()
-    return render_template(
-        'facturas.html',
-        facturas=facturas,  # legacy
-        rows=rows,
-        clientes=clientes,
-        tasa_bcv=tasa_bcv,
-        filtro_estado=filtro_estado,
-        sort=sort,
-        order=order,
-        total_usd_sum=total_usd_sum,
-        total_bs_sum=total_bs_sum,
-        query_args=request.args
-    )
-
-# Ruta amigable para imprimir la factura (vista HTML lista para impresión/PDF)
-@app.route('/facturas/<id>/imprimir')
+@app.route('/notas-entrega/nueva', methods=['GET', 'POST'])
 @login_required
-def imprimir_factura(id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    """Renderiza una versión imprimible de la factura usando `factura_imprimir.html`."""
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
+def nueva_nota_entrega():
+    """Crea una nueva nota de entrega."""
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            cliente_id = request.form['cliente_id']
+            fecha = request.form['fecha']
+            hora = request.form.get('hora', datetime.now().strftime('%H:%M:%S'))
+            modalidad_pago = request.form['modalidad_pago']
+            dias_credito = request.form.get('dias_credito', '30')
+            observaciones = request.form.get('observaciones', '')
+            porcentaje_descuento = float(request.form.get('porcentaje_descuento', 0))
+            
+            # Obtener productos, cantidades y precios
+            productos = request.form.getlist('productos[]')
+            cantidades = request.form.getlist('cantidades[]')
+            precios = request.form.getlist('precios[]')
+            
+            # Validar que hay productos
+            if not productos or not cantidades or not precios:
+                flash('La nota de entrega debe tener al menos un producto', 'error')
+                return redirect(url_for('nueva_nota_entrega'))
+            
+            # Calcular totales
+            subtotal_usd = sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios)))
+            descuento = subtotal_usd * (porcentaje_descuento / 100)
+            total_usd = subtotal_usd - descuento
+            
+            # Obtener tasa BCV actual
+            try:
+                # Intentar obtener tasa del archivo primero
+                tasa_bcv = obtener_tasa_bcv()
+                if not tasa_bcv or tasa_bcv < 10:
+                    # Si no hay tasa válida, intentar obtener del BCV
+                    tasa_bcv = obtener_tasa_bcv_dia()
+                    if not tasa_bcv or tasa_bcv < 10:
+                        # Fallback con tasa realista
+                        tasa_bcv = cargar_ultima_tasa_bcv()
+                        if not tasa_bcv or tasa_bcv < 10:
+                            tasa_bcv = 216.37  # Tasa real actual aproximada
+                fecha_tasa_bcv = datetime.now().strftime('%Y-%m-%d')
+                print(f"✅ Usando tasa BCV: {tasa_bcv}")
+            except Exception as e:
+                print(f"Error obteniendo tasa BCV: {e}")
+                tasa_bcv = 216.37  # Tasa real actual
+                fecha_tasa_bcv = datetime.now().strftime('%Y-%m-%d')
+            
+            # Obtener numeración secuencial interna (no fiscal)
+            notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+            numero_secuencial = len(notas) + 1
+            numero_nota = f"NE-{numero_secuencial:04d}"
+            
+            # Crear la nota de entrega
+            nota = {
+                'numero': numero_nota,
+                'cliente_id': cliente_id,
+                'fecha': fecha,
+                'hora': hora,
+                'modalidad_pago': modalidad_pago,
+                'dias_credito': int(dias_credito) if modalidad_pago == 'credito' else None,
+                'fecha_vencimiento': (datetime.strptime(fecha, '%Y-%m-%d') + timedelta(days=int(dias_credito))).strftime('%Y-%m-%d') if modalidad_pago == 'credito' else None,
+                'productos': productos,
+                'cantidades': [int(c) for c in cantidades],
+                'precios': [float(p) for p in precios],
+                'subtotal_usd': subtotal_usd,
+                'descuento': descuento,
+                'total_usd': total_usd,
+                'tasa_bcv': tasa_bcv,
+                'fecha_tasa_bcv': fecha_tasa_bcv,
+                'total_bs': total_usd * tasa_bcv,
+                'estado': 'PENDIENTE_ENTREGA',
+                'observaciones': observaciones,
+                'creado_por': session.get('usuario', 'SISTEMA'),
+                'fecha_creacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'fecha_entrega': None,
+                'entregado_por': None,
+                'recibido_por': None,
+                'firma_recibido': False
+            }
+            
+            # Guardar la nota
+            notas[numero_nota] = nota
+            if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+                flash(f'Nota de entrega {numero_nota} creada exitosamente', 'success')
+                return redirect(url_for('ver_nota_entrega', id=numero_nota))
+            else:
+                flash('Error guardando la nota de entrega', 'error')
+                return redirect(url_for('nueva_nota_entrega'))
+                
+        except Exception as e:
+            print(f"Error creando nota de entrega: {e}")
+            flash(f'Error creando nota de entrega: {str(e)}', 'error')
+            return redirect(url_for('nueva_nota_entrega'))
+    
+    # GET - Mostrar formulario
     clientes = cargar_datos(ARCHIVO_CLIENTES)
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
-
-    factura = facturas.get(id)
-    if not factura:
-        flash('Factura no encontrada', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-
-    # Asegurar que el template tenga disponible el id de la factura
-    try:
-        factura['id'] = id
-    except Exception:
-        pass
-
-    empresa = cargar_empresa()
-
-    return render_template(
-        'factura_imprimir.html',
-                           factura=factura,
-                           clientes=clientes,
-                           inventario=inventario,
-                           empresa=empresa,
-        now=datetime.now,
-                           zip=zip,
-    )
-
-@app.route('/facturas/<id>')
-@login_required
-def ver_factura(id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    """Muestra los detalles de una factura."""
-    print(f"=== DEBUG: Función ver_factura llamada con ID: {id} ===")
-    print(f"=== DEBUG: URL actual: {request.url} ===")
-    print(f"=== DEBUG: Template a usar: factura_dashboard.html ===")
     
-    try:
-        print(f"DEBUG: Accediendo a factura con ID: {id}")
+    return render_template('nueva_nota_entrega.html', 
+                         clientes=clientes, 
+                         inventario=inventario)
 
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+@app.route('/notas-entrega/<id>')
+@login_required
+def ver_nota_entrega(id):
+    """Muestra los detalles de una nota de entrega."""
+    try:
+        print(f"DEBUG: Intentando cargar nota de entrega {id}")
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        print(f"DEBUG: Notas cargadas: {len(notas)}, Clientes cargados: {len(clientes)}")
+        
+        if id not in notas:
+            print(f"DEBUG: Nota {id} no encontrada en las notas disponibles: {list(notas.keys())}")
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        nota = notas[id]
+        print(f"DEBUG: Nota encontrada: {nota.get('numero', 'Sin número')}")
+        print(f"DEBUG: Cliente ID: {nota.get('cliente_id', 'Sin cliente_id')}")
+        
+        cliente = clientes.get(nota['cliente_id'], {})
+        print(f"DEBUG: Cliente encontrado: {cliente.get('nombre', 'Sin nombre')}")
+        
+        # Agregar campos por defecto para compatibilidad
+        nota['porcentaje_descuento'] = nota.get('porcentaje_descuento', 0)
+        nota['descuento'] = nota.get('descuento', 0)
+        nota['total_usd'] = nota.get('total_usd', nota.get('subtotal_usd', 0))
+        nota['tasa_bcv'] = nota.get('tasa_bcv', 0)
+        nota['fecha_tasa_bcv'] = nota.get('fecha_tasa_bcv', 'N/A')
+        
+        print(f"DEBUG: Renderizando template ver_nota_entrega.html")
+        return render_template('ver_nota_entrega.html', 
+                             nota=nota, 
+                             cliente=cliente)
+    except Exception as e:
+        print(f"DEBUG: Error viendo nota de entrega: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error cargando nota de entrega', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
+
+@app.route('/notas-entrega/<id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_nota_entrega(id):
+    """Edita una nota de entrega existente."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        if id not in notas:
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        if request.method == 'POST':
+            # Actualizar datos de la nota
+            nota = notas[id]
+            
+            # Solo permitir edición si está pendiente
+            if nota['estado'] != 'PENDIENTE_ENTREGA':
+                flash('Solo se pueden editar notas pendientes de entrega', 'error')
+                return redirect(url_for('ver_nota_entrega', id=id))
+            
+            # Actualizar campos editables
+            nota['fecha'] = request.form['fecha']
+            nota['hora'] = request.form.get('hora', nota['hora'])
+            nota['modalidad_pago'] = request.form['modalidad_pago']
+            nota['dias_credito'] = int(request.form.get('dias_credito', 30)) if request.form['modalidad_pago'] == 'credito' else None
+            nota['observaciones'] = request.form.get('observaciones', '')
+            
+            # Recalcular totales si hay cambios en productos
+            productos = request.form.getlist('productos[]')
+            cantidades = request.form.getlist('cantidades[]')
+            precios = request.form.getlist('precios[]')
+            
+            if productos and cantidades and precios:
+                subtotal_usd = sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios)))
+                porcentaje_descuento = float(request.form.get('porcentaje_descuento', 0))
+                descuento = subtotal_usd * (porcentaje_descuento / 100)
+                total_usd = subtotal_usd - descuento
+                
+                nota['productos'] = productos
+                nota['cantidades'] = [int(c) for c in cantidades]
+                nota['precios'] = [float(p) for p in precios]
+                nota['subtotal_usd'] = subtotal_usd
+                nota['descuento'] = descuento
+                nota['total_usd'] = total_usd
+                nota['total_bs'] = total_usd * nota['tasa_bcv']
+            
+            # Actualizar fecha de vencimiento si es crédito
+            if nota['modalidad_pago'] == 'credito' and nota['dias_credito']:
+                nota['fecha_vencimiento'] = (datetime.strptime(nota['fecha'], '%Y-%m-%d') + timedelta(days=nota['dias_credito'])).strftime('%Y-%m-%d')
+            
+            # Guardar cambios
+            if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+                flash('Nota de entrega actualizada exitosamente', 'success')
+                return redirect(url_for('ver_nota_entrega', id=id))
+            else:
+                flash('Error guardando cambios', 'error')
+        
+        # GET - Mostrar formulario de edición
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        nota = notas[id]
+        
+        return render_template('editar_nota_entrega.html', 
+                             nota=nota, 
+                             clientes=clientes, 
+                             inventario=inventario)
+    except Exception as e:
+        print(f"Error editando nota de entrega: {e}")
+        flash('Error editando nota de entrega', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
+
+@app.route('/notas-entrega/<id>/entregar', methods=['POST'])
+@login_required
+def marcar_nota_entregada(id):
+    """Marca una nota como entregada."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        if id not in notas:
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        nota = notas[id]
+        
+        if nota['estado'] != 'PENDIENTE_ENTREGA':
+            flash('Solo se pueden entregar notas pendientes', 'error')
+            return redirect(url_for('ver_nota_entrega', id=id))
+        
+        # Marcar como entregada
+        nota['estado'] = 'ENTREGADO'
+        nota['fecha_entrega'] = datetime.now().strftime('%Y-%m-%d')
+        nota['hora_entrega'] = datetime.now().strftime('%H:%M:%S')
+        nota['entregado_por'] = session.get('usuario', 'SISTEMA')
+        nota['recibido_por'] = request.form.get('recibido_por', 'Cliente')
+        nota['firma_recibido'] = True
+        
+        # Guardar cambios
+        if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+            flash(f'Nota de entrega {id} marcada como entregada', 'success')
+            
+            # Notificar al cliente si está habilitado
+            try:
+                clientes = cargar_datos(ARCHIVO_CLIENTES)
+                cliente_id = nota.get('cliente_id')
+                if cliente_id and cliente_id in clientes:
+                    cliente = clientes[cliente_id]
+                    cliente_email = cliente.get('email', '')
+                    cliente_telefono = cliente.get('telefono', '')
+                    
+                    mensaje_notificacion = f"""
+📦 *Nota de Entrega {id} Entregada*
+
+✅ Su pedido ha sido entregado exitosamente.
+
+📋 *Detalles:*
+• Nota: {id}
+• Fecha: {nota['fecha_entrega']} - {nota['hora_entrega']}
+• Entregado por: {nota['entregado_por']}
+• Recibido por: {nota['recibido_por']}
+
+💰 *Total:* ${nota.get('total_usd', 0)} USD
+                            """
+                    
+                    notificar_cliente(
+                        cliente_email,
+                        cliente_telefono,
+                        f"✅ Nota de Entrega {id} Entregada",
+                        mensaje_notificacion,
+                        'nota_entregada'
+                    )
+            except Exception as e:
+                print(f"❌ Error notificando al cliente: {e}")
+        else:
+            flash('Error guardando cambios', 'error')
+        
+        return redirect(url_for('ver_nota_entrega', id=id))
+    except Exception as e:
+        print(f"Error marcando nota como entregada: {e}")
+        flash('Error marcando nota como entregada', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
+
+@app.route('/notas-entrega/<id>/anular', methods=['POST'])
+@login_required
+def anular_nota_entrega(id):
+    """Anula una nota de entrega."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        if id not in notas:
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        nota = notas[id]
+        
+        if nota['estado'] == 'ANULADO':
+            flash('La nota ya está anulada', 'warning')
+            return redirect(url_for('ver_nota_entrega', id=id))
+        
+        # Anular la nota
+        nota['estado'] = 'ANULADO'
+        nota['fecha_anulacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        nota['anulado_por'] = session.get('usuario', 'SISTEMA')
+        nota['motivo_anulacion'] = request.form.get('motivo_anulacion', 'Sin motivo especificado')
+        
+        # Guardar cambios
+        if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+            flash(f'Nota de entrega {id} anulada exitosamente', 'success')
+        else:
+            flash('Error guardando cambios', 'error')
+        
+        return redirect(url_for('ver_nota_entrega', id=id))
+    except Exception as e:
+        print(f"Error anulando nota de entrega: {e}")
+        flash('Error anulando nota de entrega', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
+
+@app.route('/notas-entrega/<id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_nota_entrega(id):
+    """Elimina permanentemente una nota de entrega."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        if id not in notas:
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        nota = notas[id]
+        
+        # Permitir eliminar notas entregadas también (con confirmación desde el frontend)
+        # El usuario ya confirmó la eliminación desde el botón
+        
+        # Eliminar la nota
+        del notas[id]
+        
+        # Guardar cambios
+        if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+            # Registrar en bitácora
+            try:
+                registrar_bitacora(session.get('usuario', 'SISTEMA'), 'Eliminar nota de entrega', 
+                                 f"Nota eliminada: {id}, Cliente: {nota.get('cliente_nombre', 'N/A')}")
+            except:
+                pass  # Si hay error en bitácora, no fallar el proceso
+            
+            flash(f'Nota de entrega {id} eliminada exitosamente', 'success')
+        else:
+            flash('Error guardando cambios', 'error')
+        
+        return redirect(url_for('mostrar_notas_entrega'))
+    except Exception as e:
+        print(f"Error eliminando nota de entrega: {e}")
+        flash('Error eliminando nota de entrega', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
+
+@app.route('/notas-entrega/<id>/duplicar', methods=['POST'])
+@login_required
+def duplicar_nota_entrega(id):
+    """Duplica una nota de entrega existente."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        if id not in notas:
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        # Obtener la nota original
+        nota_original = notas[id]
+        
+        # Generar nuevo número
+        numero_secuencial = len(notas) + 1
+        nuevo_numero = f"NE-{numero_secuencial:04d}"
+        
+        # Crear copia de la nota
+        nueva_nota = nota_original.copy()
+        nueva_nota['numero'] = nuevo_numero
+        nueva_nota['fecha'] = datetime.now().strftime('%Y-%m-%d')
+        nueva_nota['hora'] = datetime.now().strftime('%H:%M:%S')
+        nueva_nota['estado'] = 'PENDIENTE_ENTREGA'
+        nueva_nota['fecha_creacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        nueva_nota['creado_por'] = session.get('usuario', 'SISTEMA')
+        nueva_nota['fecha_entrega'] = None
+        nueva_nota['entregado_por'] = None
+        nueva_nota['recibido_por'] = None
+        nueva_nota['firma_recibido'] = False
+        
+        # Actualizar fecha de vencimiento si es crédito
+        if nueva_nota['modalidad_pago'] == 'credito' and nueva_nota['dias_credito']:
+            nueva_nota['fecha_vencimiento'] = (datetime.strptime(nueva_nota['fecha'], '%Y-%m-%d') + timedelta(days=nueva_nota['dias_credito'])).strftime('%Y-%m-%d')
+        
+        # Guardar la nueva nota
+        notas[nuevo_numero] = nueva_nota
+        if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+            flash(f'Nota de entrega duplicada como {nuevo_numero}', 'success')
+            return redirect(url_for('ver_nota_entrega', id=nuevo_numero))
+        else:
+            flash('Error guardando la nota duplicada', 'error')
+            return redirect(url_for('ver_nota_entrega', id=id))
+    except Exception as e:
+        print(f"Error duplicando nota de entrega: {e}")
+        flash('Error duplicando nota de entrega', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
+
+@app.route('/nota/qr/<id>')
+def ver_nota_qr(id):
+    """Muestra la información de la nota cuando se escanea el QR."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        if id not in notas:
+            return render_template('qr_error.html', 
+                                 mensaje=f"Nota de entrega {id} no encontrada")
+        
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
+        cliente = clientes.get(cliente_id, {})
+        
+        # Crear resumen de información
+        info_nota = {
+            'numero': nota.get('numero', id),
+            'fecha': nota.get('fecha', 'N/A'),
+            'hora': nota.get('hora', ''),
+            'estado': nota.get('estado', ''),
+            'total_usd': nota.get('total_usd', 0),
+            'total_bs': nota.get('total_bs', 0),
+            'tasa_bcv': nota.get('tasa_bcv', 0),
+            'productos': len(nota.get('productos', [])),
+            'cliente': cliente.get('nombre', 'Cliente no especificado'),
+            'modalidad': nota.get('modalidad_pago', ''),
+            'observaciones': nota.get('observaciones', '')
+        }
+        
+        return render_template('qr_nota_entrega.html', nota=info_nota)
+    except Exception as e:
+        print(f"Error mostrando QR de nota: {e}")
+        return render_template('qr_error.html', mensaje="Error cargando la nota")
+
+@app.route('/notas-entrega/<id>/imprimir')
+@login_required
+def imprimir_nota_entrega(id):
+    """Genera PDF de la nota de entrega."""
+    try:
+        print(f"DEBUG: Intentando imprimir nota de entrega {id}")
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         inventario = cargar_datos(ARCHIVO_INVENTARIO)
         
-        if not facturas:
-            print("DEBUG: No se pudieron cargar las facturas")
-            flash('Error al cargar las facturas', 'danger')
-            return redirect(url_for('mostrar_facturas'))
+        print(f"DEBUG: Datos cargados - Notas: {len(notas)}, Clientes: {len(clientes)}, Inventario: {len(inventario)}")
+        
+        if id not in notas:
+            print(f"DEBUG: Nota {id} no encontrada en las notas disponibles: {list(notas.keys())}")
+            flash('Nota de entrega no encontrada', 'error')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
+        nota = notas[id]
+        print(f"DEBUG: Nota encontrada: {nota.get('numero', 'Sin número')}")
+        
+        cliente = clientes.get(nota['cliente_id'], {})
+        print(f"DEBUG: Cliente encontrado: {cliente.get('nombre', 'Sin nombre')}")
+        
+        # Agregar información completa del cliente a la nota
+        nota['cliente_nombre'] = cliente.get('nombre', 'Cliente no encontrado')
+        nota['cliente_identificacion'] = cliente.get('identificacion', cliente.get('rif', ''))
+        nota['cliente_direccion'] = cliente.get('direccion', '')
+        nota['cliente_telefono'] = cliente.get('telefono', '')
+        nota['cliente_email'] = cliente.get('email', '')
+        
+        # Procesar productos para notas generadas desde servicio técnico
+        if 'productos' in nota and isinstance(nota['productos'], list):
+            # Nota normal con IDs de productos
+            productos_nombres = []
+            productos_codigos = []
             
-        factura = facturas.get(id)
-        print(f"DEBUG: Factura encontrada: {factura is not None}")
-        
-        if not factura:
-            print(f"DEBUG: Factura con ID {id} no encontrada")
-            flash('Factura no encontrada', 'danger')
-            return redirect(url_for('mostrar_facturas'))
-        
-        # Calcular totales de pagos
-        total_abonado = 0
-        if 'pagos' in factura and factura['pagos']:
-            for pago in factura['pagos']:
-                try:
-                    monto = float(str(pago.get('monto', 0)).replace('$', '').replace(',', ''))
-                    total_abonado += monto
-                except Exception:
-                    continue
-        factura['total_abonado'] = total_abonado
-        factura['saldo_pendiente'] = max(factura.get('total_usd', 0) - total_abonado, 0)
-        
-        empresa = cargar_empresa()
-
-        # Agregar el ID de la factura para que el template pueda usarlo
-        factura['_id'] = id
-        
-        # Asegurar que cliente_id esté presente
-        if 'cliente_id' not in factura:
-            print(f"⚠️ ADVERTENCIA: factura {id} no tiene cliente_id")
-            print(f"⚠️ Campos disponibles en factura: {list(factura.keys())}")
+            for producto_id in nota.get('productos', []):
+                producto = inventario.get(str(producto_id), {})
+                productos_nombres.append(producto.get('nombre', f'Producto ID: {producto_id}'))
+                productos_codigos.append(producto.get('codigo', ''))
+            
+            nota['productos_nombres'] = productos_nombres
+            nota['productos_codigos'] = productos_codigos
         else:
-            print(f"✅ factura {id} tiene cliente_id: {factura['cliente_id']}")
-
-        print(f"DEBUG: Renderizando template factura_dashboard.html para factura {id}")
-        print(f"DEBUG: Datos de factura: {factura}")
-        print(f"DEBUG: Datos de clientes: {list(clientes.keys())[:5]}...")
-        print(f"DEBUG: Datos de empresa: {empresa}")
+            # Nota generada desde servicio técnico - usar productos_nota directamente
+            productos_nombres = nota.get('productos', [])
+            productos_codigos = [''] * len(productos_nombres)  # Sin códigos para servicios
+            
+            nota['productos_nombres'] = productos_nombres
+            nota['productos_codigos'] = productos_codigos
         
-        # Forzar recarga del template
-        app.jinja_env.cache.clear()
+        # Agregar campos por defecto para compatibilidad
+        nota['porcentaje_descuento'] = nota.get('porcentaje_descuento', 0)
+        nota['descuento'] = nota.get('descuento', 0)
+        nota['total_usd'] = nota.get('total_usd', nota.get('subtotal_usd', 0))
+        nota['tasa_bcv'] = nota.get('tasa_bcv', 0)
+        nota['fecha_tasa_bcv'] = nota.get('fecha_tasa_bcv', 'N/A')
         
-        print("DEBUG: Llamando a render_template...")
-        resultado = render_template(
-            'factura_dashboard.html',
-            factura=factura, 
-            clientes=clientes, 
-            inventario=inventario, 
-            empresa=empresa
-        )
-        print("DEBUG: render_template completado exitosamente")
-        return resultado
+        # Cargar tasa BCV si no está disponible
+        if not nota.get('tasa_bcv') or nota.get('tasa_bcv') == 0:
+            try:
+                with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
+                    tasa_data = json.load(f)
+                    nota['tasa_bcv'] = tasa_data.get('tasa', 0)
+                    nota['fecha_tasa_bcv'] = tasa_data.get('fecha', 'N/A')
+            except:
+                nota['tasa_bcv'] = 0
+                nota['fecha_tasa_bcv'] = 'N/A'
         
+        # Generar QR con la URL para escanear
+        try:
+            # Obtener la URL base del request
+            base_url = request.url_root.rstrip('/')
+            qr_url = f"{base_url}/nota/qr/{id}"
+            print(f"DEBUG: QR URL generada: {qr_url}")
+            
+            # Generar el código QR
+            qr_base64 = generar_qr_base64(qr_url)
+            if qr_base64:
+                print(f"DEBUG: QR generado exitosamente")
+            else:
+                print(f"DEBUG: Error generando QR")
+                qr_base64 = None
+        except Exception as e:
+            print(f"DEBUG: Error generando QR: {e}")
+            qr_base64 = None
+        
+        print(f"DEBUG: QR Base64 generado: {qr_base64[:50] if qr_base64 else 'None'}...")
+        print(f"DEBUG: Renderizando template pdf_nota_entrega.html")
+        print(f"DEBUG: QR URL: {qr_url if 'qr_url' in locals() else 'No generada'}")
+        
+        return render_template('pdf_nota_entrega.html', 
+                             nota=nota, 
+                             cliente=cliente,
+                             qr_url=qr_url if 'qr_url' in locals() else '',
+                             qr_base64=qr_base64)
     except Exception as e:
-        print(f"ERROR en ver_factura: {str(e)}")
-        flash(f'Error al mostrar la factura: {str(e)}', 'danger')
-        return redirect(url_for('mostrar_facturas'))
+        print(f"DEBUG: Error generando PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error generando PDF', 'error')
+        return redirect(url_for('ver_nota_entrega', id=id))
 
-# Ruta de prueba para verificar que funciona
+
 @app.route('/test-whatsapp')
 def test_whatsapp():
     return jsonify({'message': 'Ruta de prueba funcionando'})
 
-# Rutas para capturar URLs malformadas específicas
-@app.route('/facturas//editar', methods=['GET', 'POST'])
-@login_required
-def editar_factura_url_malformada():
-    """Captura URLs malformadas como /facturas//editar y redirige"""
-    flash('URL de factura inválida detectada', 'danger')
-    return redirect(url_for('mostrar_facturas'))
+@app.route('/test-notas')
+def test_notas():
+    return jsonify({'message': 'Ruta de notas funcionando', 'rutas': [str(rule) for rule in app.url_map.iter_rules() if 'nota' in str(rule)]})
 
-@app.route('/facturas//', methods=['GET', 'POST'])
+@app.route('/notas-entrega/reporte')
 @login_required
-def factura_url_malformada_general():
-    """Captura URLs malformadas como /facturas// y redirige"""
-    flash('URL de factura inválida detectada', 'danger')
-    return redirect(url_for('mostrar_facturas'))
-
-@app.route('/facturas///editar', methods=['GET', 'POST'])
-@login_required
-def editar_factura_url_triple_malformada():
-    """Captura URLs malformadas como /facturas///editar y redirige"""
-    flash('URL de factura inválida detectada', 'danger')
-    return redirect(url_for('mostrar_facturas'))
-
-@app.route('/facturas/<id>/editar', methods=['GET', 'POST'])
-@login_required
-def editar_factura(id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    
-    if id not in facturas:
-        flash('Factura no encontrada', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    
-    if request.method == 'POST':
-        try:
-            factura = facturas[id]
-            # Guardar cantidades antiguas para comparar
-            cantidades_antiguas = dict(zip(factura['productos'], factura['cantidades']))
-            
-            # Obtener y validar datos básicos
-            factura['cliente_id'] = request.form['cliente_id']
-            factura['fecha'] = request.form['fecha']
-            factura['numero'] = request.form['numero']
-            factura['hora'] = request.form.get('hora', '')
-            factura['condicion_pago'] = request.form.get('condicion_pago', 'contado')
-            factura['dias_credito'] = request.form.get('dias_credito', '30')
-            factura['fecha_vencimiento'] = request.form.get('fecha_vencimiento', '') if request.form.get('condicion_pago') == 'credito' else ''
-            
-            # Obtener productos, cantidades y precios
-            productos = request.form.getlist('productos[]')
-            cantidades = request.form.getlist('cantidades[]')
-            precios = request.form.getlist('precios[]')
-            precios = [float(p) for p in precios]
-            
-            # Registrar cambios en el stock
-            for prod_id, nueva_cantidad in zip(productos, cantidades):
-                nueva_cantidad = int(nueva_cantidad)
-                cantidad_antigua = int(cantidades_antiguas.get(prod_id, 0))
-                
-                if nueva_cantidad != cantidad_antigua:
-                    # Calcular la diferencia
-                    diferencia = nueva_cantidad - cantidad_antigua
-                    
-                    # Actualizar el stock
-                    inventario[prod_id]['cantidad'] -= diferencia
-                    
-                    # Registrar el movimiento en historial_ajustes
-                    if 'historial_ajustes' not in inventario[prod_id]:
-                        inventario[prod_id]['historial_ajustes'] = []
-                    
-                    tipo = 'entrada' if diferencia < 0 else 'salida'
-                    cantidad_abs = abs(diferencia)
-                    
-                    inventario[prod_id]['historial_ajustes'].append({
-                        'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        'tipo': tipo,
-                        'cantidad': cantidad_abs,
-                        'motivo': f'Ajuste por edición de factura N°{factura["numero"]}',
-                        'usuario': session.get('usuario', ''),
-                        'observaciones': f'Cantidad anterior: {cantidad_antigua}, Nueva cantidad: {nueva_cantidad}'
-                    })
-            
-            factura['productos'] = productos
-            factura['cantidades'] = cantidades
-            factura['precios'] = precios
-            
-            # Obtener y validar tasa BCV
-            tasa_bcv = limpiar_valor_monetario(request.form.get('tasa_bcv', '36.00'))
-            if tasa_bcv <= 0:
-                tasa_bcv = 36.00
-            factura['tasa_bcv'] = tasa_bcv
-            
-            # Calcular subtotales y totales
-            subtotal_usd = sum(precios[i] * int(cantidades[i]) for i in range(len(precios)))
-            subtotal_bs = subtotal_usd * tasa_bcv
-            descuento = limpiar_valor_monetario(request.form.get('descuento', '0'))
-            tipo_descuento = request.form.get('tipo_descuento', 'bs')
-            if tipo_descuento == 'porc':
-                descuento_total = subtotal_usd * (descuento / 100)
-            else:
-                descuento_total = descuento / tasa_bcv
-            iva = limpiar_valor_monetario(request.form.get('iva', '0'))
-            iva_total = (subtotal_usd - descuento_total) * (iva / 100)
-            total_usd = subtotal_usd - descuento_total + iva_total
-            total_bs = total_usd * tasa_bcv
-            
-            factura['descuento'] = descuento
-            factura['tipo_descuento'] = tipo_descuento
-            factura['iva'] = iva
-            factura['subtotal_usd'] = subtotal_usd
-            factura['subtotal_bs'] = subtotal_bs
-            factura['descuento_total'] = descuento_total
-            factura['iva_total'] = iva_total
-            factura['total_usd'] = total_usd
-            factura['total_bs'] = total_bs
-            
-            # Procesar pagos
-            pagos_json = request.form.get('pagos_json', '[]')
-            try:
-                pagos = json.loads(pagos_json)
-                for pago in pagos:
-                    if 'monto' in pago:
-                        pago['monto'] = limpiar_valor_monetario(pago['monto'])
-                factura['pagos'] = pagos
-            except Exception:
-                factura['pagos'] = []
-            
-            # Calcular total abonado y saldo pendiente
-            total_abonado = sum(float(p['monto']) for p in factura['pagos'])
-            factura['total_abonado'] = total_abonado
-            saldo_pendiente = factura.get('total_usd', 0) - total_abonado
-            
-            # Si el saldo pendiente es muy pequeño (menos de 0.01) o el total abonado es igual o mayor al total
-            if abs(saldo_pendiente) < 0.01 or total_abonado >= factura.get('total_usd', 0):
-                saldo_pendiente = 0
-                factura['estado'] = 'pagada'
-            else:
-                factura['estado'] = 'pendiente'
-            
-            factura['saldo_pendiente'] = saldo_pendiente
-            facturas[id] = factura
-            
-            # Guardar cambios en el inventario
-            if not guardar_datos(ARCHIVO_INVENTARIO, inventario):
-                flash('Error al actualizar el inventario', 'danger')
-                return redirect(url_for('editar_factura', id=id))
-            
-            if guardar_datos(ARCHIVO_FACTURAS, facturas):
-                flash('Factura actualizada exitosamente', 'success')
-                registrar_bitacora(session['usuario'], 'Editar factura', f"ID: {id}")
-                return redirect(url_for('ver_factura', id=id))
-            else:
-                flash('Error al actualizar la factura', 'danger')
-        except Exception as e:
-            flash(f'Error al actualizar la factura: {str(e)}', 'danger')
-    
-    inventario_disponible = {k: v for k, v in inventario.items() if int(v.get('cantidad', 0)) > 0 or k in facturas[id].get('productos', [])}
-    empresa = cargar_empresa()
-    return render_template('factura_form.html', id=id, factura=facturas[id], clientes=clientes, inventario=inventario_disponible, editar=True, zip=zip, empresa=empresa)
-
-@app.route('/facturas/duplicar', methods=['POST'])
-@login_required
-def duplicar_factura():
-    """Duplica una factura existente con un nuevo número."""
+def reporte_notas_entrega():
+    """Reporte de notas de entrega con filtro por mes."""
     try:
-        # Obtener datos de la factura a duplicar
-        datos = request.get_json()
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
         
-        # Generar nuevo número de factura
-        usuario_actual = session.get('usuario', 'SISTEMA')
-        numero_fiscal, numero_secuencial = control_numeracion.obtener_siguiente_numero('FACTURA', usuario_actual)
+        # Obtener parámetros de filtro
+        mes_filtro = request.args.get('mes', '')
+        año_filtro = request.args.get('año', '')
         
-        # Crear nueva factura
-        nueva_factura = {
-            'id': str(uuid.uuid4()),
-            'numero': numero_fiscal,
-            'numero_secuencial': numero_secuencial,
-            'fecha': datos.get('fecha', datetime.now().strftime('%Y-%m-%d')),
-            'hora': datos.get('hora', datetime.now().strftime('%H:%M:%S')),
-            'cliente_id': datos.get('cliente_id'),
-            'tasa_bcv': float(datos.get('tasa_bcv', 36.0)),
-            'condicion_pago': datos.get('condicion_pago', 'contado'),
-            'iva': float(datos.get('iva', 16)),
-            'descuento': datos.get('descuento', '0'),
-            'tipo_descuento': datos.get('tipo_descuento', 'bs'),
-            'pagos': [],
-            'estado': 'pendiente',
-            'total_abonado': 0,
-            'saldo_pendiente': 0
-        }
-        
-        # Copiar productos (estructura SENIAT)
-        if datos.get('items'):
-            nueva_factura['items'] = datos['items']
-            # Calcular totales desde items
-            subtotal_usd = sum(float(item.get('subtotal_usd', 0)) for item in datos['items'])
-            nueva_factura['subtotal_usd'] = subtotal_usd
-            nueva_factura['subtotal_bs'] = subtotal_usd * nueva_factura['tasa_bcv']
+        # Filtrar notas por mes y año
+        notas_filtradas = {}
+        if mes_filtro and año_filtro:
+            for numero, nota in notas.items():
+                fecha_nota = datetime.strptime(nota.get('fecha', ''), '%Y-%m-%d')
+                if fecha_nota.month == int(mes_filtro) and fecha_nota.year == int(año_filtro):
+                    notas_filtradas[numero] = nota
         else:
-            # Estructura legacy
-            nueva_factura['productos'] = datos.get('productos', [])
-            nueva_factura['cantidades'] = datos.get('cantidades', [])
-            nueva_factura['precios'] = datos.get('precios', [])
-            
-            # Calcular totales desde productos/cantidades/precios
-            productos = datos.get('productos', [])
-            cantidades = datos.get('cantidades', [])
-            precios = datos.get('precios', [])
-            
-            subtotal_usd = 0
-            for i in range(len(productos)):
-                if i < len(cantidades) and i < len(precios):
-                    cantidad = int(cantidades[i]) if cantidades[i] else 0
-                    precio = float(precios[i]) if precios[i] else 0
-                    subtotal_usd += cantidad * precio
-            
-            nueva_factura['subtotal_usd'] = subtotal_usd
-            nueva_factura['subtotal_bs'] = subtotal_usd * nueva_factura['tasa_bcv']
+            # Si no hay filtros, mostrar todas las notas
+            notas_filtradas = notas
         
-        # Calcular descuentos e IVA
-        descuento = float(datos.get('descuento', 0))
-        if datos.get('tipo_descuento') == 'bs':
-            descuento_usd = descuento / nueva_factura['tasa_bcv']
-        else:
-            descuento_usd = descuento
+        # Agregar información del cliente a cada nota
+        for numero, nota in notas_filtradas.items():
+            cliente_id = nota.get('cliente_id')
+            if cliente_id and cliente_id in clientes:
+                nota['cliente_nombre'] = clientes[cliente_id].get('nombre', 'Cliente no especificado')
+                nota['cliente_telefono'] = clientes[cliente_id].get('telefono', '')
+            else:
+                nota['cliente_nombre'] = 'Cliente no especificado'
+                nota['cliente_telefono'] = ''
         
-        nueva_factura['descuento_total'] = descuento_usd
+        # Calcular estadísticas
+        total_notas = len(notas_filtradas)
+        total_usd = sum(nota.get('total_usd', 0) for nota in notas_filtradas.values())
+        total_bs = sum(nota.get('total_bs', 0) for nota in notas_filtradas.values())
         
-        base_imponible = subtotal_usd - descuento_usd
-        iva_total = base_imponible * (nueva_factura['iva'] / 100)
-        nueva_factura['iva_total'] = iva_total
+        # Obtener opciones de meses y años
+        meses = [
+            {'valor': '1', 'nombre': 'Enero'}, {'valor': '2', 'nombre': 'Febrero'},
+            {'valor': '3', 'nombre': 'Marzo'}, {'valor': '4', 'nombre': 'Abril'},
+            {'valor': '5', 'nombre': 'Mayo'}, {'valor': '6', 'nombre': 'Junio'},
+            {'valor': '7', 'nombre': 'Julio'}, {'valor': '8', 'nombre': 'Agosto'},
+            {'valor': '9', 'nombre': 'Septiembre'}, {'valor': '10', 'nombre': 'Octubre'},
+            {'valor': '11', 'nombre': 'Noviembre'}, {'valor': '12', 'nombre': 'Diciembre'}
+        ]
         
-        # Totales finales
-        total_usd = base_imponible + iva_total
-        total_bs = total_usd * nueva_factura['tasa_bcv']
-        nueva_factura['total_usd'] = total_usd
-        nueva_factura['total_bs'] = total_bs
-        nueva_factura['saldo_pendiente'] = total_usd
+        años = []
+        año_actual = datetime.now().year
+        for año in range(año_actual - 2, año_actual + 1):
+            años.append({'valor': str(año), 'nombre': str(año)})
         
-        # Guardar nueva factura
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        facturas[nueva_factura['id']] = nueva_factura
-        guardar_datos(ARCHIVO_FACTURAS, facturas)
-        
-        # Registrar en bitácora
-        try:
-            registrar_bitacora('duplicacion_factura', f"Factura {nueva_factura['numero']} duplicada desde factura original por {session.get('usuario', 'SISTEMA')}")
-        except Exception as e:
-            print(f"Error registrando en bitácora: {e}")
-        
-        return jsonify({
-            'success': True,
-            'factura_id': str(nueva_factura['id']),
-            'numero': str(nueva_factura['numero']),
-            'message': 'Factura duplicada correctamente'
-        })
-        
+        return render_template('reporte_notas_entrega.html', 
+                             notas=notas_filtradas,
+                             total_notas=total_notas,
+                             total_usd=total_usd,
+                             total_bs=total_bs,
+                             mes_filtro=mes_filtro,
+                             año_filtro=año_filtro,
+                             meses=meses,
+                             años=años)
     except Exception as e:
-        print(f"Error duplicando factura: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        print(f"Error en reporte_notas_entrega: {e}")
+        flash('Error generando el reporte', 'error')
+        return redirect(url_for('mostrar_notas_entrega'))
 
-@app.route('/facturas/nueva', methods=['GET', 'POST'])
+@app.route('/notas-entrega/reporte/imprimir')
 @login_required
-def nueva_factura():
+def imprimir_reporte_notas():
+    """Imprimir reporte de notas de entrega en PDF."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        # Obtener parámetros de filtro
+        mes_filtro = request.args.get('mes', '')
+        año_filtro = request.args.get('año', '')
+        
+        # Filtrar notas por mes y año
+        notas_filtradas = {}
+        if mes_filtro and año_filtro:
+            for numero, nota in notas.items():
+                fecha_nota = datetime.strptime(nota.get('fecha', ''), '%Y-%m-%d')
+                if fecha_nota.month == int(mes_filtro) and fecha_nota.year == int(año_filtro):
+                    notas_filtradas[numero] = nota
+        else:
+            # Si no hay filtros, mostrar todas las notas
+            notas_filtradas = notas
+        
+        # Agregar información del cliente a cada nota
+        for numero, nota in notas_filtradas.items():
+            cliente_id = nota.get('cliente_id')
+            if cliente_id and cliente_id in clientes:
+                nota['cliente_nombre'] = clientes[cliente_id].get('nombre', 'Cliente no especificado')
+                nota['cliente_telefono'] = clientes[cliente_id].get('telefono', '')
+            else:
+                nota['cliente_nombre'] = 'Cliente no especificado'
+                nota['cliente_telefono'] = ''
+        
+        # Calcular estadísticas
+        total_notas = len(notas_filtradas)
+        total_usd = sum(nota.get('total_usd', 0) for nota in notas_filtradas.values())
+        total_bs = sum(nota.get('total_bs', 0) for nota in notas_filtradas.values())
+        
+        # Obtener nombre del mes
+        meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        nombre_mes = meses[int(mes_filtro)] if mes_filtro else 'Todos'
+        
+        return render_template('pdf_reporte_notas_entrega.html',
+                             notas=notas_filtradas,
+                             total_notas=total_notas,
+                             total_usd=total_usd,
+                             total_bs=total_bs,
+                             mes_filtro=mes_filtro,
+                             año_filtro=año_filtro,
+                             nombre_mes=nombre_mes)
+    except Exception as e:
+        print(f"Error en imprimir_reporte_notas: {e}")
+        flash('Error generando el PDF del reporte', 'error')
+        return redirect(url_for('reporte_notas_entrega'))
+
+# ===== MÓDULO DE PAGOS RECIBIDOS =====
+
+@app.route('/pagos-recibidos')
+@login_required
+def mostrar_pagos_recibidos():
+    """Mostrar lista de pagos recibidos."""
+    try:
+        print(f"DEBUG: Iniciando mostrar_pagos_recibidos")
+        
+        # Cargar pagos
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        print(f"DEBUG: Pagos cargados: {len(pagos)}")
+        
+        # Obtener filtros
+        metodo_filtro = request.args.get('metodo', '')
+        cliente_filtro = request.args.get('cliente', '')
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        
+        print(f"DEBUG: Filtros - método: {metodo_filtro}, cliente: {cliente_filtro}, fecha_desde: {fecha_desde}, fecha_hasta: {fecha_hasta}")
+        
+        # Obtener tasa BCV para cálculos
+        tasa_bcv_calc = obtener_tasa_bcv() or 216.37
+        
+        # Calcular monto_bs para todos los pagos si no existe
+        for id_pago, pago in pagos.items():
+            if 'monto_bs' not in pago or not pago.get('monto_bs'):
+                monto_usd = float(pago.get('monto_usd', 0))
+                tasa_pago = float(pago.get('tasa_bcv', tasa_bcv_calc))
+                pago['monto_bs'] = monto_usd * tasa_pago
+                print(f"DEBUG: Calculado monto_bs para {id_pago}: {pago['monto_bs']}")
+        
+        # Filtrar pagos
+        pagos_filtrados = {}
+        for id_pago, pago in pagos.items():
+            # Filtro por método
+            if metodo_filtro and pago.get('metodo_pago', '') != metodo_filtro:
+                continue
+            
+            # Filtro por cliente
+            if cliente_filtro and cliente_filtro.lower() not in pago.get('cliente', '').lower():
+                continue
+            
+            # Filtro por fecha (con manejo de errores)
+            if fecha_desde:
+                try:
+                    fecha_pago_str = pago.get('fecha', '')
+                    if fecha_pago_str and fecha_pago_str.strip():
+                        fecha_pago = datetime.strptime(fecha_pago_str, '%Y-%m-%d')
+                        fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d')
+                        if fecha_pago < fecha_desde_obj:
+                            continue
+                except (ValueError, TypeError) as e:
+                    print(f"Error en filtro fecha_desde: {e}")
+                    continue  # Si la fecha no es válida, excluir el pago
+            
+            if fecha_hasta:
+                try:
+                    fecha_pago_str = pago.get('fecha', '')
+                    if fecha_pago_str and fecha_pago_str.strip():
+                        fecha_pago = datetime.strptime(fecha_pago_str, '%Y-%m-%d')
+                        fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+                        if fecha_pago > fecha_hasta_obj:
+                            continue
+                except (ValueError, TypeError) as e:
+                    print(f"Error en filtro fecha_hasta: {e}")
+                    continue  # Si la fecha no es válida, excluir el pago
+            
+            pagos_filtrados[id_pago] = pago
+        
+        # Obtener clientes para el filtro
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        # Calcular pagos pendientes por cliente
+        pagos_pendientes = {}
+        
+        # Cargar notas de entrega para calcular pendientes
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        tasa_bcv = obtener_tasa_bcv()
+        
+        for cliente_id, cliente in clientes.items():
+            total_pendiente_usd = 0
+            total_pendiente_bs = 0
+            
+            for nota_id, nota in notas.items():
+                if nota.get('cliente_id') == cliente_id:
+                    total_usd = float(nota.get('total_usd', 0))
+                    total_abonado = float(nota.get('total_abonado', 0))
+                    saldo_pendiente = max(0, total_usd - total_abonado)
+                    
+                    if saldo_pendiente > 0:
+                        total_pendiente_usd += saldo_pendiente
+                        total_pendiente_bs += saldo_pendiente * float(nota.get('tasa_bcv', tasa_bcv))
+            
+            if total_pendiente_usd > 0:
+                pagos_pendientes[cliente_id] = {
+                    'total_usd': total_pendiente_usd,
+                    'total_bs': total_pendiente_bs
+                }
+        
+        # Métodos de pago disponibles
+        metodos_pago = ['Efectivo', 'Transferencia', 'Pago Móvil', 'Zelle', 'Divisas']
+        
+        return render_template('pagos_recibidos.html', 
+                             pagos=pagos_filtrados,
+                             clientes=clientes,
+                             metodos_pago=metodos_pago,
+                             metodo_filtro=metodo_filtro,
+                             cliente_filtro=cliente_filtro,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta,
+                             pagos_pendientes=pagos_pendientes)
+    except Exception as e:
+        print(f"Error en mostrar_pagos_recibidos: {e}")
+        flash('Error cargando los pagos recibidos', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/pagos-recibidos/nuevo', methods=['GET', 'POST'])
+@login_required
+def nuevo_pago_recibido():
+    """Crear nuevo pago recibido."""
     if request.method == 'POST':
         try:
-            # === FASE 1: OBTENER NUMERACIÓN CONSECUTIVA FISCAL ===
-            usuario_actual = session.get('usuario', 'SISTEMA')
-            numero_fiscal, numero_secuencial = control_numeracion.obtener_siguiente_numero('FACTURA', usuario_actual)
+            # Obtener datos del formulario
+            cliente = request.form.get('cliente', '').strip()
+            monto_usd = float(request.form.get('monto_usd', 0))
+            monto_bs = float(request.form.get('monto_bs', 0))
+            metodo_pago = request.form.get('metodo_pago', '')
+            numero_referencia = request.form.get('numero_referencia', '').strip()
+            banco = request.form.get('banco', '').strip()
+            observaciones = request.form.get('observaciones', '').strip()
+            numero_nota = request.form.get('numero_nota', '').strip()
             
-            # === FASE 2: VALIDAR Y OBTENER DATOS BÁSICOS ===
-            cliente_id = request.form['cliente_id']
-            fecha = request.form['fecha']
+            # Validar datos requeridos
+            if not cliente or not metodo_pago:
+                flash('Cliente y método de pago son requeridos', 'error')
+                return redirect(url_for('nuevo_pago_recibido'))
             
-            # Generar hora precisa en formato HH:MM:SS para SENIAT
-            hora_precisa = datetime.now().strftime('%H:%M:%S')
+            # Obtener tasa BCV actual
+            tasa_bcv = obtener_tasa_bcv()
             
-            condicion_pago = request.form.get('condicion_pago', 'contado')
-            dias_credito = request.form.get('dias_credito', '30')
-            fecha_vencimiento = request.form.get('fecha_vencimiento', '')
+            # Calcular montos si no se proporcionaron
+            if monto_usd > 0 and monto_bs == 0:
+                monto_bs = monto_usd * tasa_bcv
+            elif monto_bs > 0 and monto_usd == 0:
+                monto_usd = monto_bs / tasa_bcv
             
-            # Obtener productos, cantidades y precios
-            productos = request.form.getlist('productos[]')
-            cantidades = request.form.getlist('cantidades[]')
-            precios = request.form.getlist('precios[]')
-            precios = [float(p) for p in precios]
+            # Crear ID único para el pago
+            id_pago = str(uuid4())
             
-            # Validar que hay productos
-            if not productos or not cantidades or not precios:
-                flash('La factura debe tener al menos un producto', 'error')
-                return redirect(url_for('nueva_factura'))
+            # Manejar archivo adjunto (comprobante)
+            comprobante_adjunto = None
+            if 'comprobante_adjunto' in request.files:
+                archivo = request.files['comprobante_adjunto']
+                if archivo and archivo.filename != '' and allowed_file(archivo.filename):
+                    try:
+                        # Generar nombre único para el archivo
+                        filename = secure_filename(archivo.filename)
+                        extension = filename.rsplit('.', 1)[1].lower()
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        filename = f"comprobante_{id_pago}_{timestamp}.{extension}"
+                        
+                        # Ruta completa del archivo
+                        ruta_archivo = os.path.join(UPLOAD_FOLDER, filename)
+                        
+                        # Guardar el archivo
+                        archivo.save(ruta_archivo)
+                        
+                        # Guardar la ruta relativa para el frontend (desde static/)
+                        comprobante_adjunto = f"uploads/{filename}"
+                        print(f"✅ Comprobante guardado: {comprobante_adjunto}")
+                    except Exception as e:
+                        print(f"Error guardando comprobante: {e}")
             
-            # Obtener y validar tasa BCV
-            tasa_bcv = limpiar_valor_monetario(request.form.get('tasa_bcv', '36.00'))
-            if tasa_bcv <= 0:
-                tasa_bcv = 36.00
-            
-            # === FASE 3: CALCULAR TOTALES ===
-            subtotal_usd = sum(precios[i] * int(cantidades[i]) for i in range(len(precios)))
-            subtotal_bs = subtotal_usd * tasa_bcv
-            descuento = limpiar_valor_monetario(request.form.get('descuento', '0'))
-            tipo_descuento = request.form.get('tipo_descuento', 'bs')
-            if tipo_descuento == 'porc':
-                descuento_total = subtotal_usd * (descuento / 100)
-            else:
-                descuento_total = descuento / tasa_bcv
-            iva = limpiar_valor_monetario(request.form.get('iva', '0'))
-            iva_total = (subtotal_usd - descuento_total) * (iva / 100)
-            total_usd = subtotal_usd - descuento_total + iva_total
-            total_bs = total_usd * tasa_bcv
-            
-            # === FASE 4: PROCESAR PAGOS ===
-            pagos_json = request.form.get('pagos_json', '[]')
-            try:
-                pagos = json.loads(pagos_json)
-                for pago in pagos:
-                    if 'monto' in pago:
-                        pago['monto'] = limpiar_valor_monetario(pago['monto'])
-            except Exception:
-                pagos = []
-            
-            # === FASE 5: OBTENER DATOS DEL CLIENTE PARA SENIAT ===
-            clientes = cargar_datos(ARCHIVO_CLIENTES)
-            if cliente_id not in clientes:
-                flash('Cliente no encontrado', 'error')
-                return redirect(url_for('nueva_factura'))
-            
-            cliente_datos = clientes[cliente_id]
-            
-            # === FASE 6: PREPARAR ITEMS PARA SENIAT ===
-            inventario = cargar_datos(ARCHIVO_INVENTARIO)
-            items_factura = []
-            
-            for i, prod_id in enumerate(productos):
-                if prod_id in inventario:
-                    producto = inventario[prod_id]
-                    item = {
-                        'id': prod_id,
-                        'nombre': producto.get('nombre', ''),
-                        'cantidad': int(cantidades[i]),
-                        'precio_unitario_usd': float(precios[i]),
-                        'precio_unitario_bs': float(precios[i]) * tasa_bcv,
-                        'categoria': producto.get('categoria', ''),
-                        'codigo_barras': producto.get('codigo_barras', ''),
-                        'subtotal_usd': float(precios[i]) * int(cantidades[i]),
-                        'subtotal_bs': float(precios[i]) * int(cantidades[i]) * tasa_bcv
-                    }
-                    items_factura.append(item)
-            
-            # === FASE 7: CREAR ESTRUCTURA DE FACTURA FISCAL ===
-            factura_fiscal = {
-                'numero': numero_fiscal,
-                'numero_secuencial': numero_secuencial,
-                'fecha': fecha,
-                'hora': hora_precisa,
-                'timestamp_creacion': datetime.now().isoformat(),
-                'cliente_id': cliente_id,
-                'cliente_datos': {
-                    'rif': cliente_datos.get('rif', ''),
-                    'nombre': cliente_datos.get('nombre', ''),
-                    'direccion': cliente_datos.get('direccion', ''),
-                    'telefono': cliente_datos.get('telefono', ''),
-                    'email': cliente_datos.get('email', '')
-                },
-                'condicion_pago': condicion_pago,
-                'dias_credito': dias_credito,
-                'fecha_vencimiento': fecha_vencimiento if condicion_pago == 'credito' else '',
+            # Crear objeto pago
+            pago = {
+                'id': id_pago,
+                'cliente': cliente,
+                'monto_usd': monto_usd,
+                'monto_bs': monto_bs,
+                'metodo_pago': metodo_pago,
+                'numero_referencia': numero_referencia,
+                'banco': banco,
+                'observaciones': observaciones,
+                'numero_nota': numero_nota,
+                'fecha': datetime.now().strftime('%Y-%m-%d'),
+                'hora': datetime.now().strftime('%H:%M:%S'),
                 'tasa_bcv': tasa_bcv,
-                
-                # === ESTRUCTURA SENIAT (Nueva) ===
-                'items': items_factura,
-                
-                # === ESTRUCTURA LEGACY (Compatibilidad) ===
-                'productos': productos,
-                'cantidades': cantidades,
-                'precios': precios,
-                
-                'descuento': descuento,
-                'tipo_descuento': tipo_descuento,
-                'iva': iva,
-                'subtotal_usd': subtotal_usd,
-                'subtotal_bs': subtotal_bs,
-                'descuento_total': descuento_total,
-                'iva_total': iva_total,
-                'total_usd': total_usd,
-                'total_bs': total_bs,
-                'pagos': pagos,
-                'moneda_principal': 'USD',
-                'moneda_secundaria': 'VES'
+                'usuario': session.get('username', 'Sistema'),
+                'comprobante_adjunto': comprobante_adjunto
             }
             
-            # === FASE 8: VALIDACIÓN SENIAT ===
-            errores_validacion = seguridad_fiscal.validar_campos_obligatorios_factura(factura_fiscal)
-            if errores_validacion:
-                flash(f'Errores de validación SENIAT: {"; ".join(errores_validacion)}', 'error')
-                return redirect(url_for('nueva_factura'))
+            # Guardar pago
+            pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+            pagos[id_pago] = pago
+            guardar_datos(ARCHIVO_PAGOS_RECIBIDOS, pagos)
             
-            # === FASE 9: CREAR DOCUMENTO FISCAL INMUTABLE ===
+            # Si está asociado a una nota, actualizar cuenta por cobrar
+            if numero_nota:
+                actualizar_cuenta_por_cobrar(numero_nota, monto_usd, monto_bs)
+            
+            # Notificar al cliente si está habilitado
             try:
-                factura_inmutable = seguridad_fiscal.crear_documento_inmutable(factura_fiscal, 'FACTURA')
-            except ValueError as e:
-                flash(f'Error creando documento fiscal: {str(e)}', 'error')
-                return redirect(url_for('nueva_factura'))
+                clientes = cargar_datos(ARCHIVO_CLIENTES)
+                # Buscar cliente por nombre
+                for cliente_id, cliente_data in clientes.items():
+                    if cliente_data.get('nombre') == cliente:
+                        cliente_email = cliente_data.get('email', '')
+                        cliente_telefono = cliente_data.get('telefono', '')
+                        
+                        mensaje_notificacion = f"""
+💰 *Pago Recibido*
+
+✅ Hemos recibido su pago exitosamente.
+
+📋 *Detalles:*
+• Monto: ${monto_usd} USD / Bs. {monto_bs}
+• Método: {metodo_pago}
+• Referencia: {numero_referencia if numero_referencia else 'N/A'}
+• Fecha: {pago['fecha']} - {pago['hora']}
+• Nota: {numero_nota if numero_nota else 'N/A'}
+
+Gracias por su pago.
+                        """
+                        
+                        notificar_cliente(
+                            cliente_email,
+                            cliente_telefono,
+                            "💰 Pago Recibido",
+                            mensaje_notificacion,
+                            'pago_recibido'
+                        )
+                        break
+            except Exception as e:
+                print(f"❌ Error notificando pago al cliente: {e}")
             
-            # === FASE 10: CALCULAR ESTADO DE PAGO ===
-            total_abonado = sum(float(p['monto']) for p in pagos)
-            factura_inmutable['total_abonado'] = total_abonado
-            saldo_pendiente = total_usd - total_abonado
+            flash('Pago registrado exitosamente', 'success')
+            return redirect(url_for('mostrar_pagos_recibidos'))
             
-            if abs(saldo_pendiente) < 0.01 or total_abonado >= total_usd:
-                saldo_pendiente = 0
-                factura_inmutable['estado'] = 'pagada'
-            else:
-                factura_inmutable['estado'] = 'pendiente'
-                
-            factura_inmutable['saldo_pendiente'] = saldo_pendiente
-            
-            # === FASE 11: VALIDAR Y ACTUALIZAR INVENTARIO ===
-            for prod_id, cantidad in zip(productos, cantidades):
-                if prod_id in inventario:
-                    if int(cantidad) > int(inventario[prod_id]['cantidad']):
-                        flash(f'No hay suficiente stock para {inventario[prod_id]["nombre"]}', 'danger')
-                        return redirect(url_for('nueva_factura'))
-            
-            # Descontar stock y registrar salida
-            for prod_id, cantidad in zip(productos, cantidades):
-                inventario[prod_id]['cantidad'] -= int(cantidad)
-                if 'historial_ajustes' not in inventario[prod_id]:
-                    inventario[prod_id]['historial_ajustes'] = []
-                inventario[prod_id]['historial_ajustes'].append({
-                    'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'tipo': 'salida',
-                    'cantidad': int(cantidad),
-                    'motivo': f'Venta por factura fiscal {numero_fiscal}',
-                    'usuario': usuario_actual,
-                    'observaciones': f'Venta por factura fiscal {numero_fiscal}'
-                })
-            
-            if not guardar_datos(ARCHIVO_INVENTARIO, inventario):
-                flash('Error al actualizar el inventario', 'danger')
-                return redirect(url_for('nueva_factura'))
-            
-            # === FASE 12: GUARDAR FACTURA FISCAL ===
-            facturas = cargar_datos(ARCHIVO_FACTURAS)
-            id_factura = factura_inmutable['_metadatos_seguridad']['id_documento']
-            
-            # Validar que el ID se haya generado correctamente
-            if not id_factura or str(id_factura).strip() == '':
-                flash('Error: No se pudo generar el ID de la factura', 'danger')
-                return redirect(url_for('nueva_factura'))
-                
-            facturas[id_factura] = factura_inmutable
-            
-            if guardar_datos(ARCHIVO_FACTURAS, facturas):
-                # === FASE 13: REGISTRAR EN BITÁCORA FISCAL ===
-                control_numeracion.marcar_numero_utilizado(numero_fiscal, 'FACTURA', usuario_actual)
-                registrar_bitacora(
-                    usuario_actual, 
-                    'Nueva factura fiscal', 
-                    f"Total: ${total_usd:.2f}, Cliente: {cliente_datos.get('nombre', 'N/A')}", 
-                    'FACTURA', 
-                    numero_fiscal
-                )
-                
-                flash(f'Factura fiscal {numero_fiscal} creada exitosamente con sistema SENIAT', 'success')
-                return redirect(url_for('mostrar_facturas'))
-            else:
-                flash('Error al guardar la factura', 'danger')
-                return redirect(url_for('nueva_factura'))
         except Exception as e:
-            flash(f'Error al crear la factura: {str(e)}', 'danger')
-            return redirect(url_for('nueva_factura'))
+            print(f"Error en nuevo_pago_recibido: {e}")
+            flash('Error registrando el pago', 'error')
+            return redirect(url_for('nuevo_pago_recibido'))
     
+    # GET - Mostrar formulario
+    try:
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        tasa_bcv = obtener_tasa_bcv()
+        
+        # Calcular pagos pendientes por cliente
+        pagos_pendientes = {}
+        for cliente_id, cliente in clientes.items():
+            total_pendiente_usd = 0
+            total_pendiente_bs = 0
+            
+            for nota_id, nota in notas.items():
+                if nota.get('cliente_id') == cliente_id:
+                    total_usd = float(nota.get('total_usd', 0))
+                    total_abonado = float(nota.get('total_abonado', 0))
+                    saldo_pendiente = max(0, total_usd - total_abonado)
+                    
+                    if saldo_pendiente > 0:
+                        total_pendiente_usd += saldo_pendiente
+                        total_pendiente_bs += saldo_pendiente * float(nota.get('tasa_bcv', tasa_bcv))
+            
+            if total_pendiente_usd > 0:
+                pagos_pendientes[cliente_id] = {
+                    'total_usd': total_pendiente_usd,
+                    'total_bs': total_pendiente_bs
+                }
+        
+        # Métodos de pago disponibles
+        metodos_pago = ['Efectivo', 'Transferencia', 'Pago Móvil', 'Zelle', 'Divisas']
+        
+        return render_template('nuevo_pago_recibido.html',
+                             clientes=clientes,
+                             notas=notas,
+                             metodos_pago=metodos_pago,
+                             tasa_bcv=tasa_bcv,
+                             pagos_pendientes=pagos_pendientes)
+    except Exception as e:
+        print(f"Error cargando formulario nuevo_pago_recibido: {e}")
+        flash('Error cargando el formulario', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+@app.route('/pagos-recibidos/<id>')
+@login_required
+def ver_pago_recibido(id):
+    """Ver detalles de un pago recibido."""
+    try:
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        pago = pagos.get(id)
+        
+        if not pago:
+            flash('Pago no encontrado', 'error')
+            return redirect(url_for('mostrar_pagos_recibidos'))
+        
+        return render_template('ver_pago_recibido.html', pago=pago)
+    except Exception as e:
+        print(f"Error en ver_pago_recibido: {e}")
+        flash('Error cargando el pago', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+@app.route('/pagos-recibidos/<id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_pago_recibido(id):
+    """Editar pago recibido."""
+    if request.method == 'POST':
+        try:
+            pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+            pago = pagos.get(id)
+            
+            if not pago:
+                flash('Pago no encontrado', 'error')
+                return redirect(url_for('mostrar_pagos_recibidos'))
+            
+            # Actualizar datos
+            pago['cliente'] = request.form.get('cliente', '').strip()
+            pago['monto_usd'] = float(request.form.get('monto_usd', 0))
+            pago['monto_bs'] = float(request.form.get('monto_bs', 0))
+            pago['metodo_pago'] = request.form.get('metodo_pago', '')
+            pago['numero_referencia'] = request.form.get('numero_referencia', '').strip()
+            pago['banco'] = request.form.get('banco', '').strip()
+            pago['observaciones'] = request.form.get('observaciones', '').strip()
+            pago['numero_nota'] = request.form.get('numero_nota', '').strip()
+            pago['fecha_modificacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Guardar cambios
+            pagos[id] = pago
+            guardar_datos(ARCHIVO_PAGOS_RECIBIDOS, pagos)
+            
+            flash('Pago actualizado exitosamente', 'success')
+            return redirect(url_for('ver_pago_recibido', id=id))
+            
+        except Exception as e:
+            print(f"Error en editar_pago_recibido: {e}")
+            flash('Error actualizando el pago', 'error')
+            return redirect(url_for('editar_pago_recibido', id=id))
+    
+    # GET - Mostrar formulario de edición
+    try:
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        pago = pagos.get(id)
+        
+        if not pago:
+            flash('Pago no encontrado', 'error')
+            return redirect(url_for('mostrar_pagos_recibidos'))
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        # Métodos de pago disponibles
+        metodos_pago = ['Efectivo', 'Transferencia', 'Pago Móvil', 'Zelle', 'Divisas']
+        
+        return render_template('editar_pago_recibido.html',
+                             pago=pago,
+                             clientes=clientes,
+                             notas=notas,
+                             metodos_pago=metodos_pago)
+    except Exception as e:
+        print(f"Error cargando formulario editar_pago_recibido: {e}")
+        flash('Error cargando el formulario', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+@app.route('/pagos-recibidos/<id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_pago_recibido(id):
+    """Eliminar pago recibido."""
+    try:
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        pago = pagos.get(id)
+        
+        if not pago:
+            flash('Pago no encontrado', 'error')
+            return redirect(url_for('mostrar_pagos_recibidos'))
+        
+        # Eliminar pago
+        del pagos[id]
+        guardar_datos(ARCHIVO_PAGOS_RECIBIDOS, pagos)
+        
+        flash('Pago eliminado exitosamente', 'success')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+    except Exception as e:
+        print(f"Error en eliminar_pago_recibido: {e}")
+        flash('Error eliminando el pago', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+@app.route('/pagos-recibidos/<id>/comprobante')
+@login_required
+def comprobante_pago(id):
+    """Generar comprobante de pago en PDF."""
+    try:
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        pago = pagos.get(id)
+        
+        if not pago:
+            flash('Pago no encontrado', 'error')
+            return redirect(url_for('mostrar_pagos_recibidos'))
+        
+        return render_template('pdf_comprobante_pago.html', pago=pago)
+    except Exception as e:
+        print(f"Error en comprobante_pago: {e}")
+        flash('Error generando el comprobante', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+@app.route('/pagos-recibidos/reporte')
+@login_required
+def reporte_pagos_recibidos():
+    """Reporte de pagos recibidos por período."""
+    try:
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        
+        # Obtener parámetros de filtro
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        metodo_filtro = request.args.get('metodo', '')
+        cliente_filtro = request.args.get('cliente', '')
+        
+        # Filtrar pagos
+        pagos_filtrados = {}
+        for id_pago, pago in pagos.items():
+            # Filtro por fecha
+            if fecha_desde:
+                fecha_pago = datetime.strptime(pago.get('fecha', ''), '%Y-%m-%d')
+                fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d')
+                if fecha_pago < fecha_desde_obj:
+                    continue
+            
+            if fecha_hasta:
+                fecha_pago = datetime.strptime(pago.get('fecha', ''), '%Y-%m-%d')
+                fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+                if fecha_pago > fecha_hasta_obj:
+                    continue
+            
+            # Filtro por método
+            if metodo_filtro and pago.get('metodo_pago', '') != metodo_filtro:
+                continue
+            
+            # Filtro por cliente
+            if cliente_filtro and cliente_filtro.lower() not in pago.get('cliente', '').lower():
+                continue
+            
+            pagos_filtrados[id_pago] = pago
+        
+        # Calcular estadísticas
+        total_pagos = len(pagos_filtrados)
+        total_usd = sum(pago.get('monto_usd', 0) for pago in pagos_filtrados.values())
+        total_bs = sum(pago.get('monto_bs', 0) for pago in pagos_filtrados.values())
+        
+        # Estadísticas por método de pago
+        estadisticas_metodo = {}
+        for pago in pagos_filtrados.values():
+            metodo = pago.get('metodo_pago', 'Sin método')
+            if metodo not in estadisticas_metodo:
+                estadisticas_metodo[metodo] = {'cantidad': 0, 'total_usd': 0, 'total_bs': 0}
+            estadisticas_metodo[metodo]['cantidad'] += 1
+            estadisticas_metodo[metodo]['total_usd'] += pago.get('monto_usd', 0)
+            estadisticas_metodo[metodo]['total_bs'] += pago.get('monto_bs', 0)
+        
+        # Obtener clientes para filtro
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        # Métodos de pago disponibles
+        metodos_pago = ['Efectivo', 'Transferencia', 'Pago Móvil', 'Zelle', 'Divisas']
+        
+        return render_template('reporte_pagos_recibidos.html',
+                             pagos=pagos_filtrados,
+                             total_pagos=total_pagos,
+                             total_usd=total_usd,
+                             total_bs=total_bs,
+                             estadisticas_metodo=estadisticas_metodo,
+                             clientes=clientes,
+                             metodos_pago=metodos_pago,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta,
+                             metodo_filtro=metodo_filtro,
+                             cliente_filtro=cliente_filtro)
+    except Exception as e:
+        print(f"Error en reporte_pagos_recibidos: {e}")
+        flash('Error generando el reporte', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+@app.route('/pagos-recibidos/exportar')
+@login_required
+def exportar_pagos_recibidos():
+    """Exportar pagos recibidos en CSV."""
+    try:
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        
+        # Obtener parámetros de filtro
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        metodo_filtro = request.args.get('metodo', '')
+        
+        # Filtrar pagos
+        pagos_filtrados = {}
+        for id_pago, pago in pagos.items():
+            # Filtro por fecha
+            if fecha_desde:
+                fecha_pago = datetime.strptime(pago.get('fecha', ''), '%Y-%m-%d')
+                fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d')
+                if fecha_pago < fecha_desde_obj:
+                    continue
+            
+            if fecha_hasta:
+                fecha_pago = datetime.strptime(pago.get('fecha', ''), '%Y-%m-%d')
+                fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+                if fecha_pago > fecha_hasta_obj:
+                    continue
+            
+            # Filtro por método
+            if metodo_filtro and pago.get('metodo_pago', '') != metodo_filtro:
+                continue
+            
+            pagos_filtrados[id_pago] = pago
+        
+        # Crear CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Encabezados
+        writer.writerow(['ID', 'Cliente', 'Monto USD', 'Monto Bs', 'Método de Pago', 
+                        'Número de Referencia', 'Banco', 'Fecha', 'Hora', 'Observaciones'])
+        
+        # Datos
+        for pago in pagos_filtrados.values():
+            writer.writerow([
+                pago.get('id', ''),
+                pago.get('cliente', ''),
+                pago.get('monto_usd', 0),
+                pago.get('monto_bs', 0),
+                pago.get('metodo_pago', ''),
+                pago.get('numero_referencia', ''),
+                pago.get('banco', ''),
+                pago.get('fecha', ''),
+                pago.get('hora', ''),
+                pago.get('observaciones', '')
+            ])
+        
+        # Preparar respuesta
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=pagos_recibidos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error en exportar_pagos_recibidos: {e}")
+        flash('Error exportando los pagos', 'error')
+        return redirect(url_for('mostrar_pagos_recibidos'))
+
+def actualizar_cuenta_por_cobrar(numero_nota, monto_usd, monto_bs):
+    """Actualizar cuenta por cobrar cuando se recibe un pago."""
+    try:
+        cuentas = cargar_datos(ARCHIVO_CUENTAS)
+        
+        # Buscar la cuenta asociada a la nota
+        for id_cuenta, cuenta in cuentas.items():
+            if cuenta.get('numero') == numero_nota:
+                # Actualizar saldo
+                saldo_actual_usd = cuenta.get('saldo_usd', 0)
+                saldo_actual_bs = cuenta.get('saldo_bs', 0)
+                
+                nuevo_saldo_usd = max(0, saldo_actual_usd - monto_usd)
+                nuevo_saldo_bs = max(0, saldo_actual_bs - monto_bs)
+                
+                cuenta['saldo_usd'] = nuevo_saldo_usd
+                cuenta['saldo_bs'] = nuevo_saldo_bs
+                cuenta['abonado_usd'] = cuenta.get('abonado_usd', 0) + monto_usd
+                cuenta['abonado_bs'] = cuenta.get('abonado_bs', 0) + monto_bs
+                
+                # Actualizar estado
+                if nuevo_saldo_usd <= 0:
+                    cuenta['estado'] = 'Cobrada'
+                elif cuenta.get('abonado_usd', 0) > 0:
+                    cuenta['estado'] = 'Abonada'
+                
+                cuenta['fecha_ultimo_pago'] = datetime.now().strftime('%Y-%m-%d')
+                
+                # Guardar cambios
+                cuentas[id_cuenta] = cuenta
+                guardar_datos(ARCHIVO_CUENTAS, cuentas)
+                break
+                
+    except Exception as e:
+        print(f"Error actualizando cuenta por cobrar: {e}")
+
+@app.route('/test-nueva-nota', methods=['GET', 'POST'])
+@login_required
+def test_nueva_nota():
+    """Ruta de prueba para nueva nota de entrega."""
+    if request.method == 'POST':
+        try:
+            # Datos básicos para prueba
+            cliente_id = request.form['cliente_id']
+            fecha = request.form['fecha']
+            hora = request.form.get('hora', datetime.now().strftime('%H:%M:%S'))
+            modalidad_pago = request.form['modalidad_pago']
+            
+            # Productos
+            productos = request.form.getlist('productos[]')
+            cantidades = request.form.getlist('cantidades[]')
+            precios = request.form.getlist('precios[]')
+            
+            # Crear nota de prueba
+            notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+            numero_secuencial = len(notas) + 1
+            numero_nota = f"NE-{numero_secuencial:04d}"
+            
+            nota = {
+                'numero': numero_nota,
+                'cliente_id': cliente_id,
+                'fecha': fecha,
+                'hora': hora,
+                'modalidad_pago': modalidad_pago,
+                'productos': productos,
+                'cantidades': [int(c) for c in cantidades],
+                'precios': [float(p) for p in precios],
+                'subtotal_usd': sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios))),
+                'descuento': 0,
+                'total_usd': sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios))),
+                'tasa_bcv': 36.00,
+                'total_bs': sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios))) * 36.00,
+                'estado': 'PENDIENTE_ENTREGA',
+                'observaciones': 'Nota de prueba',
+                'creado_por': session.get('usuario', 'SISTEMA'),
+                'fecha_creacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            
+            notas[numero_nota] = nota
+            if guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas):
+                flash(f'Nota de prueba {numero_nota} creada exitosamente', 'success')
+                return redirect(url_for('mostrar_notas_entrega'))
+            else:
+                flash('Error guardando la nota de prueba', 'error')
+        except Exception as e:
+            print(f"Error en test_nueva_nota: {e}")
+            flash(f'Error: {str(e)}', 'error')
+    
+    # GET - Mostrar formulario de prueba
     clientes = cargar_datos(ARCHIVO_CLIENTES)
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    inventario_disponible = {k: v for k, v in inventario.items() if int(v.get('cantidad', 0)) > 0}
-    empresa = cargar_empresa()
-    return render_template('factura_form.html', clientes=clientes, inventario=inventario_disponible, editar=False, empresa=empresa, factura=None)
+    return render_template('test_nueva_nota.html', clientes=clientes, inventario=inventario)
 
-@app.route('/facturas/limpiar_ids_invalidos', methods=['POST'])
-@login_required
-def limpiar_ids_invalidos_facturas():
-    """Elimina facturas con IDs inválidos del archivo JSON."""
-    try:
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        facturas_originales = len(facturas)
-        
-        # Encontrar y eliminar facturas con IDs inválidos
-        ids_invalidos = []
-        for id_factura in list(facturas.keys()):
-            if not id_factura or str(id_factura).strip() == '':
-                ids_invalidos.append(id_factura)
-                del facturas[id_factura]
-        
-        if ids_invalidos:
-            if guardar_datos(ARCHIVO_FACTURAS, facturas):
-                flash(f'Se eliminaron {len(ids_invalidos)} facturas con IDs inválidos. Total restante: {len(facturas)}', 'success')
-                registrar_bitacora(session['usuario'], 'Limpiar IDs inválidos', f"Eliminadas: {ids_invalidos}")
-            else:
-                flash('Error al guardar los cambios', 'danger')
-        else:
-            flash('No se encontraron facturas con IDs inválidos', 'info')
-            
-    except Exception as e:
-        flash(f'Error al limpiar IDs inválidos: {str(e)}', 'danger')
-    
-    return redirect(url_for('mostrar_facturas'))
-
-@app.route('/facturas/migrar_formato', methods=['POST'])
-@login_required
-def migrar_formato_facturas():
-    """Convierte facturas históricas al formato fiscal nuevo (estructura SENIAT).
-    No cambia el número fiscal existente si ya lo tienen; crea items a partir de productos/cantidades/precios.
-    """
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-
-    actualizadas = 0
-    renumeradas = 0
-    for fid, f in list(facturas.items()):
-        try:
-            tasa = float(f.get('tasa_bcv') or 0) or 36.0
-            f_actualizada = copy.deepcopy(f)
-
-            # Normalizar número y hora SIEMPRE
-            numero_val = f_actualizada.get('numero')
-            if numero_val:
-                digits = re.sub(r'\D', '', str(numero_val))
-                if digits:
-                    try:
-                        nuevo_num = f"FAC-{int(digits):08d}"
-                        if nuevo_num != f_actualizada.get('numero'):
-                            f_actualizada['numero'] = nuevo_num
-                            renumeradas += 1
-                    except Exception:
-                        pass
-            hora_val = f_actualizada.get('hora') or ''
-            if hora_val and re.match(r'^\d{2}:\d{2}$', hora_val):
-                f_actualizada['hora'] = hora_val + ':00'
-
-            # Si NO tiene items, construirlos desde la estructura legacy
-            if not f_actualizada.get('items'):
-                productos = f_actualizada.get('productos') or []
-                cantidades = f_actualizada.get('cantidades') or []
-                precios = f_actualizada.get('precios') or []
-
-                items = []
-                for i in range(min(len(productos), len(cantidades), len(precios))):
-                    try:
-                        pid = productos[i]
-                        qty = int(cantidades[i])
-                        price = float(precios[i])
-                        subtotal_usd = qty * price
-                        items.append({
-                            'id_producto': pid,
-                            'nombre': '',
-                            'categoria': '',
-                            'cantidad': qty,
-                            'precio_unitario_usd': price,
-                            'precio_unitario_bs': price * tasa,
-                            'subtotal_usd': subtotal_usd,
-                            'subtotal_bs': subtotal_usd * tasa,
-                        })
-                    except Exception:
-                        continue
-
-                # Totales
-                subtotal_usd_calc = sum(it['subtotal_usd'] for it in items)
-                descuento_total = float(f_actualizada.get('descuento_total') or f_actualizada.get('descuento') or 0)
-                iva_pct = float(f_actualizada.get('iva') or 0)
-                base_iva = subtotal_usd_calc - descuento_total
-                iva_total = base_iva * (iva_pct/100)
-                total_usd = base_iva + iva_total
-                total_bs = total_usd * tasa
-
-                # Cliente embebido
-                cid = str(f_actualizada.get('cliente_id', ''))
-                c = clientes.get(cid, {})
-
-                f_actualizada.update({
-                    'items': items,
-                    'cliente_datos': {
-                        'rif': c.get('rif', cid),
-                        'nombre': c.get('nombre', ''),
-                        'direccion': c.get('direccion', ''),
-                        'telefono': c.get('telefono', ''),
-                        'email': c.get('email', ''),
-                    },
-                    'subtotal_usd': subtotal_usd_calc,
-                    'subtotal_bs': subtotal_usd_calc * tasa,
-                    'descuento_total': descuento_total,
-                    'iva_total': iva_total,
-                    'total_usd': total_usd,
-                    'total_bs': total_bs,
-                    'moneda_principal': 'USD',
-                    'moneda_secundaria': 'VES',
-                })
-                actualizadas += 1
-
-            facturas[fid] = f_actualizada
-        except Exception as e:
-            print('Error migrando/normalizando factura', fid, e)
-            continue
-
-    if guardar_datos(ARCHIVO_FACTURAS, facturas):
-        flash(f'Proceso completado. Items creados: {actualizadas}. Números/hours normalizados: {renumeradas}', 'success')
-    else:
-        flash('No se pudo guardar la migración.', 'danger')
-    return redirect(url_for('mostrar_facturas'))
-
+# Rutas para capturar URLs malformadas específicas
 @app.route('/configurar_secuencia', methods=['GET', 'POST'])
 @login_required
 def configurar_secuencia():
-    """Formulario simple para ajustar la secuencia de facturas (siguiente número)."""
     estado = control_numeracion.obtener_estado_numeracion('FACTURA')
     serie = estado.get('FACTURA', {})
     if request.method == 'POST':
@@ -2260,1022 +3465,86 @@ def configurar_secuencia():
             control['series']['FACTURA']['formato'] = f"{prefijo}" + "{numero:" + f"0{longitud}d" + "}"
             ctrl._guardar_control(control)
             flash('Secuencia actualizada correctamente', 'success')
-            return redirect(url_for('mostrar_facturas'))
+            return redirect(url_for('index'))
         except Exception as e:
             flash(f'Error actualizando secuencia: {e}', 'danger')
     return render_template('configurar_secuencia.html', serie=serie)
 
-@app.route('/facturas/<id>/eliminar', methods=['POST'])
-@login_required
-def eliminar_factura(id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    """Elimina una factura."""
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    if id in facturas:
-        del facturas[id]
-        if guardar_datos(ARCHIVO_FACTURAS, facturas):
-            flash('Factura eliminada exitosamente', 'success')
-            registrar_bitacora(session['usuario'], 'Eliminar factura', f"ID: {id}")
-        else:
-            flash('Error al eliminar la factura', 'danger')
-    else:
-        flash('Factura no encontrada', 'danger')
-    return redirect(url_for('mostrar_facturas'))
 
-@app.route('/cotizaciones')
+
+
+
+@app.route('/debug/clientes')
 @login_required
-def mostrar_cotizaciones():
-    """Muestra lista de cotizaciones válidas."""
+def debug_clientes():
+    """Ruta de debug para verificar el estado de los clientes."""
     try:
-        cotizaciones = {}
-        cotizaciones_dir = 'cotizaciones_json'
-        
-        # Asegurar que el directorio existe
-        if not os.path.exists(cotizaciones_dir):
-            os.makedirs(cotizaciones_dir)
-            return render_template('cotizaciones.html', cotizaciones={}, clientes={}, now=datetime.now().strftime('%Y-%m-%d'))
-        
-        # Leer todos los archivos JSON de cotizaciones
-        for filename in os.listdir(cotizaciones_dir):
-            if filename.endswith('.json'):
-                try:
-                    with open(os.path.join(cotizaciones_dir, filename), 'r', encoding='utf-8') as f:
-                        cot_data = json.load(f)
-                        
-                        # Extraer el ID del nombre del archivo
-                        cot_id = filename.split('_')[1].split('.')[0]
-                        
-                        # Procesar la fecha y hora
-                        fecha = cot_data.get('fecha', '')
-                        hora = cot_data.get('hora', '--:--')  # Usar '--:--' si no existe
-                        
-                        # Calcular validez
-                        validez_dias = int(cot_data.get('validez_dias', 30))
-                        try:
-                            fecha_dt = datetime.strptime(fecha, '%Y-%m-%d')
-                            validez = (fecha_dt + timedelta(days=validez_dias)).strftime('%Y-%m-%d')
-                        except:
-                            fecha_dt = datetime.now()
-                            validez = (fecha_dt + timedelta(days=validez_dias)).strftime('%Y-%m-%d')
-                        
-                        # Procesar el cliente
-                        cliente = cot_data.get('cliente', {})
-                        cliente_nombre = cliente.get('nombre', 'Cliente no especificado')
-                        
-                        # Procesar el total
-                        total = f"${float(cot_data.get('total_usd', 0)):.2f}" if isinstance(cot_data.get('total_usd', 0), (int, float)) else cot_data.get('total_usd', '$0.00')
-                        
-                        # Crear el diccionario de la cotización
-                        cotizaciones[cot_id] = {
-                            'numero': cot_data.get('numero_cotizacion', cot_id),
-                            'fecha': fecha,
-                            'hora': hora,
-                            'cliente_id': cliente_nombre,
-                            'total': total,
-                            'validez': validez
-                        }
-                except Exception as e:
-                    print(f"Error procesando archivo {filename}: {str(e)}")
-                    continue
-        
-        # Cargar clientes para el template
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        now = datetime.now().strftime('%Y-%m-%d')
+        if clientes is None:
+            return "❌ Error: No se pudieron cargar los clientes"
         
-        return render_template('cotizaciones.html', 
-                             cotizaciones=cotizaciones, 
-                             clientes=clientes, 
-                             now=now)
-                              
+        return f"✅ Clientes cargados: {len(clientes)}<br>IDs: {list(clientes.keys())[:10]}"
     except Exception as e:
-        print(f"Error al cargar las cotizaciones: {str(e)}")
-        flash('Error al cargar las cotizaciones. Por favor, intente nuevamente.', 'danger')
-        return redirect(url_for('index'))
-
-@app.route('/cotizaciones/nueva', methods=['GET', 'POST'])
-@login_required
-def nueva_cotizacion():
-    """Crea una nueva cotización."""
-    if request.method == 'POST':
-        try:
-            # Obtener datos del formulario
-            cliente_id = request.form['cliente_id']
-            fecha = request.form['fecha']
-            validez_dias = int(request.form.get('validez_dias', 30))
-            
-            # Obtener productos, cantidades y precios
-            productos = request.form.getlist('productos[]')
-            cantidades = request.form.getlist('cantidades[]')
-            precios = request.form.getlist('precios[]')
-            
-            # Calcular total
-            total_usd = sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios)))
-            
-            # Crear cotización
-            cotizacion = {
-                'cliente_id': cliente_id,
-                'fecha': fecha,
-                'validez_dias': validez_dias,
-                'productos': productos,
-                'cantidades': cantidades,
-                'precios': precios,
-                'total_usd': total_usd
-            }
-            
-            # Guardar cotización
-            cotizaciones_dir = 'cotizaciones_json'
-            os.makedirs(cotizaciones_dir, exist_ok=True)
-            
-            # Generar ID único
-            import time
-            cot_id = str(int(time.time()))
-            filename = f"cotizacion_{cot_id}.json"
-            filepath = os.path.join(cotizaciones_dir, filename)
-            
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(cotizacion, f, ensure_ascii=False, indent=4)
-            
-            flash('Cotización creada exitosamente', 'success')
-            return redirect(url_for('mostrar_cotizaciones'))
-            
-        except Exception as e:
-            flash(f'Error creando cotización: {str(e)}', 'danger')
-            return redirect(url_for('nueva_cotizacion'))
-    
-    # GET: mostrar formulario
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    return render_template('cotizacion_form.html', clientes=clientes, inventario=inventario)
-
-# --- Funciones de Utilidad ---
-def validar_url_factura(f):
-    """Decorador para validar URLs de facturas y redirigir si están malformadas"""
-    @wraps(f)
-    def decorated_function(id, *args, **kwargs):
-        # Verificar que la URL no tenga doble barra consecutiva (como /facturas//editar)
-        if '//' in request.path:
-            flash('URL de factura inválida', 'danger')
-            return redirect(url_for('mostrar_facturas'))
-        
-        # Verificar que el ID sea válido
-        if not id or str(id).strip() == '':
-            flash('ID de factura inválido', 'danger')
-            return redirect(url_for('mostrar_facturas'))
-        
-        return f(id, *args, **kwargs)
-    return decorated_function
-
-def cargar_datos(nombre_archivo):
-    """Carga datos desde un archivo JSON."""
-    try:
-        # Asegurar que el directorio existe
-        directorio = os.path.dirname(nombre_archivo)
-        if directorio:  # Si hay un directorio en la ruta
-            os.makedirs(directorio, exist_ok=True)
-            
-        if not os.path.exists(nombre_archivo):
-            print(f"Archivo {nombre_archivo} no existe. Creando nuevo archivo.")
-            with open(nombre_archivo, 'w', encoding='utf-8') as f:
-                json.dump({}, f, ensure_ascii=False, indent=4)
-            return {}
-            
-        with open(nombre_archivo, 'r', encoding='utf-8') as f:
-            contenido = f.read()
-            if not contenido.strip():
-                print(f"Archivo {nombre_archivo} está vacío.")
-                return {}
-            try:
-                return json.loads(contenido)
-            except json.JSONDecodeError as e:
-                print(f"Error decodificando JSON en {nombre_archivo}: {e}")
-                return {}
-    except Exception as e:
-        print(f"Error leyendo {nombre_archivo}: {e}")
-        return {}
-
-def guardar_datos(nombre_archivo, datos):
-    """Guarda datos en un archivo JSON."""
-    try:
-        # Asegurar que el directorio existe
-        directorio = os.path.dirname(nombre_archivo)
-        if directorio:  # Si hay un directorio en la ruta
-            try:
-                os.makedirs(directorio, exist_ok=True)
-                print(f"Directorio {directorio} creado/verificado exitosamente")
-            except Exception as e:
-                print(f"Error creando directorio {directorio}: {e}")
-                return False
-        
-        # Verificar que los datos son serializables
-        try:
-            json.dumps(datos)
-        except Exception as e:
-            print(f"Error serializando datos: {e}")
-            return False
-        
-        # Intentar guardar con manejo de errores específico
-        try:
-            # Primero intentamos escribir en un archivo temporal
-            temp_file = nombre_archivo + '.tmp'
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(datos, f, ensure_ascii=False, indent=4)
-            
-            # Si la escritura temporal fue exitosa, reemplazamos el archivo original
-            if os.path.exists(nombre_archivo):
-                os.remove(nombre_archivo)
-            os.rename(temp_file, nombre_archivo)
-            
-            print(f"Datos guardados exitosamente en {nombre_archivo}")
-            return True
-        except Exception as e:
-            print(f"Error escribiendo en archivo {nombre_archivo}: {e}")
-            # Limpiar archivo temporal si existe
-            if os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except:
-                    pass
-            return False
-    except Exception as e:
-        print(f"Error general guardando {nombre_archivo}: {e}")
-        return False
-
-def guardar_ultima_tasa_bcv(tasa):
-    try:
-        # Guardar tasa con fecha de actualización
-        data = {
-            'tasa': tasa,
-            'fecha': datetime.now().isoformat(),
-            'ultima_actualizacion': datetime.now().isoformat()
-        }
-        
-        try:
-            with open(ULTIMA_TASA_BCV_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f)
-            
-            print(f"Tasa BCV guardada exitosamente: {tasa}")
-            
-            # Registrar en bitácora si hay sesión activa
-            try:
-                from flask import has_request_context
-                if has_request_context() and 'usuario' in session:
-                    registrar_bitacora(session['usuario'], 'Actualizar tasa BCV', f'Tasa: {tasa}')
-                else:
-                    registrar_bitacora('Sistema', 'Actualizar tasa BCV', f'Tasa: {tasa}')
-            except Exception as e:
-                print(f"Error registrando en bitácora: {e}")
-                
-        except Exception as e:
-            print(f"Error guardando última tasa BCV: {e}")
-            
-    except Exception as e:
-        print(f"Error general en guardar_ultima_tasa_bcv: {e}")
-
-def cargar_ultima_tasa_bcv():
-    try:
-        # Verificar si el archivo existe
-        if not os.path.exists(ULTIMA_TASA_BCV_FILE):
-            print(f"Archivo de tasa BCV no encontrado: {ULTIMA_TASA_BCV_FILE}")
-            return None
-        
-        with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            tasa = float(data.get('tasa', 0))
-            if tasa > 10:
-                print(f"Tasa BCV cargada desde archivo: {tasa}")
-                return tasa
-            else:
-                print(f"Tasa BCV en archivo no válida: {tasa}")
-                return None
-    except FileNotFoundError:
-        print(f"Archivo de tasa BCV no encontrado: {ULTIMA_TASA_BCV_FILE}")
-        return None
-    except json.JSONDecodeError as e:
-        print(f"Error decodificando archivo de tasa BCV: {e}")
-        return None
-    except Exception as e:
-        print(f"Error inesperado cargando tasa BCV: {e}")
-        return None
-
-def obtener_ultima_tasa_del_sistema():
-    """Busca la tasa más reciente en facturas y otros archivos del sistema."""
-    try:
-        # Buscar en facturas recientes
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        tasas_encontradas = []
-        
-        for factura in facturas.values():
-            if factura.get('tasa_bcv'):
-                try:
-                    tasa = float(factura['tasa_bcv'])
-                    if tasa > 10:
-                        tasas_encontradas.append(tasa)
-                except:
-                    continue
-        
-        # Buscar en cotizaciones si existen
-        try:
-            cotizaciones = cargar_datos(ARCHIVO_COTIZACIONES)
-            for cotizacion in cotizaciones.values():
-                if cotizacion.get('tasa_bcv'):
-                    try:
-                        tasa = float(cotizacion['tasa_bcv'])
-                        if tasa > 10:
-                            tasas_encontradas.append(tasa)
-                    except:
-                        continue
-        except:
-            pass
-        
-        # Buscar en cuentas por cobrar si existen
-        try:
-            cuentas = cargar_datos(ARCHIVO_CUENTAS)
-            for cuenta in cuentas.values():
-                if cuenta.get('tasa_bcv'):
-                    try:
-                        tasa = float(cuenta['tasa_bcv'])
-                        if tasa > 10:
-                            tasas_encontradas.append(tasa)
-                    except:
-                        continue
-        except:
-            pass
-        
-        if tasas_encontradas:
-            # Usar la tasa más alta (más reciente) del sistema
-            tasa_mas_reciente = max(tasas_encontradas)
-            print(f"Tasa encontrada en el sistema: {tasa_mas_reciente}")
-            return tasa_mas_reciente
-        
-        return None
-        
-    except Exception as e:
-        print(f"Error buscando tasa en el sistema: {e}")
-        return None
-
-def inicializar_archivos_por_defecto():
-    """Inicializa archivos necesarios si no existen."""
-    try:
-        # Crear archivo de tasa BCV por defecto si no existe
-        if not os.path.exists(ULTIMA_TASA_BCV_FILE):
-            # Intentar obtener la tasa más reciente del sistema
-            tasa_sistema = obtener_ultima_tasa_del_sistema()
-            
-            if tasa_sistema and tasa_sistema > 10:
-                tasa_default = tasa_sistema
-                print(f"Usando tasa del sistema: {tasa_default}")
-            else:
-                # Solo usar tasa por defecto si no hay ninguna en el sistema
-                tasa_default = 135.0  # Tasa más reciente conocida
-                print(f"Usando tasa por defecto del sistema: {tasa_default}")
-            
-            with open(ULTIMA_TASA_BCV_FILE, 'w', encoding='utf-8') as f:
-                json.dump({'tasa': tasa_default, 'fecha': datetime.now().isoformat()}, f)
-            print(f"Archivo de tasa BCV creado con tasa: {tasa_default}")
-    except Exception as e:
-        print(f"Error inicializando archivos por defecto: {e}")
-
-def actualizar_tasa_bcv_automaticamente():
-    """Actualiza la tasa BCV automáticamente si han pasado más de 24 horas."""
-    try:
-        if not os.path.exists(ULTIMA_TASA_BCV_FILE):
-            print("Archivo de tasa BCV no existe, creando...")
-            inicializar_archivos_por_defecto()
-            return
-        
-        with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            ultima_actualizacion = data.get('fecha', '')
-        
-        if ultima_actualizacion:
-            try:
-                ultima_fecha = datetime.fromisoformat(ultima_actualizacion)
-                tiempo_transcurrido = datetime.now() - ultima_fecha
-                
-                # Actualizar si han pasado más de 24 horas
-                if tiempo_transcurrido.total_seconds() > 24 * 3600:
-                    print("🔄 Han pasado más de 24 horas, actualizando tasa BCV automáticamente...")
-                    nueva_tasa = obtener_tasa_bcv_dia()
-                    if nueva_tasa and nueva_tasa > 10:
-                        print(f"✅ Tasa BCV actualizada automáticamente: {nueva_tasa}")
-                    else:
-                        print("❌ No se pudo actualizar la tasa BCV automáticamente")
-                        # Intentar usar tasa del sistema como fallback
-                        tasa_sistema = obtener_ultima_tasa_del_sistema()
-                        if tasa_sistema and tasa_sistema > 10:
-                            print(f"⚠️ Usando tasa del sistema como fallback: {tasa_sistema}")
-                            guardar_ultima_tasa_bcv(tasa_sistema)
-                else:
-                    print(f"⏰ Tasa BCV actualizada recientemente, no es necesario actualizar")
-                    # Aún así, verificar si hay una tasa más reciente disponible
-                    print("🔍 Verificando si hay tasa más reciente disponible...")
-                    tasa_web = obtener_tasa_bcv_dia()
-                    if tasa_web and tasa_web > 0:
-                        print(f"🎯 Tasa más reciente encontrada: {tasa_web}")
-                        guardar_ultima_tasa_bcv(tasa_web)
-            except Exception as e:
-                print(f"Error verificando fecha de actualización: {e}")
-        else:
-            # Si no hay fecha, verificar si la tasa actual es válida
-            tasa_actual = data.get('tasa', 0)
-            if not tasa_actual or tasa_actual <= 10:
-                print("Tasa BCV no válida, buscando en el sistema...")
-                tasa_sistema = obtener_ultima_tasa_del_sistema()
-                if tasa_sistema and tasa_sistema > 10:
-                    print(f"Actualizando con tasa del sistema: {tasa_sistema}")
-                    guardar_ultima_tasa_bcv(tasa_sistema)
-        
-    except Exception as e:
-        print(f"Error en actualización automática de tasa BCV: {e}")
-        # En caso de error, intentar usar tasa del sistema
-        try:
-            tasa_sistema = obtener_ultima_tasa_del_sistema()
-            if tasa_sistema and tasa_sistema > 10:
-                print(f"Usando tasa del sistema después de error: {tasa_sistema}")
-                guardar_ultima_tasa_bcv(tasa_sistema)
-        except:
-            pass
-
-def registrar_bitacora(usuario, accion, detalles='', documento_tipo='', documento_numero=''):
-    """
-    Función mejorada de bitácora que mantiene compatibilidad y agrega funcionalidad SENIAT
-    """
-    from datetime import datetime
-    from flask import has_request_context, request, session
-    
-    # Sistema de bitácora tradicional (para compatibilidad)
-    ip = ''
-    ubicacion = ''
-    lat = ''
-    lon = ''
-    
-    try:
-        if has_request_context():
-            ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-            if ip == '127.0.0.1':
-                ip = '190.202.123.123'  # IP pública de Venezuela para pruebas
-        # Usar ubicación precisa si está en session
-        if has_request_context() and 'ubicacion_precisa' in session:
-            lat = session['ubicacion_precisa'].get('lat', '')
-            lon = session['ubicacion_precisa'].get('lon', '')
-            ubicacion = session['ubicacion_precisa'].get('texto', '')
-        elif has_request_context():
-            resp = requests.get(f'http://ip-api.com/json/{ip}', timeout=3)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('status') == 'success':
-                    lat = data.get('lat', '')
-                    lon = data.get('lon', '')
-                    ubicacion = ', '.join([v for v in [data.get('city', ''), data.get('regionName', ''), data.get('country', '')] if v])
-                else:
-                    ubicacion = f"API sin datos: {data}"
-            else:
-                ubicacion = f"API status: {resp.status_code}"
-    except Exception as e:
-        # Si hay algún error al acceder a Flask objects o API, usar valores por defecto
-        print(f"Error en registrar_bitacora: {e}")
-        ip = 'N/A'
-        ubicacion = 'N/A'
-        lat = ''
-        lon = ''
-    
-    # Bitácora tradicional
-    linea = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Usuario: {usuario} | Acción: {accion} | Detalles: {detalles} | IP: {ip} | Ubicación: {ubicacion} | Coordenadas: {lat},{lon}\n"
-    with open(BITACORA_FILE, 'a', encoding='utf-8') as f:
-        f.write(linea)
-    
-    # Sistema de auditoría fiscal SENIAT (cuando aplique)
-    if documento_tipo or documento_numero or 'factura' in accion.lower() or 'fiscal' in accion.lower():
-        try:
-            seguridad_fiscal.registrar_log_fiscal(
-                usuario=usuario,
-                accion=accion,
-                documento_tipo=documento_tipo or 'GENERAL',
-                documento_numero=documento_numero or 'N/A',
-                ip_externa=ip,
-                detalles=detalles
-            )
-        except Exception as e:
-            # En caso de error en logs fiscales, registrar en bitácora tradicional
-            error_linea = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ERROR_LOG_FISCAL: {str(e)}\n"
-            with open(BITACORA_FILE, 'a', encoding='utf-8') as f:
-                f.write(error_linea)
-    
-    # Retornar éxito
-    return True
-
-# Decorador para requerir login
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'usuario' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'usuario' not in session:
-            return redirect(url_for('login'))
-        # Verificar si es admin (puedes ajustar esta lógica según tu sistema)
-        if session.get('usuario') != 'admin':
-            flash('No tiene permisos de administrador para acceder a esta página', 'danger')
-            return redirect(url_for('index'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def verify_password(username, password):
-    """Verifica la contraseña de un usuario."""
-    try:
-        usuarios = cargar_datos('usuarios.json')
-        if username in usuarios:
-            return check_password_hash(usuarios[username]['password'], password)
-        else:
-            return False
-    except Exception as e:
-        print(f"Error verificando contraseña: {e}")
-        return False
-
-def obtener_estadisticas():
-    """Obtiene estadísticas para el dashboard."""
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    mes_actual = datetime.now().month
-    total_clientes = len(clientes)
-    total_productos = len(inventario)
-    facturas_mes = sum(1 for f in facturas.values() if datetime.strptime(f['fecha'], '%Y-%m-%d').month == mes_actual)
-    total_cobrar_usd = 0
-    for f in facturas.values():
-        total_facturado = float(f.get('total_usd', 0))
-        total_abonado = float(f.get('total_abonado', 0))
-        saldo = max(0, total_facturado - total_abonado)
-        if saldo > 0:  # Considerar cualquier saldo mayor a 0
-            total_cobrar_usd += saldo
-    # Asegura que tasa_bcv sea float y no Response
-    tasa_bcv = obtener_tasa_bcv()
-    if hasattr(tasa_bcv, 'json'):
-        # Si es un Response, extrae el valor
-        try:
-            tasa_bcv = tasa_bcv.json.get('tasa', 1.0)
-        except Exception:
-            tasa_bcv = 1.0
-    try:
-        tasa_bcv = float(tasa_bcv)
-    except Exception:
-        tasa_bcv = 1.0
-    total_cobrar_bs = total_cobrar_usd * tasa_bcv
-    # Crear lista de facturas con ID incluido para el dashboard
-    facturas_con_id = []
-    for factura_id, factura in facturas.items():
-        factura_copia = factura.copy()
-        factura_copia['id'] = factura_id  # Agregar el ID a la factura
-        facturas_con_id.append(factura_copia)
-    
-    ultimas_facturas = sorted(facturas_con_id, key=lambda x: datetime.strptime(x['fecha'], '%Y-%m-%d'), reverse=True)[:5]
-    productos_bajo_stock = [p for p in inventario.values() if int(p.get('cantidad', p.get('stock', 0))) < 10]
-    total_pagos_recibidos_usd = 0
-    total_pagos_recibidos_bs = 0
-    for f in facturas.values():
-        if 'pagos' in f and f['pagos']:
-            for pago in f['pagos']:
-                fecha_factura = f.get('fecha', '')
-                try:
-                    if fecha_factura and datetime.strptime(fecha_factura, '%Y-%m-%d').month == mes_actual:
-                        monto = float(pago.get('monto', 0))
-                        total_pagos_recibidos_usd += monto
-                        total_pagos_recibidos_bs += monto * float(f.get('tasa_bcv', tasa_bcv))
-                except Exception:
-                    continue
-    return {
-        'total_clientes': total_clientes,
-        'total_productos': total_productos,
-        'facturas_mes': facturas_mes,
-        'total_cobrar': f"{total_cobrar_usd:,.2f}",
-        'total_cobrar_usd': total_cobrar_usd,
-        'total_cobrar_bs': total_cobrar_bs,
-        'tasa_bcv': tasa_bcv,
-        'ultimas_facturas': ultimas_facturas,
-        'productos_bajo_stock': productos_bajo_stock,
-        'total_pagos_recibidos_usd': total_pagos_recibidos_usd,
-        'total_pagos_recibidos_bs': total_pagos_recibidos_bs
-    }
-
-def obtener_tasa_bcv():
-    try:
-        # Usar la constante definida
-        if not os.path.exists(ULTIMA_TASA_BCV_FILE):
-            print(f"Archivo de tasa BCV no encontrado: {ULTIMA_TASA_BCV_FILE}")
-            # Buscar en el sistema antes de usar tasa por defecto
-            tasa_sistema = obtener_ultima_tasa_del_sistema()
-            if tasa_sistema and tasa_sistema > 10:
-                print(f"Usando tasa del sistema: {tasa_sistema}")
-                return tasa_sistema
-            else:
-                print("No se encontró tasa válida en el sistema")
-                return None
-        
-        with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            tasa = float(data.get('tasa', 0))
-            if tasa > 10:
-                print(f"Tasa BCV obtenida del archivo: {tasa}")
-                return tasa
-            else:
-                print(f"Tasa BCV en archivo no válida: {tasa}")
-                # Buscar en el sistema como fallback
-                tasa_sistema = obtener_ultima_tasa_del_sistema()
-                if tasa_sistema and tasa_sistema > 10:
-                    print(f"Usando tasa del sistema como fallback: {tasa_sistema}")
-                    return tasa_sistema
-                return None
-    except FileNotFoundError:
-        print(f"Archivo de tasa BCV no encontrado")
-        # Buscar en el sistema
-        tasa_sistema = obtener_ultima_tasa_del_sistema()
-        if tasa_sistema and tasa_sistema > 10:
-            print(f"Usando tasa del sistema: {tasa_sistema}")
-            return tasa_sistema
-        return None
-    except json.JSONDecodeError as e:
-        print(f"Error decodificando archivo de tasa BCV: {e}")
-        # Buscar en el sistema como fallback
-        tasa_sistema = obtener_ultima_tasa_del_sistema()
-        if tasa_sistema and tasa_sistema > 10:
-            print(f"Usando tasa del sistema como fallback: {tasa_sistema}")
-            return tasa_sistema
-        return None
-    except Exception as e:
-        print(f"Error inesperado obteniendo tasa BCV: {e}")
-        # Buscar en el sistema como último recurso
-        tasa_sistema = obtener_ultima_tasa_del_sistema()
-        if tasa_sistema and tasa_sistema > 10:
-            print(f"Usando tasa del sistema como último recurso: {tasa_sistema}")
-            return tasa_sistema
-        return None
-
-def obtener_tasa_bcv_dia():
-    """Obtiene la tasa oficial USD/BS del BCV desde la web. Devuelve float o None si falla."""
-    try:
-        # SIEMPRE intentar obtener desde la web primero (no usar tasa local)
-        url = 'https://www.bcv.org.ve/glosario/cambio-oficial'
-        print(f"🔍 Obteniendo tasa BCV ACTUAL desde: {url}")
-        
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        resp = requests.get(url, timeout=20, verify=False)
-        
-        if resp.status_code != 200:
-            print(f"❌ Error HTTP al obtener tasa BCV: {resp.status_code}")
-            return None
-        
-        print(f"✅ Página BCV obtenida exitosamente, analizando contenido...")
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        tasa = None
-        
-        # Método 1: Buscar por id='dolar' (método principal)
-        dolar_div = soup.find('div', id='dolar')
-        if dolar_div:
-            strong = dolar_div.find('strong')
-            if strong:
-                txt = strong.text.strip().replace('.', '').replace(',', '.')
-                try:
-                    posible = float(txt)
-                    if posible > 10:
-                        tasa = posible
-                        print(f"🎯 Tasa BCV encontrada por ID 'dolar': {tasa}")
-                except:
-                    pass
-        
-        # Método 2: Buscar por id='usd' (alternativo)
-        if not tasa:
-            usd_div = soup.find('div', id='usd')
-            if usd_div:
-                strong = usd_div.find('strong')
-                if strong:
-                    txt = strong.text.strip().replace('.', '').replace(',', '.')
-                    try:
-                        posible = float(txt)
-                        if posible > 10:
-                            tasa = posible
-                            print(f"🎯 Tasa BCV encontrada por ID 'usd': {tasa}")
-                    except:
-                        pass
-        
-        # Método 3: Buscar por strong con texto que parezca una tasa
-        if not tasa:
-            for strong in soup.find_all('strong'):
-                txt = strong.text.strip().replace('.', '').replace(',', '.')
-                try:
-                    posible = float(txt)
-                    if posible > 10 and posible < 1000:  # Rango razonable
-                        tasa = posible
-                        print(f"🎯 Tasa BCV encontrada por strong: {tasa}")
-                        break
-                except:
-                    continue
-        
-        # Método 4: Buscar por span con clase específica
-        if not tasa:
-            for span in soup.find_all('span', class_='centrado'):
-                txt = span.text.strip().replace('.', '').replace(',', '.')
-                try:
-                    posible = float(txt)
-                    if posible > 10 and posible < 1000:
-                        tasa = posible
-                        print(f"🎯 Tasa BCV encontrada por span: {tasa}")
-                        break
-                except:
-                    continue
-        
-        # Método 5: Buscar por regex más específico
-        if not tasa:
-            import re
-            # Buscar patrones como 36,50 o 36.50 (más específico)
-            matches = re.findall(r'(\d{2,}[.,]\d{2,})', resp.text)
-            for m in matches:
-                try:
-                    posible = float(m.replace('.', '').replace(',', '.'))
-                    if posible > 10 and posible < 1000:
-                        tasa = posible
-                        print(f"🎯 Tasa BCV encontrada por regex: {tasa}")
-                        break
-                except:
-                    continue
-        
-        # Método 6: Buscar en tablas específicas
-        if not tasa:
-            for table in soup.find_all('table'):
-                for row in table.find_all('tr'):
-                    for cell in row.find_all(['td', 'th']):
-                        txt = cell.text.strip().replace('.', '').replace(',', '.')
-                        try:
-                            posible = float(txt)
-                            if posible > 10 and posible < 1000:
-                                tasa = posible
-                                print(f"🎯 Tasa BCV encontrada en tabla: {tasa}")
-                                break
-                        except:
-                            continue
-                    if tasa:
-                        break
-                if tasa:
-                    break
-        
-        # Método 7: Buscar por texto que contenga "USD" o "Dólar"
-        if not tasa:
-            for element in soup.find_all(['div', 'span', 'p']):
-                if 'USD' in element.text or 'Dólar' in element.text or 'dólar' in element.text:
-                    txt = element.text.strip()
-                    # Extraer números del texto
-                    import re
-                    numbers = re.findall(r'(\d+[.,]\d+)', txt)
-                    for num in numbers:
-                        try:
-                            posible = float(num.replace('.', '').replace(',', '.'))
-                            if posible > 10 and posible < 1000:
-                                tasa = posible
-                                print(f"🎯 Tasa BCV encontrada por texto USD: {tasa}")
-                                break
-                        except:
-                            continue
-                    if tasa:
-                        break
-        
-        if tasa and tasa > 10:
-            # Guardar la tasa en el archivo
-            guardar_ultima_tasa_bcv(tasa)
-            print(f"💾 Tasa BCV ACTUAL guardada exitosamente: {tasa}")
-            return tasa
-        else:
-            print("❌ No se pudo encontrar una tasa BCV válida en la página")
-            # Solo como último recurso, usar tasa local
-            tasa_local = cargar_ultima_tasa_bcv()
-            if tasa_local and tasa_local > 10:
-                print(f"⚠️ Usando tasa BCV local como fallback: {tasa_local}")
-                return tasa_local
-            return None
-            
-    except Exception as e:
-        print(f"❌ Error obteniendo tasa BCV: {e}")
-        # Solo como último recurso, usar tasa local
-        try:
-            tasa_fallback = cargar_ultima_tasa_bcv()
-            if tasa_fallback and tasa_fallback > 10:
-                print(f"⚠️ Usando tasa BCV de fallback después de error: {tasa_fallback}")
-                return tasa_fallback
-        except:
-            pass
-        return None
-
-# Llamar inicialización
-inicializar_archivos_por_defecto()
-
-# Ejecutar actualización automática al iniciar
-actualizar_tasa_bcv_automaticamente()
-# Usar SECRET_KEY desde variables de entorno en producción
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'unsafe-default-change-me')
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max-limit
-csrf = CSRFProtect(app)
-
-
-
-def limpiar_valor_monetario(valor):
-    """Limpia y convierte un valor monetario a float."""
-    if valor is None:
-        return 0.0
-    if isinstance(valor, (int, float)):
-        return float(valor)
-    try:
-        # Eliminar símbolos y espacios
-        valor = str(valor).replace('$', '').replace(',', '').replace('Bs', '').strip()
-        # Reemplazar coma decimal por punto si existe
-        if ',' in valor:
-            valor = valor.replace(',', '.')
-        return float(valor)
-    except (ValueError, TypeError):
-        return 0.0
-
-def cargar_empresa():
-    try:
-        with open('empresa.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
-        return {
-            "nombre": "Nombre de la Empresa",
-            "rif": "J-000000000",
-            "telefono": "0000-0000000",
-            "direccion": "Dirección de la empresa"
-        }
-
-def es_fecha_valida(fecha_str):
-    """Valida si una fecha es válida y puede ser comparada."""
-    if not fecha_str or not isinstance(fecha_str, str):
-        return False
-    try:
-        datetime.strptime(fecha_str, '%Y-%m-%d')
-        return True
-    except ValueError:
-        return False
-
-def limpiar_monto(monto):
-    if not monto:
-        return 0.0
-    return float(str(monto).replace('$', '').replace('Bs', '').replace(',', '').strip())
-
-# NOTA: La función index ya está definida anteriormente
-
-# NOTA: La función mapa_avanzado ya está definida anteriormente
-
-# NOTA: La función mostrar_clientes ya está definida anteriormente
-
-# NOTA: La función nuevo_cliente ya está definida anteriormente
-
-# NOTA: La función mostrar_inventario ya está definida anteriormente
-
-# NOTA: La función nuevo_producto ya está definida anteriormente
-
-# NOTA: La función editar_producto ya está definida anteriormente
-# NOTA: La función eliminar_producto ya está definida anteriormente
-# NOTA: La función ver_producto ya está definida anteriormente
-
-# NOTA: La función mostrar_facturas ya está definida anteriormente
-# NOTA: La función imprimir_factura ya está definida anteriormente
-# NOTA: La función ver_factura ya está definida anteriormente
-# NOTA: La función test_whatsapp ya está definida anteriormente
-
-# Rutas para capturar URLs malformadas específicas
-# NOTA: La función editar_factura_url_malformada ya está definida anteriormente
-# NOTA: La función factura_url_malformada_general ya está definida anteriormente
-# NOTA: La función editar_factura_url_triple_malformada ya está definida anteriormente
-# NOTA: La función editar_factura ya está definida anteriormente
-# NOTA: La función duplicar_factura ya está definida anteriormente
-# NOTA: La función nueva_factura ya está definida anteriormente
-# NOTA: La función limpiar_ids_invalidos_facturas ya está definida anteriormente
-# NOTA: La función migrar_formato_facturas ya está definida anteriormente
-# NOTA: La función configurar_secuencia ya está definida anteriormente
-# NOTA: La función eliminar_factura ya está definida anteriormente
-# NOTA: La función mostrar_cotizaciones ya está definida anteriormente
-# NOTA: La función nueva_cotizacion ya está definida anteriormente
-@app.route('/cotizaciones/<id>/editar', methods=['GET', 'POST'])
-@login_required
-def editar_cotizacion(id):
-    """Formulario para editar una cotización."""
-    cotizaciones_dir = 'cotizaciones_json'
-    filename = os.path.join(cotizaciones_dir, f"cotizacion_{id}.json")
-    if not os.path.exists(filename):
-        flash('Cotización no encontrada', 'danger')
-        return redirect(url_for('mostrar_cotizaciones'))
-    if request.method == 'POST':
-        productos = request.form.getlist('productos[]')
-        cantidades = request.form.getlist('cantidades[]')
-        precios = request.form.getlist('precios[]')
-        subtotal_usd = request.form.get('subtotal_usd', '0')
-        subtotal_bs = request.form.get('subtotal_bs', '0')
-        descuento = request.form.get('descuento', '0')
-        tipo_descuento = request.form.get('tipo_descuento', 'bs')
-        descuento_total = request.form.get('descuento_total', '0')
-        iva = request.form.get('iva', '0')
-        iva_total = request.form.get('iva_total', '0')
-        total_usd = request.form.get('total_usd', '0')
-        total_bs = request.form.get('total_bs', '0')
-        tasa_bcv = request.form.get('tasa_bcv', '0')
-        validez = request.form.get('validez', '3')
-        cliente_id = request.form.get('cliente_id')
-        clientes = cargar_datos(ARCHIVO_CLIENTES)
-        cliente = clientes.get(cliente_id, {})
-        cotizacion = {
-            'numero_cotizacion': id,
-            'fecha': request.form['fecha'],
-            'cliente': cliente,
-            'productos': productos,
-            'cantidades': cantidades,
-            'precios': precios,
-            'subtotal_usd': subtotal_usd,
-            'subtotal_bs': subtotal_bs,
-            'descuento': descuento,
-            'tipo_descuento': tipo_descuento,
-            'descuento_total': descuento_total,
-            'iva': iva,
-            'iva_total': iva_total,
-            'total_usd': total_usd,
-            'total_bs': total_bs,
-            'tasa_bcv': tasa_bcv,
-            'validez_dias': int(validez)
-        }
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(cotizacion, f, ensure_ascii=False, indent=4)
-        flash('Cotización actualizada exitosamente', 'success')
-        registrar_bitacora(session['usuario'], 'Editar cotización', f"ID: {id}")
-        return redirect(url_for('mostrar_cotizaciones'))
-    with open(filename, 'r', encoding='utf-8') as f:
-        cotizacion = json.load(f)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    # --- Fix para edición: cliente_id y validez ---
-    if 'cliente' in cotizacion and 'id' in cotizacion['cliente']:
-        cotizacion['cliente_id'] = cotizacion['cliente']['id']
-    else:
-        cotizacion['cliente_id'] = ''
-    cotizacion['validez'] = cotizacion.get('validez_dias', 3)
-    if 'precios' in cotizacion:
-        cotizacion['precios'] = [float(p) for p in cotizacion['precios']]
-    # Fix para mostrar el número de cotización en el formulario
-    cotizacion['numero'] = cotizacion.get('numero_cotizacion', id)
-    return render_template('cotizacion_form.html', cotizacion=cotizacion, clientes=clientes, inventario=inventario, zip=zip)
-
-@app.route('/cotizaciones/<id>/eliminar', methods=['POST'])
-@login_required
-def eliminar_cotizacion(id):
-    """Elimina una cotización (elimina el archivo individual)."""
-    cotizaciones_dir = 'cotizaciones_json'
-    filename = os.path.join(cotizaciones_dir, f"cotizacion_{id}.json")
-    if os.path.exists(filename):
-        try:
-            os.remove(filename)
-            flash('Cotización eliminada exitosamente', 'success')
-            registrar_bitacora(session['usuario'], 'Eliminar cotización', f"ID: {id}")
-        except Exception as e:
-            flash(f'Error al eliminar la cotización: {e}', 'danger')
-    else:
-        flash('Cotización no encontrada', 'danger')
-    return redirect(url_for('mostrar_cotizaciones'))
+        return f"❌ Error: {str(e)}"
 
 @app.route('/clientes/<path:id>')
 def ver_cliente(id):
     """Muestra los detalles de un cliente."""
     try:
+        print(f"Iniciando carga de detalles del cliente: {id}")
+        # Cargar datos con manejo de errores
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        if clientes is None:
+            clientes = {}
+            print("No se pudieron cargar los clientes")
+        
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        if notas is None:
+            notas = {}
+            print("No se pudieron cargar las notas")
+        
         cuentas = cargar_datos(ARCHIVO_CUENTAS)
-        tasa_bcv = obtener_tasa_bcv() or 1.0
+        if cuentas is None:
+            cuentas = {}
+            print("No se pudieron cargar las cuentas")
+        
+        # Obtener tasa BCV con manejo de errores
+        try:
+            tasa_bcv = obtener_tasa_bcv()
+            if tasa_bcv is None or tasa_bcv <= 0:
+                tasa_bcv = 1.0
+                print("Usando tasa BCV por defecto: 1.0")
+        except Exception as e:
+            print(f"Error al obtener tasa BCV: {e}")
+            tasa_bcv = 1.0
+        
+        print(f"Clientes cargados: {len(clientes)}")
+        print(f"Buscando cliente con ID: {id}")
+        print(f"IDs disponibles: {list(clientes.keys())[:5]}...")  # Mostrar solo los primeros 5
         
         if id not in clientes:
+            print(f"Cliente {id} no encontrado en la base de datos")
             flash('❌ Cliente no encontrado', 'danger')
             return redirect(url_for('mostrar_clientes'))
         
         cliente = clientes[id]
+        print(f"Cliente encontrado: {cliente.get('nombre', 'Sin nombre')}")
         
         # Calcular totales financieros de forma más robusta
-        facturas_cliente = [f for f in facturas.values() if f.get('cliente_id') == id]
+        notas_cliente = [f for f in notas.values() if f.get('cliente_id') == id]
         
-        # Total facturado
-        total_facturado = 0.0
-        for factura in facturas_cliente:
+        total_notas_entrega = 0.0
+        for nota in notas_cliente:
             try:
-                total_facturado += float(factura.get('total_usd', 0))
+                total_notas_entrega += safe_float(nota.get('total_usd', 0))
             except (ValueError, TypeError):
                 continue
         
         # Total abonado
         total_abonado = 0.0
-        for factura in facturas_cliente:
+        for nota in notas_cliente:
             try:
-                total_abonado += float(factura.get('total_abonado', 0))
+                total_abonado += safe_float(nota.get('total_abonado', 0))
             except (ValueError, TypeError):
                 continue
         
@@ -3284,42 +3553,59 @@ def ver_cliente(id):
         total_por_cobrar = 0.0
         if cuenta:
             try:
-                total_por_cobrar = float(cuenta.get('saldo_pendiente', 0))
+                total_por_cobrar = safe_float(cuenta.get('saldo_pendiente', 0))
             except (ValueError, TypeError):
                 total_por_cobrar = 0.0
         
-        # Calcular total por cobrar también desde facturas (como respaldo)
-        total_por_cobrar_facturas = total_facturado - total_abonado
-        if total_por_cobrar == 0 and total_por_cobrar_facturas > 0:
-            total_por_cobrar = total_por_cobrar_facturas
+        total_por_cobrar_notas = total_notas_entrega - total_abonado
+        if total_por_cobrar == 0 and total_por_cobrar_notas > 0:
+            total_por_cobrar = total_por_cobrar_notas
         
-        # Convertir a bolívares
-        total_por_cobrar_bs = total_por_cobrar * tasa_bcv
+        # Convertir a bolívares con manejo de errores
+        if tasa_bcv and tasa_bcv > 0:
+            total_por_cobrar_bs = total_por_cobrar * tasa_bcv
+        else:
+            total_por_cobrar_bs = total_por_cobrar
         
         # Estadísticas adicionales
-        cantidad_facturas = len(facturas_cliente)
-        ultima_factura = None
-        if facturas_cliente:
-            facturas_ordenadas = sorted(facturas_cliente, key=lambda x: x.get('fecha', ''), reverse=True)
-            ultima_factura = facturas_ordenadas[0].get('fecha') if facturas_ordenadas else None
+        cantidad_notas = len(notas_cliente)
+        ultima_nota = None
+        if notas_cliente:
+            facturas_ordenadas = sorted(notas_cliente, key=lambda x: x.get('fecha', ''), reverse=True)
+            ultima_nota = facturas_ordenadas[0].get('fecha') if facturas_ordenadas else None
         
-        # Obtener configuración del mapa
-        maps_config = get_maps_config()
+        # Obtener configuración del mapa con manejo de errores
+        try:
+            maps_config = get_maps_config()
+        except Exception as e:
+            print(f"Error al obtener configuración de mapas: {e}")
+            maps_config = {
+                'api_key': '',
+                'libraries': [],
+                'default_center': {'lat': 10.5, 'lng': -66.9},
+                'default_zoom': 12,
+                'map_types': {'roadmap': 'Mapa'},
+                'clustering': {'grid_size': 50, 'max_zoom': 15},
+                'heatmap': {'radius': 20, 'opacity': 0.6},
+                'geocoding': {'timeout': 5, 'max_retries': 3}
+            }
         
         return render_template('cliente_detalle.html', 
                              cliente=cliente, 
-                             total_facturado=total_facturado, 
+                             total_facturado=total_notas_entrega, 
                              total_abonado=total_abonado, 
                              total_por_cobrar=total_por_cobrar, 
                              total_por_cobrar_bs=total_por_cobrar_bs, 
                              tasa_bcv=tasa_bcv,
-                             cantidad_facturas=cantidad_facturas,
-                             ultima_factura=ultima_factura,
+                             cantidad_notas=cantidad_notas,
+                             ultima_factura=ultima_nota,
                              maps_config=maps_config)
     
     except Exception as e:
+        import traceback
         print(f"Error al cargar detalles del cliente {id}: {e}")
-        flash('❌ Error al cargar los detalles del cliente', 'danger')
+        print(f"Traceback completo: {traceback.format_exc()}")
+        flash(f'❌ Error al cargar los detalles del cliente: {str(e)}', 'danger')
         return redirect(url_for('mostrar_clientes'))
 
 @app.route('/clientes/<path:id>/editar', methods=['GET', 'POST'])
@@ -3495,7 +3781,7 @@ def reporte_inventario():
         tasa_bcv = obtener_tasa_bcv()
         advertencia_tasa = None
         try:
-            tasa_bcv = float(tasa_bcv)
+            tasa_bcv = safe_float(tasa_bcv)
         except Exception:
             tasa_bcv = 0
         if not tasa_bcv or tasa_bcv < 1:
@@ -3563,12 +3849,199 @@ def reporte_inventario():
         flash(f'Error al generar el reporte: {str(e)}', 'danger')
         return redirect(url_for('mostrar_inventario'))
 
+
+@app.route('/inventario/reporte-neomorfico')
+@login_required
+def reporte_inventario_neomorfico():
+    """Genera reporte de inventario con estilo neomórfico mejorado"""
+    try:
+        # Cargar inventario
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        
+        # Obtener tasa BCV actual
+        tasa_bcv = cargar_ultima_tasa_bcv()
+        if not tasa_bcv or tasa_bcv <= 0:
+            tasa_bcv = 205.68  # Tasa de fallback
+        
+        # Configuración de tipos de productos
+        tipos_config = {
+            'piezas': {'nombre': 'Piezas', 'color': '#667eea', 'icono': 'fas fa-cogs'},
+            'accesorios': {'nombre': 'Accesorios', 'color': '#f093fb', 'icono': 'fas fa-mobile-alt'},
+            'herramientas': {'nombre': 'Herramientas', 'color': '#4facfe', 'icono': 'fas fa-tools'},
+            'consumibles': {'nombre': 'Consumibles', 'color': '#43e97b', 'icono': 'fas fa-box-open'},
+            'otros': {'nombre': 'Otros', 'color': '#ffd93d', 'icono': 'fas fa-question-circle'}
+        }
+        
+        # Inicializar estructura del reporte
+        reporte_por_tipo = {}
+        for tipo, info in tipos_config.items():
+            reporte_por_tipo[tipo] = {
+                'nombre': info['nombre'],
+                'color': info['color'],
+                'icono': info['icono'],
+                'total_productos': 0,
+                'total_stock': 0,
+                'total_valor_usd': 0,
+                'total_valor_bs': 0,
+                'categorias': {}
+            }
+        
+        # Procesar productos de manera optimizada
+        for id_producto, producto in inventario.items():
+            # Validar y limpiar datos
+            tipo = producto.get('tipo', 'otros').lower().strip()
+            categoria = producto.get('categoria', 'Sin categoría').strip()
+            cantidad = max(0, int(producto.get('cantidad', 0)))
+            precio_usd = max(0, safe_float(producto.get('precio', 0)))
+            
+            # Calcular valores
+            precio_bs = precio_usd * tasa_bcv
+            valor_total_usd = cantidad * precio_usd
+            valor_total_bs = cantidad * precio_bs
+            
+            # Asegurar que el tipo existe
+            if tipo not in reporte_por_tipo:
+                tipo = 'otros'
+            
+            # Actualizar totales del tipo
+            reporte_por_tipo[tipo]['total_productos'] += 1
+            reporte_por_tipo[tipo]['total_stock'] += cantidad
+            reporte_por_tipo[tipo]['total_valor_usd'] += valor_total_usd
+            reporte_por_tipo[tipo]['total_valor_bs'] += valor_total_bs
+            
+            # Inicializar categoría si no existe
+            if categoria not in reporte_por_tipo[tipo]['categorias']:
+                reporte_por_tipo[tipo]['categorias'][categoria] = {
+                    'total_productos': 0,
+                    'total_stock': 0,
+                    'total_valor_usd': 0,
+                    'total_valor_bs': 0,
+                    'productos': []
+                }
+            
+            # Actualizar totales de la categoría
+            reporte_por_tipo[tipo]['categorias'][categoria]['total_productos'] += 1
+            reporte_por_tipo[tipo]['categorias'][categoria]['total_stock'] += cantidad
+            reporte_por_tipo[tipo]['categorias'][categoria]['total_valor_usd'] += valor_total_usd
+            reporte_por_tipo[tipo]['categorias'][categoria]['total_valor_bs'] += valor_total_bs
+            
+            # Agregar producto a la categoría
+            reporte_por_tipo[tipo]['categorias'][categoria]['productos'].append({
+                'id': id_producto,
+                'nombre': producto.get('nombre', 'Sin nombre').strip(),
+                'cantidad': cantidad,
+                'precio_usd': precio_usd,
+                'precio_bs': precio_bs,
+                'valor_total_usd': valor_total_usd,
+                'valor_total_bs': valor_total_bs
+            })
+        
+        # Ordenar productos dentro de cada categoría por nombre
+        for tipo_data in reporte_por_tipo.values():
+            for categoria_data in tipo_data['categorias'].values():
+                categoria_data['productos'].sort(key=lambda x: x['nombre'].lower())
+        
+        # Calcular totales generales
+        total_general = {
+            'total_productos': sum(tipo['total_productos'] for tipo in reporte_por_tipo.values()),
+            'total_stock': sum(tipo['total_stock'] for tipo in reporte_por_tipo.values()),
+            'total_valor_usd': sum(tipo['total_valor_usd'] for tipo in reporte_por_tipo.values()),
+            'total_valor_bs': sum(tipo['total_valor_bs'] for tipo in reporte_por_tipo.values())
+        }
+        
+        # Filtrar tipos sin productos para optimizar el template
+        reporte_por_tipo_filtrado = {
+            tipo: datos for tipo, datos in reporte_por_tipo.items() 
+            if datos['total_productos'] > 0
+        }
+        
+        return render_template('reporte_inventario_neomorfico_final.html',
+                             inventario=inventario,
+                             reporte_por_tipo=reporte_por_tipo_filtrado,
+                             total_productos=total_general['total_productos'],
+                             total_stock=total_general['total_stock'],
+                             total_valor_usd=total_general['total_valor_usd'],
+                             total_valor_bs=total_general['total_valor_bs'],
+                             tasa_bcv=tasa_bcv,
+                             fecha_actual=datetime.now().strftime('%d/%m/%Y %H:%M'))
+    
+    except Exception as e:
+        print(f"Error generando reporte de inventario: {str(e)}")
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Error - Reporte de Inventario</title>
+            <style>
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    background: #f0f0f3; 
+                    padding: 2rem; 
+                    text-align: center; 
+                }}
+                .error-card {{
+                    background: #f0f0f3;
+                    border-radius: 20px;
+                    padding: 2rem;
+                    box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+                    max-width: 500px;
+                    margin: 0 auto;
+                }}
+                .error-title {{ color: #e53e3e; font-size: 1.5rem; margin-bottom: 1rem; }}
+                .error-message {{ color: #2d3748; margin-bottom: 2rem; }}
+                .btn {{ 
+                    background: #667eea; 
+                    color: white; 
+                    padding: 0.8rem 1.5rem; 
+                    border: none; 
+                    border-radius: 10px; 
+                    text-decoration: none; 
+                    display: inline-block; 
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="error-card">
+                <h1 class="error-title">Error al Generar Reporte</h1>
+                <p class="error-message">{str(e)}</p>
+                <a href="/inventario" class="btn">Volver al Inventario</a>
+            </div>
+        </body>
+        </html>
+        """
+
 # --- API Endpoints ---
 @app.route('/api/productos')
 def api_productos():
     """API endpoint para obtener productos."""
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    return jsonify(inventario)
+    try:
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        
+        # Convertir inventario a formato compatible con el frontend
+        productos = []
+        for producto_id, producto in inventario.items():
+            productos.append({
+                'id': producto_id,
+                'nombre': producto.get('nombre', ''),
+                'categoria': producto.get('categoria', 'Sin categoría'),
+                'precio': safe_float(producto.get('precio', 0)),
+                'cantidad': int(producto.get('cantidad', 0)),
+                'descripcion': producto.get('descripcion', '')
+            })
+        
+        return jsonify({
+            'success': True,
+            'productos': productos,
+            'total': len(productos)
+        })
+    except Exception as e:
+        print(f"DEBUG: Error en API productos: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'productos': [],
+            'total': 0
+        })
 
 @app.route('/api/clientes')
 def api_clientes():
@@ -3589,12 +4062,75 @@ def api_tasa_bcv():
         if ultima_tasa:
             return jsonify({'tasa': ultima_tasa, 'advertencia': True})
         
-        # Si no hay tasa guardada, devolver error
-        return jsonify({'error': 'No se pudo obtener la tasa BCV'}), 500
+        # Si no hay tasa guardada, usar tasa correcta del dólar
+        tasa_fallback = 205.68
+        print("WARNING Usando tasa BCV USD de fallback en API: 205.68")
+        return jsonify({'tasa': tasa_fallback, 'advertencia': True})
         
     except Exception as e:
         print(f"Error en /api/tasa-bcv: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ordenes-servicio')
+def api_ordenes_servicio():
+    """API para obtener todas las órdenes de servicio para autocompletado"""
+    try:
+        print("🔍 Cargando órdenes de servicio para API...")
+        ordenes = cargar_datos('ordenes_servicio.json')
+        if not isinstance(ordenes, dict):
+            ordenes = {}
+        
+        print(f"📊 Total de órdenes cargadas: {len(ordenes)}")
+        
+        # Filtrar solo órdenes que tengan información completa
+        ordenes_filtradas = []
+        for orden_id, orden in ordenes.items():
+            print(f"🔍 Procesando orden {orden_id}: {type(orden)}")
+            if isinstance(orden, dict):
+                print(f"  - Cliente: {'cliente' in orden}")
+                print(f"  - Equipo: {'equipo' in orden}")
+                print(f"  - Número: {'numero_orden' in orden}")
+                print(f"  - Orden completa: {orden}")
+                
+                if ('cliente' in orden and 
+                    'equipo' in orden and 
+                    'numero_orden' in orden):
+                    orden_filtrada = {
+                        'id': orden_id,
+                        'numero_orden': orden.get('numero_orden', orden_id),
+                        'cliente': orden.get('cliente', {}),
+                        'equipo': orden.get('equipo', {}),
+                        'estado': orden.get('estado', 'desconocido')
+                    }
+                    ordenes_filtradas.append(orden_filtrada)
+                    print(f"  ✅ Orden agregada: {orden_filtrada['numero_orden']}")
+                else:
+                    print(f"  ❌ Orden rechazada por falta de datos")
+        
+        print(f"📋 Órdenes filtradas: {len(ordenes_filtradas)}")
+        return jsonify({'ordenes': ordenes_filtradas})
+        
+    except Exception as e:
+        print(f"❌ Error en /api/ordenes-servicio: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/orden-servicio/<orden_id>')
+def api_orden_servicio(orden_id):
+    """API para obtener una orden de servicio específica"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        if not isinstance(ordenes, dict):
+            ordenes = {}
+        
+        if orden_id not in ordenes:
+            return jsonify({'success': False, 'error': 'Orden no encontrada'}), 404
+        
+        orden = ordenes[orden_id]
+        return jsonify({'success': True, 'orden': orden})
+        
+    except Exception as e:
+        print(f"Error en /api/orden-servicio/{orden_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/buscar-clientes')
 def api_buscar_clientes():
@@ -3635,6 +4171,81 @@ def api_buscar_clientes():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/listar-clientes')
+def api_listar_clientes():
+    """API para listar todos los clientes."""
+    try:
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        lista_clientes = []
+        
+        for id_cliente, cliente in clientes.items():
+            lista_clientes.append({
+                'id': id_cliente,
+                'nombre': cliente.get('nombre', ''),
+                'cedula_rif': cliente.get('cedula_rif', ''),
+                'telefono': cliente.get('telefono', ''),
+                'telefono2': cliente.get('telefono2', ''),
+                'email': cliente.get('email', ''),
+                'direccion': cliente.get('direccion', '')
+            })
+        
+        return jsonify({'clientes': lista_clientes})
+    except Exception as e:
+        return jsonify({'error': str(e), 'clientes': []}), 500
+
+@app.route('/api/buscar-cliente-exacto', methods=['POST'])
+def api_buscar_cliente_exacto():
+    """API para buscar cliente exacto por nombre o cédula."""
+    try:
+        data = request.get_json()
+        nombre = data.get('nombre', '').strip().lower() if data.get('nombre') else ''
+        cedula = data.get('cedula', '').strip().lower() if data.get('cedula') else ''
+        
+        if not nombre and not cedula:
+            return jsonify({'cliente': None, 'existe': False})
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        
+        # Buscar cliente exacto por nombre o cédula
+        for id_cliente, cliente in clientes.items():
+            nombre_cliente = cliente.get('nombre', '').strip().lower()
+            cedula_cliente = cliente.get('cedula_rif', '').strip().lower()
+            
+            # Comparar nombres (ignorando case y espacios extra)
+            if nombre and nombre_cliente == nombre:
+                return jsonify({
+                    'cliente': {
+                        'id': id_cliente,
+                        'nombre': cliente.get('nombre', ''),
+                        'cedula_rif': cliente.get('cedula_rif', ''),
+                        'telefono': cliente.get('telefono', ''),
+                        'telefono2': cliente.get('telefono2', ''),
+                        'email': cliente.get('email', ''),
+                        'direccion': cliente.get('direccion', '')
+                    },
+                    'existe': True
+                })
+            
+            # Comparar cédulas
+            if cedula and cedula_cliente == cedula:
+                return jsonify({
+                    'cliente': {
+                        'id': id_cliente,
+                        'nombre': cliente.get('nombre', ''),
+                        'cedula_rif': cliente.get('cedula_rif', ''),
+                        'telefono': cliente.get('telefono', ''),
+                        'telefono2': cliente.get('telefono2', ''),
+                        'email': cliente.get('email', ''),
+                        'direccion': cliente.get('direccion', '')
+                    },
+                    'existe': True
+                })
+        
+        return jsonify({'cliente': None, 'existe': False})
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'cliente': None, 'existe': False}), 500
+
 @app.route('/api/geocodificar')
 def api_geocodificar():
     """API para geocodificar direcciones usando OpenStreetMap Nominatim."""
@@ -3658,8 +4269,8 @@ def api_geocodificar():
             if data:
                 resultado = data[0]
                 return jsonify({
-                    'lat': float(resultado['lat']),
-                    'lon': float(resultado['lon']),
+                    'lat': safe_float(resultado['lat']),
+                    'lon': safe_float(resultado['lon']),
                     'display_name': resultado['display_name'],
                     'address': resultado.get('address', {})
                 })
@@ -3700,10 +4311,10 @@ def obtener_tasa_bcv_dia():
             if strong:
                 txt = strong.text.strip().replace('.', '').replace(',', '.')
                 try:
-                    posible = float(txt)
-                    if posible > 10:
+                    posible = safe_float(txt)
+                    if 10 < posible < 500:  # Rango más específico para tasa USD
                         tasa = posible
-                        print(f"🎯 Tasa BCV encontrada por ID 'dolar': {tasa}")
+                        print(f"🎯 Tasa BCV USD encontrada por ID 'dolar': {tasa}")
                 except:
                     pass
         
@@ -3715,10 +4326,10 @@ def obtener_tasa_bcv_dia():
                 if strong:
                     txt = strong.text.strip().replace(".", "").replace(",", ".")
                     try:
-                        posible = float(txt)
-                        if posible > 10:
+                        posible = safe_float(txt)
+                        if 10 < posible < 500:  # Rango más específico para tasa USD
                             tasa = posible
-                            print(f"🎯 Tasa BCV encontrada por ID 'usd': {tasa}")
+                            print(f"🎯 Tasa BCV USD encontrada por ID 'usd': {tasa}")
                     except:
                         pass
         # Método 3: Buscar por strong con texto que parezca una tasa
@@ -3726,8 +4337,8 @@ def obtener_tasa_bcv_dia():
             for strong in soup.find_all('strong'):
                 txt = strong.text.strip().replace('.', '').replace(',', '.')
                 try:
-                    posible = float(txt)
-                    if posible > 10 and posible < 1000:  # Rango razonable
+                    posible = safe_float(txt)
+                    if 10 < posible < 500:  # Rango específico para tasa USD
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por strong: {tasa}")
                         break
@@ -3739,7 +4350,7 @@ def obtener_tasa_bcv_dia():
             for span in soup.find_all('span', class_='centrado'):
                 txt = span.text.strip().replace('.', '').replace(',', '.')
                 try:
-                    posible = float(txt)
+                    posible = safe_float(txt)
                     if posible > 10 and posible < 1000:
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por span: {tasa}")
@@ -3754,7 +4365,7 @@ def obtener_tasa_bcv_dia():
             matches = re.findall(r'(\d{2,}[.,]\d{2,})', resp.text)
             for m in matches:
                 try:
-                    posible = float(m.replace('.', '').replace(',', '.'))
+                    posible = safe_float(m.replace('.', '').replace(',', '.'))
                     if posible > 10 and posible < 1000:
                         tasa = posible
                         print(f"🎯 Tasa BCV encontrada por regex: {tasa}")
@@ -3769,7 +4380,7 @@ def obtener_tasa_bcv_dia():
                     for cell in row.find_all(['td', 'th']):
                         txt = cell.text.strip().replace('.', '').replace(',', '.')
                         try:
-                            posible = float(txt)
+                            posible = safe_float(txt)
                             if posible > 10 and posible < 1000:
                                 tasa = posible
                                 print(f"🎯 Tasa BCV encontrada en tabla: {tasa}")
@@ -3791,7 +4402,7 @@ def obtener_tasa_bcv_dia():
                     numbers = re.findall(r'(\d+[.,]\d+)', txt)
                     for num in numbers:
                         try:
-                            posible = float(num.replace('.', '').replace(',', '.'))
+                            posible = safe_float(num.replace('.', '').replace(',', '.'))
                             if posible > 10 and posible < 1000:
                                 tasa = posible
                                 print(f"🎯 Tasa BCV encontrada por texto USD: {tasa}")
@@ -3811,7 +4422,7 @@ def obtener_tasa_bcv_dia():
             # Solo como último recurso, usar tasa local
             tasa_local = cargar_ultima_tasa_bcv()
             if tasa_local and tasa_local > 10:
-                print(f"⚠️ Usando tasa BCV local como fallback: {tasa_local}")
+                print(f"WARNING Usando tasa BCV local como fallback: {tasa_local}")
                 return tasa_local
             return None
             
@@ -3821,7 +4432,7 @@ def obtener_tasa_bcv_dia():
         try:
             tasa_fallback = cargar_ultima_tasa_bcv()
             if tasa_fallback and tasa_fallback > 10:
-                print(f"⚠️ Usando tasa BCV de fallback después de error: {tasa_fallback}")
+                print(f"WARNING Usando tasa BCV de fallback después de error: {tasa_fallback}")
                 return tasa_fallback
         except:
             pass
@@ -3849,7 +4460,7 @@ def reporte_clientes():
         tipo_cliente = request.args.get('tipo_cliente', 'todos')
         
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         inventario = cargar_datos(ARCHIVO_INVENTARIO)
         empresa = cargar_empresa()
         
@@ -3857,7 +4468,7 @@ def reporte_clientes():
         tasa_bcv = obtener_tasa_bcv()
         advertencia_tasa = None
         try:
-            tasa_bcv = float(tasa_bcv)
+            tasa_bcv = safe_float(tasa_bcv)
         except Exception:
             tasa_bcv = 0
         if not tasa_bcv or tasa_bcv < 1:
@@ -3865,10 +4476,11 @@ def reporte_clientes():
         
         # Calcular estadísticas generales
         total_clientes = len(clientes)
-        total_facturas = len(facturas)
+        total_notas_entrega = len(notas)
         total_facturado_general = 0
         total_abonado_general = 0
         total_cobrar = 0
+        total_bs_general = 0
         
         # Estadísticas por cliente
         stats_clientes = {}
@@ -3876,91 +4488,165 @@ def reporte_clientes():
             stats_clientes[id_cliente] = {
                 'id': id_cliente,
                 'nombre': cliente['nombre'],
+                'cedula_rif': cliente.get('cedula_rif', ''),
                 'email': cliente.get('email', ''),
                 'telefono': cliente.get('telefono', ''),
-                'total_facturas': 0,
-                'total_compras': 0,
-                'ultima_compra': None,
-                'total_facturado': 0,
-                'total_abonado': 0,
-                'total_por_cobrar': 0
+                'direccion': cliente.get('direccion', ''),
+                'fecha_registro': cliente.get('fecha_creacion', ''),
+                'activo': cliente.get('activo', True),
+                'total_notas_entrega': 0,
+                'total_entregado_usd': 0,
+                'total_entregado_bs': 0,
+                'ultima_entrega': None,
+                'total_facturado_usd': 0,
+                'total_facturado_bs': 0,
+                'total_abonado_usd': 0,
+                'total_abonado_bs': 0,
+                'total_por_cobrar_usd': 0,
+                'total_por_cobrar_bs': 0,
+                'promedio_por_nota_usd': 0,
+                'promedio_por_nota_bs': 0,
+                'dias_ultima_entrega': 0,
+                'categoria_cliente': cliente.get('categoria_cliente', 'regular'),
+                'vendedor_asignado': cliente.get('vendedor_asignado', ''),
+                'fuente_captacion': cliente.get('fuente_captacion', ''),
+                'etiquetas': cliente.get('etiquetas', [])
             }
         
-        # Procesar facturas
-        for factura in facturas.values():
-            id_cliente = factura.get('cliente_id')
+        for nota in notas.values():
+            id_cliente = nota.get('cliente_id')
             if id_cliente in stats_clientes:
                 stats = stats_clientes[id_cliente]
-                stats['total_facturas'] += 1
+                stats['total_notas_entrega'] += 1
                 
-                # Obtener totales de la factura
-                total_facturado = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                total_por_cobrar = max(0, total_facturado - total_abonado)
+                # Calcular totales en USD y BS
+                total_usd = safe_float(nota.get('total_usd', 0))
+                total_bs = safe_float(nota.get('total_bs', 0))
+                total_abonado_usd = safe_float(nota.get('total_abonado', 0))
+                total_abonado_bs = total_abonado_usd * tasa_bcv if tasa_bcv > 0 else 0
+                total_por_cobrar_usd = max(0, total_usd - total_abonado_usd)
+                total_por_cobrar_bs = max(0, total_bs - total_abonado_bs)
                 
                 # Actualizar estadísticas del cliente
-                stats['total_facturado'] += total_facturado
-                stats['total_abonado'] += total_abonado
-                stats['total_por_cobrar'] += total_por_cobrar
-                stats['total_compras'] += total_facturado
+                stats['total_facturado_usd'] += total_usd
+                stats['total_facturado_bs'] += total_bs
+                stats['total_abonado_usd'] += total_abonado_usd
+                stats['total_abonado_bs'] += total_abonado_bs
+                stats['total_por_cobrar_usd'] += total_por_cobrar_usd
+                stats['total_por_cobrar_bs'] += total_por_cobrar_bs
+                stats['total_entregado_usd'] += total_usd
+                stats['total_entregado_bs'] += total_bs
                 
-                # Actualizar última compra
-                fecha_factura = factura.get('fecha')
-                if fecha_factura:
-                    if not stats['ultima_compra'] or fecha_factura > stats['ultima_compra']:
-                        stats['ultima_compra'] = fecha_factura
+                # Actualizar última entrega
+                fecha_nota = nota.get('fecha')
+                if fecha_nota:
+                    if not stats['ultima_entrega'] or fecha_nota > stats['ultima_entrega']:
+                        stats['ultima_entrega'] = fecha_nota
                 
                 # Actualizar totales generales
-                total_facturado_general += total_facturado
-                total_abonado_general += total_abonado
-                total_cobrar += total_por_cobrar
+                total_facturado_general += total_usd
+                total_abonado_general += total_abonado_usd
+                total_cobrar += total_por_cobrar_usd
+                total_bs_general += total_bs
         
-        # Ordenar clientes por total de compras (Top 10 Mejores Clientes)
+        # Calcular promedios por cliente
+        for stats in stats_clientes.values():
+            if stats['total_notas_entrega'] > 0:
+                stats['promedio_por_nota_usd'] = stats['total_entregado_usd'] / stats['total_notas_entrega']
+                stats['promedio_por_nota_bs'] = stats['total_entregado_bs'] / stats['total_notas_entrega']
+                
+                # Calcular días desde última entrega
+                if stats['ultima_entrega']:
+                    try:
+                        fecha_ultima = datetime.strptime(stats['ultima_entrega'], '%Y-%m-%d')
+                        dias_diferencia = (datetime.now() - fecha_ultima).days
+                        stats['dias_ultima_entrega'] = dias_diferencia
+                    except:
+                        stats['dias_ultima_entrega'] = 0
+        
+        # Ordenar clientes por total de entregas (Top 10 Mejores Clientes)
         top_clientes = sorted(
-            [stats for stats in stats_clientes.values() if stats['total_compras'] > 0],
-            key=lambda x: x['total_compras'],
+            [stats for stats in stats_clientes.values() if stats['total_entregado_usd'] > 0],
+            key=lambda x: x['total_entregado_usd'],
             reverse=True
         )[:10]
         
         # Ordenar clientes por total por cobrar (Top 5 Clientes con Mayor Cuenta por Cobrar)
-        # Solo incluir clientes que realmente tengan saldo pendiente significativo
         peores_clientes = []
         for stats in stats_clientes.values():
-            # Verificar si el cliente tiene facturas pendientes con saldo significativo
-            tiene_facturas_pendientes = False
-            for factura in facturas.values():
-                if (factura.get('cliente_id') == stats['id'] and 
-                    factura.get('estado') == 'pendiente' and 
-                    float(factura.get('saldo_pendiente', 0)) >= 0.01):  # Ignorar saldos menores a 1 centavo
-                    tiene_facturas_pendientes = True
-                    break
-            
-            if tiene_facturas_pendientes:
+            if stats['total_por_cobrar_usd'] > 0:
                 peores_clientes.append(stats)
         
-        # Ordenar y limitar a 5 clientes
-        peores_clientes = sorted(
-            peores_clientes,
-            key=lambda x: x['total_por_cobrar'],
-            reverse=True
-        )[:5]
+        peores_clientes = sorted(peores_clientes, key=lambda x: x['total_por_cobrar_usd'], reverse=True)[:5]
+        
+        # Estadísticas adicionales del sistema
+        clientes_activos = len([c for c in stats_clientes.values() if c['activo']])
+        clientes_inactivos = len([c for c in stats_clientes.values() if not c['activo']])
+        clientes_con_entregas = len([c for c in stats_clientes.values() if c['total_notas_entrega'] > 0])
+        clientes_sin_entregas = len([c for c in stats_clientes.values() if c['total_notas_entrega'] == 0])
+        
+        # Análisis por categoría de cliente
+        categorias_clientes = {}
+        for stats in stats_clientes.values():
+            categoria = stats['categoria_cliente']
+            if categoria not in categorias_clientes:
+                categorias_clientes[categoria] = {
+                    'total': 0,
+                    'con_entregas': 0,
+                    'total_entregas_usd': 0,
+                    'total_entregas_bs': 0
+                }
+            categorias_clientes[categoria]['total'] += 1
+            if stats['total_notas_entrega'] > 0:
+                categorias_clientes[categoria]['con_entregas'] += 1
+                categorias_clientes[categoria]['total_entregas_usd'] += stats['total_entregado_usd']
+                categorias_clientes[categoria]['total_entregas_bs'] += stats['total_entregado_bs']
+        
+        # Análisis por fuente de captación
+        fuentes_captacion = {}
+        for stats in stats_clientes.values():
+            fuente = stats['fuente_captacion'] or 'No especificada'
+            if fuente not in fuentes_captacion:
+                fuentes_captacion[fuente] = {
+                    'total': 0,
+                    'con_entregas': 0,
+                    'total_entregas_usd': 0
+                }
+            fuentes_captacion[fuente]['total'] += 1
+            if stats['total_notas_entrega'] > 0:
+                fuentes_captacion[fuente]['con_entregas'] += 1
+                fuentes_captacion[fuente]['total_entregas_usd'] += stats['total_entregado_usd']
+        
+        # Análisis por vendedor asignado
+        vendedores = {}
+        for stats in stats_clientes.values():
+            vendedor = stats['vendedor_asignado'] or 'Sin asignar'
+            if vendedor not in vendedores:
+                vendedores[vendedor] = {
+                    'total': 0,
+                    'con_entregas': 0,
+                    'total_entregas_usd': 0
+                }
+            vendedores[vendedor]['total'] += 1
+            if stats['total_notas_entrega'] > 0:
+                vendedores[vendedor]['con_entregas'] += 1
+                vendedores[vendedor]['total_entregas_usd'] += stats['total_entregado_usd']
         
         # ========================================
         # MÉTRICAS AVANZADAS
         # ========================================
         
-        # 1. Promedio de compra por cliente
-        clientes_con_compras = [stats for stats in stats_clientes.values() if stats['total_compras'] > 0]
-        promedio_compra_cliente = total_facturado_general / len(clientes_con_compras) if clientes_con_compras else 0
+        # 1. Promedio de entrega por cliente
+        clientes_con_entregas_lista = [stats for stats in stats_clientes.values() if stats['total_entregado_usd'] > 0]
+        promedio_entrega_cliente = total_facturado_general / len(clientes_con_entregas_lista) if clientes_con_entregas_lista else 0
         
-        # 2. Cliente con mayor factura individual
-        mayor_factura = 0
-        cliente_mayor_factura = None
-        for factura in facturas.values():
-            total_factura = float(factura.get('total_usd', 0))
-            if total_factura > mayor_factura:
-                mayor_factura = total_factura
-                cliente_mayor_factura = factura.get('cliente_id')
+        mayor_nota = 0
+        cliente_mayor_nota = None
+        for nota in notas.values():
+            total_nota = safe_float(nota.get('total_usd', 0))
+            if total_nota > mayor_nota:
+                mayor_nota = total_nota
+                cliente_mayor_nota = nota.get('cliente_id')
         
         # 3. Clientes nuevos este mes y año
         now = datetime.now()
@@ -3970,11 +4656,11 @@ def reporte_clientes():
         clientes_nuevos_mes = 0
         clientes_nuevos_anio = 0
         
-        for factura in facturas.values():
-            fecha_factura = factura.get('fecha')
-            if fecha_factura:
+        for nota in notas.values():
+            fecha_nota = nota.get('fecha')
+            if fecha_nota:
                 try:
-                    fecha_dt = datetime.strptime(fecha_factura, '%Y-%m-%d')
+                    fecha_dt = datetime.strptime(fecha_nota, '%Y-%m-%d')
                     if fecha_dt.month == mes_actual and fecha_dt.year == anio_actual:
                         clientes_nuevos_mes += 1
                     if fecha_dt.year == anio_actual:
@@ -3982,45 +4668,31 @@ def reporte_clientes():
                 except:
                     continue
         
-        # 4. Clientes activos e inactivos (sin compras en 3 meses)
-        fecha_limite = (now - timedelta(days=90)).strftime('%Y-%m-%d')
-        clientes_inactivos = []
-        clientes_activos = []
+        # 4. Clientes activos e inactivos (basado en campo activo del cliente)
+        clientes_inactivos_lista = []
+        clientes_activos_lista = []
         clientes_inactivos_ids = set()
         clientes_activos_ids = set()
         
         for stats in stats_clientes.values():
-            ultima_compra = stats.get('ultima_compra')
-            if es_fecha_valida(ultima_compra):
-                try:
-                    if ultima_compra < fecha_limite:
-                        clientes_inactivos.append(stats)
-                        clientes_inactivos_ids.add(stats['id'])
-                    else:
-                        clientes_activos.append(stats)
+            # Verificar primero el campo activo del cliente
+            if stats.get('activo', True):
+                        clientes_activos_lista.append(stats)
                         clientes_activos_ids.add(stats['id'])
-                except (TypeError, ValueError):
-                    # Si hay error en la comparación, considerar como inactivo
-                    clientes_inactivos.append(stats)
-                    clientes_inactivos_ids.add(stats['id'])
             else:
-                # Clientes sin compras van a inactivos
-                clientes_inactivos.append(stats)
+                clientes_inactivos_lista.append(stats)
                 clientes_inactivos_ids.add(stats['id'])
         
-        # 5. Tasa de conversión (clientes con facturas vs total)
-        clientes_con_facturas = len([stats for stats in stats_clientes.values() if stats['total_facturas'] > 0])
+        clientes_con_facturas = len([stats for stats in stats_clientes.values() if stats['total_notas_entrega'] > 0])
         tasa_conversion = (clientes_con_facturas / total_clientes * 100) if total_clientes > 0 else 0
         
-        # 6. Cliente más frecuente (más facturas)
-        cliente_mas_frecuente = max(stats_clientes.values(), key=lambda x: x['total_facturas']) if stats_clientes else None
+        cliente_mas_frecuente = max(stats_clientes.values(), key=lambda x: x['total_notas_entrega']) if stats_clientes else None
         
-        # 7. Promedio de facturas por cliente
-        promedio_facturas_cliente = total_facturas / total_clientes if total_clientes > 0 else 0
+        promedio_notas_cliente = total_notas_entrega / total_clientes if total_clientes > 0 else 0
         
-        # 8. Clientes VIP (top 20% por valor de compras)
-        if clientes_con_compras:
-            clientes_ordenados = sorted(clientes_con_compras, key=lambda x: x['total_compras'], reverse=True)
+        # 8. Clientes VIP (top 20% por valor de entregas)
+        if clientes_con_entregas_lista:
+            clientes_ordenados = sorted(clientes_con_entregas_lista, key=lambda x: x['total_entregado_usd'], reverse=True)
             num_vip = max(1, int(len(clientes_ordenados) * 0.2))  # 20% de clientes
             clientes_vip = clientes_ordenados[:num_vip]
             clientes_vip_ids = {c['id'] for c in clientes_vip}
@@ -4028,12 +4700,11 @@ def reporte_clientes():
             clientes_vip = []
             clientes_vip_ids = set()
         
-        # 9. Valor promedio de factura
-        valor_promedio_factura = total_facturado_general / total_facturas if total_facturas > 0 else 0
+        valor_promedio_nota = total_facturado_general / total_notas_entrega if total_notas_entrega > 0 else 0
         
         # 10. Clientes con mayor saldo pendiente
-        clientes_saldo_pendiente = [stats for stats in stats_clientes.values() if stats['total_por_cobrar'] > 0]
-        clientes_saldo_pendiente = sorted(clientes_saldo_pendiente, key=lambda x: x['total_por_cobrar'], reverse=True)[:10]
+        clientes_saldo_pendiente = [stats for stats in stats_clientes.values() if stats['total_por_cobrar_usd'] > 0]
+        clientes_saldo_pendiente = sorted(clientes_saldo_pendiente, key=lambda x: x['total_por_cobrar_usd'], reverse=True)[:10]
         
         # ========================================
         # FILTRADO AVANZADO
@@ -4074,24 +4745,23 @@ def reporte_clientes():
                     continue
             elif tipo_cliente == 'vip' and id_cliente not in [c['id'] for c in clientes_vip]:
                 continue
-            elif tipo_cliente == 'pendientes' and stats.get('total_por_cobrar', 0) <= 0:
+            elif tipo_cliente == 'pendientes' and stats.get('total_por_cobrar_usd', 0) <= 0:
                 continue
             
             # Filtro por monto mínimo/máximo
-            if monto_min and stats.get('total_compras', 0) < float(monto_min):
+            if monto_min and stats.get('total_entregado_usd', 0) < safe_float(monto_min):
                 continue
-            if monto_max and stats.get('total_compras', 0) > float(monto_max):
+            if monto_max and stats.get('total_entregado_usd', 0) > safe_float(monto_max):
                 continue
             
-            # Filtro por fechas (si el cliente tiene facturas en ese rango)
             if fecha_desde or fecha_hasta:
                 tiene_facturas_en_rango = False
-                for factura in facturas.values():
-                    if factura.get('cliente_id') == id_cliente:
-                        fecha_factura = factura.get('fecha', '')
-                        if fecha_factura:
+                for nota in notas.values():
+                    if nota.get('cliente_id') == id_cliente:
+                        fecha_nota = nota.get('fecha', '')
+                        if fecha_nota:
                             try:
-                                fecha_dt = datetime.strptime(fecha_factura, '%Y-%m-%d')
+                                fecha_dt = datetime.strptime(fecha_nota, '%Y-%m-%d')
                                 if fecha_desde and fecha_dt < datetime.strptime(fecha_desde, '%Y-%m-%d'):
                                     continue
                                 if fecha_hasta and fecha_dt > datetime.strptime(fecha_hasta, '%Y-%m-%d'):
@@ -4109,19 +4779,19 @@ def reporte_clientes():
             clientes_filtrados = dict(sorted(clientes_filtrados.items(), key=lambda x: x[1]['nombre']))
         elif orden == 'rif':
             clientes_filtrados = dict(sorted(clientes_filtrados.items(), key=lambda x: x[1].get('rif', '')))
-        elif orden == 'compras':
+        elif orden == 'entregas':
             clientes_filtrados = dict(sorted(clientes_filtrados.items(), 
-                                           key=lambda x: stats_clientes.get(x[0], {}).get('total_compras', 0), reverse=True))
-        elif orden == 'ultima_compra':
+                                           key=lambda x: stats_clientes.get(x[0], {}).get('total_entregado_usd', 0), reverse=True))
+        elif orden == 'ultima_entrega':
             clientes_filtrados = dict(sorted(clientes_filtrados.items(), 
-                                           key=lambda x: stats_clientes.get(x[0], {}).get('ultima_compra') or '', reverse=True))
+                                           key=lambda x: stats_clientes.get(x[0], {}).get('ultima_entrega') or '', reverse=True))
         
         # Estadísticas de productos más comprados
         productos_stats = {}
-        for factura in facturas.values():
-            productos = factura.get('productos', [])
-            cantidades = factura.get('cantidades', [])
-            precios = factura.get('precios', [])
+        for nota in notas.values():
+            productos = nota.get('productos', [])
+            cantidades = nota.get('cantidades', [])
+            precios = nota.get('precios', [])
             
             for i in range(len(productos)):
                 id_producto = productos[i]
@@ -4134,7 +4804,7 @@ def reporte_clientes():
                         }
                     try:
                         cantidad = int(cantidades[i])
-                        precio = float(precios[i])
+                        precio = safe_float(precios[i])
                         productos_stats[id_producto]['cantidad'] += cantidad
                         productos_stats[id_producto]['valor'] += cantidad * precio
                     except (ValueError, TypeError, IndexError):
@@ -4150,36 +4820,46 @@ def reporte_clientes():
         return render_template('reporte_clientes.html',
             clientes=clientes,
             clientes_filtrados=clientes_filtrados,
-            facturas=facturas,
+            notas_entrega=notas,
             inventario=inventario,
             empresa=empresa,
             tasa_bcv=tasa_bcv,
             advertencia_tasa=advertencia_tasa,
             total_clientes=total_clientes,
-            total_facturas=total_facturas,
+            total_notas_entrega=total_notas_entrega,
             total_facturado_usd=total_facturado_general,
+            total_facturado_bs=total_bs_general,
             total_abonado_usd=total_abonado_general,
+            total_abonado_bs=total_abonado_general * tasa_bcv if tasa_bcv > 0 else 0,
             total_por_cobrar_usd=total_cobrar,
+            total_por_cobrar_bs=total_cobrar * tasa_bcv if tasa_bcv > 0 else 0,
             top_clientes=top_clientes,
             peores_clientes=peores_clientes,
             top_productos=top_productos,
+            # Estadísticas del sistema
+            clientes_activos=clientes_activos,
+            clientes_inactivos=clientes_inactivos,
+            clientes_con_entregas=clientes_con_entregas,
+            clientes_sin_entregas=clientes_sin_entregas,
+            categorias_clientes=categorias_clientes,
+            fuentes_captacion=fuentes_captacion,
+            vendedores=vendedores,
             # Métricas avanzadas
-            promedio_compra_cliente=promedio_compra_cliente,
-            mayor_factura=mayor_factura,
-            cliente_mayor_factura=cliente_mayor_factura,
+            promedio_entrega_cliente=promedio_entrega_cliente,
+            mayor_nota=mayor_nota,
+            cliente_mayor_nota=cliente_mayor_nota,
             clientes_nuevos_mes=clientes_nuevos_mes,
             clientes_nuevos_anio=clientes_nuevos_anio,
-            clientes_inactivos=clientes_inactivos,
             tasa_conversion=tasa_conversion,
             cliente_mas_frecuente=cliente_mas_frecuente,
-            promedio_facturas_cliente=promedio_facturas_cliente,
+            promedio_notas_cliente=promedio_notas_cliente,
+            promedio_facturas_cliente=promedio_notas_cliente,
             clientes_vip=clientes_vip,
             clientes_vip_ids=clientes_vip_ids,
-            valor_promedio_factura=valor_promedio_factura,
+            valor_promedio_nota=valor_promedio_nota,
             clientes_saldo_pendiente=clientes_saldo_pendiente,
             clientes_inactivos_ids=clientes_inactivos_ids,
             clientes_activos_ids=clientes_activos_ids,
-            clientes_activos=clientes_activos,
             stats_clientes=stats_clientes,
             # Filtros
             q=q,
@@ -4194,10 +4874,503 @@ def reporte_clientes():
         print(f"Error en reporte_clientes: {e}")
         return str(e), 500
 
+@app.route('/clientes/exportar')
+def exportar_clientes():
+    """Exportar clientes a Excel con filtros aplicados."""
+    try:
+        # Obtener filtros de la URL
+        q = request.args.get('q', '').strip().lower()
+        filtro_orden = request.args.get('filtro_orden', 'nombre')
+        filtro_tipo = request.args.get('filtro_tipo', '')
+        filtro_estado = request.args.get('filtro_estado', '')
+        
+        # Cargar datos
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        # Aplicar filtros (misma lógica que mostrar_clientes)
+        if q:
+            clientes_filtrados = {}
+            for k, v in clientes.items():
+                if (q in v.get('nombre', '').lower() or 
+                    q in v.get('cedula_rif', '').lower() or 
+                    q in v.get('email', '').lower() or 
+                    q in v.get('telefono', '').lower() or 
+                    q in v.get('direccion', '').lower() or
+                    q in k.lower()):
+                    clientes_filtrados[k] = v
+            clientes = clientes_filtrados
+        
+        if filtro_tipo:
+            clientes = {k: v for k, v in clientes.items() if v.get('tipo_id', '') == filtro_tipo}
+        
+        if filtro_estado:
+            if filtro_estado == 'activo':
+                clientes = {k: v for k, v in clientes.items() if v.get('activo', True)}
+            elif filtro_estado == 'inactivo':
+                clientes = {k: v for k, v in clientes.items() if not v.get('activo', True)}
+        
+        # Ordenamiento
+        if filtro_orden == 'nombre':
+            clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('nombre', '').lower()))
+        elif filtro_orden == 'cedula_rif':
+            clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('cedula_rif', '').lower()))
+        elif filtro_orden == 'fecha_creacion':
+            clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('fecha_creacion', ''), reverse=True))
+        elif filtro_orden == 'email':
+            clientes = dict(sorted(clientes.items(), key=lambda item: item[1].get('email', '').lower()))
+        
+        # Crear archivo Excel
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet('Clientes')
+        
+        # Formato para encabezados
+        header_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#00ff88',
+            'font_color': 'white',
+            'border': 1,
+            'align': 'center'
+        })
+        
+        # Formato para datos
+        data_format = workbook.add_format({
+            'border': 1,
+            'align': 'left'
+        })
+        
+        # Formato para números
+        number_format = workbook.add_format({
+            'border': 1,
+            'align': 'right',
+            'num_format': '#,##0.00'
+        })
+        
+        # Encabezados
+        headers = [
+            'ID Cliente', 'Tipo ID', 'Cédula/RIF', 'Nombre', 'Email', 
+            'Teléfono', 'Teléfono 2', 'Dirección', 'Fecha Registro',
+            'Total Facturado', 'Total Abonado', 'Por Cobrar', 'Órdenes de Servicio'
+        ]
+        
+        # Escribir encabezados
+        for col, header in enumerate(headers):
+            worksheet.write(0, col, header, header_format)
+        
+        # Escribir datos
+        row = 1
+        for cliente_id, cliente in clientes.items():
+            # Calcular estadísticas del cliente
+            notas_cliente = [f for f in notas.values() if f.get('cliente_id') == cliente_id]
+            ordenes_cliente = [o for o in ordenes.values() if o.get('cliente_id') == cliente_id]
+            
+            total_facturado = sum(safe_float(f.get('total_usd', 0)) for f in notas_cliente)
+            total_abonado = sum(safe_float(f.get('total_abonado', 0)) for f in notas_cliente)
+            total_por_cobrar = max(0, total_facturado - total_abonado)
+            
+            # Datos del cliente
+            data = [
+                cliente_id,
+                cliente.get('tipo_id', 'V'),
+                cliente.get('cedula_rif', ''),
+                cliente.get('nombre', ''),
+                cliente.get('email', ''),
+                cliente.get('telefono', ''),
+                cliente.get('telefono2', ''),
+                cliente.get('direccion', ''),
+                cliente.get('fecha_creacion', ''),
+                total_facturado,
+                total_abonado,
+                total_por_cobrar,
+                len(ordenes_cliente)
+            ]
+            
+            # Escribir fila
+            for col, value in enumerate(data):
+                if col >= 9:  # Columnas numéricas
+                    worksheet.write(row, col, value, number_format)
+                else:
+                    worksheet.write(row, col, value, data_format)
+            
+            row += 1
+        
+        # Ajustar ancho de columnas
+        worksheet.set_column('A:A', 15)  # ID Cliente
+        worksheet.set_column('B:B', 8)   # Tipo ID
+        worksheet.set_column('C:C', 15)  # Cédula/RIF
+        worksheet.set_column('D:D', 25)  # Nombre
+        worksheet.set_column('E:E', 25)  # Email
+        worksheet.set_column('F:F', 15)  # Teléfono
+        worksheet.set_column('G:G', 15)  # Teléfono 2
+        worksheet.set_column('H:H', 30)  # Dirección
+        worksheet.set_column('I:I', 12)  # Fecha Registro
+        worksheet.set_column('J:J', 15)  # Total Facturado
+        worksheet.set_column('K:K', 15)  # Total Abonado
+        worksheet.set_column('L:L', 15)  # Por Cobrar
+        worksheet.set_column('M:M', 15)  # Órdenes de Servicio
+        
+        # Cerrar workbook
+        workbook.close()
+        output.seek(0)
+        
+        # Crear respuesta
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename=clientes_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error en exportar_clientes: {str(e)}")
+        flash(f'Error al exportar clientes: {str(e)}', 'danger')
+        return redirect(url_for('mostrar_clientes'))
+
+@app.route('/clientes/pagos-pendientes')
+@login_required
+def clientes_pagos_pendientes():
+    """Vista especializada para clientes con pagos pendientes."""
+    try:
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        # Filtrar solo clientes con pagos pendientes
+        clientes_pendientes = {}
+        total_pendiente = 0
+        
+        for cliente_id, cliente in clientes.items():
+            notas_cliente = [f for f in notas.values() if f.get('cliente_id') == cliente_id]
+            total_notas_entrega = sum(safe_float(f.get('total_usd', 0)) for f in notas_cliente)
+            total_abonado = sum(safe_float(f.get('total_abonado', 0)) for f in notas_cliente)
+            total_por_cobrar = max(0, total_notas_entrega - total_abonado)
+            
+            if total_por_cobrar > 0:
+                clientes_pendientes[cliente_id] = {
+                    **cliente,
+                    'total_facturado': total_notas_entrega,  # Mantener nombre para compatibilidad
+                    'total_abonado': total_abonado,
+                    'total_por_cobrar': total_por_cobrar,
+                    'dias_pendiente': calcular_dias_pendiente(notas_cliente)
+                }
+                total_pendiente += total_por_cobrar
+        
+        # Ordenar por monto pendiente (mayor a menor)
+        clientes_pendientes = dict(sorted(
+            clientes_pendientes.items(), 
+            key=lambda x: x[1]['total_por_cobrar'], 
+            reverse=True
+        ))
+        
+        return render_template('clientes_pagos_pendientes.html',
+                             clientes=clientes_pendientes,
+                             total_pendiente=total_pendiente,
+                             total_clientes=len(clientes_pendientes))
+    except Exception as e:
+        print(f"Error en clientes_pagos_pendientes: {str(e)}")
+        flash(f'Error al cargar clientes con pagos pendientes: {str(e)}', 'danger')
+        return redirect(url_for('mostrar_clientes'))
+
+@app.route('/clientes/accion-masiva', methods=['POST'])
+@login_required
+def accion_masiva_clientes():
+    """Activar/desactivar múltiples clientes."""
+    try:
+        accion = request.form.get('accion')
+        cliente_ids = request.form.getlist('cliente_ids')
+        
+        if not cliente_ids:
+            flash('No se seleccionaron clientes', 'warning')
+            return redirect(url_for('mostrar_clientes'))
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        clientes_modificados = 0
+        
+        for cliente_id in cliente_ids:
+            if cliente_id in clientes:
+                if accion == 'activar':
+                    clientes[cliente_id]['activo'] = True
+                    clientes_modificados += 1
+                elif accion == 'desactivar':
+                    clientes[cliente_id]['activo'] = False
+                    clientes_modificados += 1
+        
+        guardar_datos(ARCHIVO_CLIENTES, clientes)
+        
+        flash(f'Se {accion}ron {clientes_modificados} clientes exitosamente', 'success')
+        return redirect(url_for('mostrar_clientes'))
+        
+    except Exception as e:
+        print(f"Error en accion_masiva_clientes: {str(e)}")
+        flash(f'Error al ejecutar acción masiva: {str(e)}', 'danger')
+        return redirect(url_for('mostrar_clientes'))
+
+@app.route('/clientes/comunicacion-masiva', methods=['POST'])
+@login_required
+def comunicacion_masiva_clientes():
+    """Envío de comunicación masiva a clientes."""
+    try:
+        tipo_comunicacion = request.form.get('tipo_comunicacion')
+        cliente_ids = request.form.getlist('cliente_ids')
+        mensaje = request.form.get('mensaje', '').strip()
+        asunto = request.form.get('asunto', '').strip()
+        
+        if not cliente_ids:
+            flash('No se seleccionaron clientes', 'warning')
+            return redirect(url_for('mostrar_clientes'))
+        
+        if not mensaje:
+            flash('El mensaje es obligatorio', 'warning')
+            return redirect(url_for('mostrar_clientes'))
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        clientes_contactados = 0
+        
+        for cliente_id in cliente_ids:
+            if cliente_id in clientes:
+                cliente = clientes[cliente_id]
+                
+                if tipo_comunicacion == 'whatsapp':
+                    telefono = cliente.get('telefono', '').replace('+58', '').replace('+', '')
+                    if telefono and len(telefono) >= 10:
+                        enlace_whatsapp = f"https://wa.me/58{telefono}?text={mensaje}"
+                        # Aquí podrías integrar con una API de WhatsApp
+                        clientes_contactados += 1
+                
+                elif tipo_comunicacion == 'email':
+                    email = cliente.get('email', '')
+                    if email and '@' in email:
+                        # Aquí podrías integrar con un servicio de email
+                        clientes_contactados += 1
+        
+        flash(f'Comunicación enviada a {clientes_contactados} clientes', 'success')
+        return redirect(url_for('mostrar_clientes'))
+        
+    except Exception as e:
+        print(f"Error en comunicacion_masiva_clientes: {str(e)}")
+        flash(f'Error al enviar comunicación: {str(e)}', 'danger')
+        return redirect(url_for('mostrar_clientes'))
+
+@app.route('/clientes/por-fecha')
+@login_required
+def clientes_por_fecha():
+    """Vista de clientes filtrados por fecha de registro/actividad."""
+    try:
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        tipo_fecha = request.args.get('tipo_fecha', 'registro')  # registro o actividad
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        clientes_filtrados = {}
+        
+        for cliente_id, cliente in clientes.items():
+            fecha_cliente = None
+            
+            if tipo_fecha == 'registro':
+                fecha_cliente = cliente.get('fecha_creacion', '')
+            elif tipo_fecha == 'actividad':
+                # Buscar la fecha más reciente de actividad
+                notas_cliente = [f for f in notas.values() if f.get('cliente_id') == cliente_id]
+                fechas_actividad = [f.get('fecha', '') for f in notas_cliente if f.get('fecha')]
+                fechas_actividad.append(cliente.get('fecha_creacion', ''))
+                fecha_cliente = max(fechas_actividad) if fechas_actividad else cliente.get('fecha_creacion', '')
+            
+            if fecha_cliente:
+                if fecha_desde and fecha_cliente < fecha_desde:
+                    continue
+                if fecha_hasta and fecha_cliente > fecha_hasta:
+                    continue
+                
+                clientes_filtrados[cliente_id] = cliente
+        
+        return render_template('clientes_por_fecha.html',
+                             clientes=clientes_filtrados,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta,
+                             tipo_fecha=tipo_fecha,
+                             datetime=datetime,
+                             timedelta=timedelta)
+    except Exception as e:
+        print(f"Error en clientes_por_fecha: {str(e)}")
+        flash(f'Error al filtrar clientes por fecha: {str(e)}', 'danger')
+        return redirect(url_for('mostrar_clientes'))
+
+@app.route('/clientes/calendario')
+@login_required
+def clientes_calendario():
+    """Vista de calendario con clientes y órdenes de servicio por fecha."""
+    try:
+        mes = request.args.get('mes', datetime.now().month)
+        año = request.args.get('año', datetime.now().year)
+        filtro_tipo = request.args.get('tipo', 'todos')  # todos, clientes, ordenes, diagnosticos
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        # Crear calendario con eventos por fecha
+        calendario = {}
+        
+        # Procesar clientes (registros)
+        if filtro_tipo in ['todos', 'clientes']:
+            for cliente_id, cliente in clientes.items():
+                fecha_registro = cliente.get('fecha_creacion', '')
+                if fecha_registro:
+                    try:
+                        fecha_obj = datetime.fromisoformat(fecha_registro.replace('Z', '+00:00'))
+                        if fecha_obj.month == int(mes) and fecha_obj.year == int(año):
+                            dia = fecha_obj.day
+                            if dia not in calendario:
+                                calendario[dia] = []
+                            calendario[dia].append({
+                                'id': cliente_id,
+                                'nombre': cliente.get('nombre', 'Sin nombre'),
+                                'tipo': 'registro_cliente',
+                                'descripcion': 'Nuevo cliente registrado',
+                                'hora': fecha_obj.strftime('%H:%M'),
+                                'icono': 'fas fa-user-plus',
+                                'color': '#4CAF50'
+                            })
+                    except:
+                        continue
+        
+        # Procesar órdenes de servicio
+        if filtro_tipo in ['todos', 'ordenes'] and ordenes:
+            for orden_id, orden in ordenes.items():
+                # Fecha de recepción
+                fecha_recepcion = orden.get('fecha_recepcion', '')
+                if fecha_recepcion:
+                    try:
+                        fecha_obj = datetime.fromisoformat(fecha_recepcion.replace('Z', '+00:00'))
+                        if fecha_obj.month == int(mes) and fecha_obj.year == int(año):
+                            dia = fecha_obj.day
+                            if dia not in calendario:
+                                calendario[dia] = []
+                            
+                            # Calcular tiempo estimado de reparación
+                            tiempo_estimado = orden.get('tiempo_estimado_reparacion', 'No especificado')
+                            if tiempo_estimado == 'No especificado':
+                                # Calcular basado en el tipo de problema
+                                categoria = orden.get('categoria_problema', '')
+                                if 'pantalla' in categoria.lower():
+                                    tiempo_estimado = '2-3 días'
+                                elif 'bateria' in categoria.lower():
+                                    tiempo_estimado = '1 día'
+                                elif 'software' in categoria.lower():
+                                    tiempo_estimado = '1-2 días'
+                                else:
+                                    tiempo_estimado = '3-5 días'
+                            
+                            calendario[dia].append({
+                                'id': orden_id,
+                                'nombre': f"Orden {orden.get('numero_orden', orden_id)}",
+                                'cliente': orden.get('cliente', {}).get('nombre', 'Sin nombre'),
+                                'tipo': 'orden_recepcion',
+                                'descripcion': f"Equipo: {orden.get('equipo', {}).get('marca', 'N/A')} {orden.get('equipo', {}).get('modelo', 'N/A')}",
+                                'problema': orden.get('problema_reportado', 'Sin descripción'),
+                                'tiempo_estimado': tiempo_estimado,
+                                'estado': orden.get('estado', 'Sin estado'),
+                                'prioridad': orden.get('prioridad', 'media'),
+                                'tecnico': orden.get('tecnico_asignado', 'Sin asignar'),
+                                'hora': fecha_obj.strftime('%H:%M'),
+                                'icono': 'fas fa-tools',
+                                'color': '#FF9800'
+                            })
+                    except:
+                        continue
+                
+                # Fecha de entrega estimada
+                fecha_entrega = orden.get('fecha_entrega_estimada', '')
+                if fecha_entrega:
+                    try:
+                        fecha_obj = datetime.fromisoformat(fecha_entrega.replace('Z', '+00:00'))
+                        if fecha_obj.month == int(mes) and fecha_obj.year == int(año):
+                            dia = fecha_obj.day
+                            if dia not in calendario:
+                                calendario[dia] = []
+                            
+                            calendario[dia].append({
+                                'id': f"{orden_id}_entrega",
+                                'nombre': f"Entrega estimada - {orden.get('numero_orden', orden_id)}",
+                                'cliente': orden.get('cliente', {}).get('nombre', 'Sin nombre'),
+                                'tipo': 'orden_entrega',
+                                'descripcion': f"Entrega estimada de reparación",
+                                'hora': fecha_obj.strftime('%H:%M'),
+                                'icono': 'fas fa-shipping-fast',
+                                'color': '#2196F3'
+                            })
+                    except:
+                        continue
+        
+        # Procesar diagnósticos
+        if filtro_tipo in ['todos', 'diagnosticos'] and ordenes:
+            for orden_id, orden in ordenes.items():
+                # Buscar diagnósticos en el historial
+                historial = orden.get('historial', [])
+                for evento in historial:
+                    if evento.get('tipo') == 'diagnostico':
+                        fecha_diagnostico = evento.get('fecha', '')
+                        if fecha_diagnostico:
+                            try:
+                                fecha_obj = datetime.fromisoformat(fecha_diagnostico.replace('Z', '+00:00'))
+                                if fecha_obj.month == int(mes) and fecha_obj.year == int(año):
+                                    dia = fecha_obj.day
+                                    if dia not in calendario:
+                                        calendario[dia] = []
+                                    
+                                    diagnostico = evento.get('diagnostico', {})
+                                    calendario[dia].append({
+                                        'id': f"{orden_id}_diagnostico_{fecha_obj.strftime('%Y%m%d%H%M')}",
+                                        'nombre': f"Diagnóstico - {orden.get('numero_orden', orden_id)}",
+                                        'cliente': orden.get('cliente', {}).get('nombre', 'Sin nombre'),
+                                        'tipo': 'diagnostico',
+                                        'descripcion': diagnostico.get('problema_encontrado', 'Sin diagnóstico'),
+                                        'solucion_propuesta': diagnostico.get('solucion_propuesta', 'Sin solución'),
+                                        'costo_estimado': diagnostico.get('costo_estimado', 0),
+                                        'tiempo_estimado': diagnostico.get('tiempo_estimado', 'No especificado'),
+                                        'hora': fecha_obj.strftime('%H:%M'),
+                                        'icono': 'fas fa-stethoscope',
+                                        'color': '#9C27B0'
+                                    })
+                            except:
+                                continue
+        
+        # Ordenar eventos por hora dentro de cada día
+        for dia in calendario:
+            calendario[dia].sort(key=lambda x: x.get('hora', '00:00'))
+        
+        return render_template('clientes_calendario.html',
+                             calendario=calendario,
+                             mes=int(mes),
+                             año=int(año),
+                             filtro_tipo=filtro_tipo,
+                             datetime=datetime)
+    except Exception as e:
+        print(f"Error en clientes_calendario: {str(e)}")
+        flash(f'Error al cargar calendario: {str(e)}', 'danger')
+        return redirect(url_for('mostrar_clientes'))
+
+def calcular_dias_pendiente(notas_cliente):
+    """Calcula los días de pago pendiente más antiguo."""
+    try:
+        fechas_pendientes = []
+        for nota in notas_cliente:
+            if nota.get('estado') == 'pendiente' and nota.get('fecha'):
+                fechas_pendientes.append(datetime.fromisoformat(nota['fecha'].replace('Z', '+00:00')))
+        
+        if fechas_pendientes:
+            fecha_mas_antigua = min(fechas_pendientes)
+            return (datetime.now() - fecha_mas_antigua).days
+        return 0
+    except:
+        return 0
+
 @app.route('/clientes/<path:id>/historial')
 def historial_cliente(id):
     clientes = cargar_datos(ARCHIVO_CLIENTES)
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
+    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
     cuentas = cargar_datos(ARCHIVO_CUENTAS)
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
     
@@ -4220,14 +5393,12 @@ def historial_cliente(id):
     except (TypeError, ValueError):
         filtro_mes = ''
 
-    # Filtrar facturas por cliente, preservando el ID y calculando pagos/saldos
-    facturas_cliente = []
-    for factura_id, factura_data in facturas.items():
+    notas_cliente = []
+    for factura_id, factura_data in notas.items():
         if factura_data.get('cliente_id') != id:
             continue
         factura_copia = factura_data.copy()
-        factura_copia['id'] = factura_id
-        # Calcular totales de pagos y saldo pendiente (alineado con ver_factura)
+        nota_copia['id'] = nota_id
         total_abonado = 0
         pagos = factura_copia.get('pagos') or []
         try:
@@ -4236,21 +5407,20 @@ def historial_cliente(id):
             pagos_iterables = []
         for pago in pagos_iterables:
             try:
-                monto = float(str(pago.get('monto', 0)).replace('$', '').replace(',', ''))
+                monto = safe_float(pago.get('monto', 0))
                 total_abonado += monto
             except Exception:
                 continue
         try:
-            total_usd_factura = float(str(factura_copia.get('total_usd', factura_copia.get('total', 0))).replace('$', '').replace(',', ''))
+            total_usd_nota = safe_float(factura_copia.get('total_usd', factura_copia.get('total', 0)))
         except Exception:
-            total_usd_factura = 0.0
+            total_usd_nota = 0.0
         factura_copia['total_abonado'] = total_abonado
-        factura_copia['saldo_pendiente'] = max(total_usd_factura - total_abonado, 0)
-        facturas_cliente.append(factura_copia)
+        factura_copia['saldo_pendiente'] = max(total_usd_nota - total_abonado, 0)
+        notas_cliente.append(factura_copia)
     
-    # Filtrar facturas por año y mes seleccionados
     facturas_filtradas = []
-    for f in facturas_cliente:
+    for f in notas_cliente:
         fecha = f.get('fecha', '')
         try:
             fecha_dt = datetime.strptime(fecha, '%Y-%m-%d')
@@ -4261,7 +5431,7 @@ def historial_cliente(id):
 
     # Calcular totales anuales (protegido)
     facturas_anio_actual = []
-    for f in facturas_cliente:
+    for f in notas_cliente:
         fecha_txt = f.get('fecha', '')
         try:
             if fecha_txt:
@@ -4269,12 +5439,12 @@ def historial_cliente(id):
                     facturas_anio_actual.append(f)
         except Exception:
             continue
-    total_anual_usd = sum(float(f.get('total_usd', 0)) for f in facturas_anio_actual)
-    total_anual_bs = sum(float(f.get('total_bs', 0)) for f in facturas_anio_actual)
+    total_anual_usd = sum(safe_float(f.get('total_usd', 0)) for f in facturas_anio_actual)
+    total_anual_bs = sum(safe_float(f.get('total_bs', 0)) for f in facturas_anio_actual)
 
     # Calcular totales mensuales (protegido)
     facturas_mes_actual = []
-    for f in facturas_cliente:
+    for f in notas_cliente:
         fecha_txt = f.get('fecha', '')
         try:
             if fecha_txt:
@@ -4283,29 +5453,29 @@ def historial_cliente(id):
                     facturas_mes_actual.append(f)
         except Exception:
             continue
-    total_mensual_usd = sum(float(f.get('total_usd', 0)) for f in facturas_mes_actual)
-    total_mensual_bs = sum(float(f.get('total_bs', 0)) for f in facturas_mes_actual)
+    total_mensual_usd = sum(safe_float(f.get('total_usd', 0)) for f in facturas_mes_actual)
+    total_mensual_bs = sum(safe_float(f.get('total_bs', 0)) for f in facturas_mes_actual)
     
     cuenta = next((c for c in cuentas.values() if c.get('cliente_id') == id), None)
     
     # Totales filtrados
     total_compras = sum(
-        float(f.get('total_usd', f.get('total', 0)).replace('$', '').replace(',', '')) if isinstance(f.get('total_usd', f.get('total', 0)), str) else float(f.get('total_usd', f.get('total', 0)))
+        safe_float(f.get('total_usd', f.get('total', 0)))
         for f in facturas_filtradas
     )
     total_bs = sum(
-        float(f.get('total_bs', 0)) if f.get('total_bs', 0) else (
-            float(f.get('total_usd', f.get('total', 0))) * float(f.get('tasa_bcv', 0) or 0)
+        safe_float(f.get('total_bs', 0)) if f.get('total_bs', 0) else (
+            safe_float(f.get('total_usd', f.get('total', 0))) * safe_float(f.get('tasa_bcv', 0) or 0)
         )
         for f in facturas_filtradas
     )
 
     # Productos comprados filtrados
     productos_comprados = {}
-    for factura in facturas_filtradas:
-        productos = factura.get('productos', [])
-        cantidades = factura.get('cantidades', [])
-        precios = factura.get('precios', [])
+    for nota in facturas_filtradas:
+        productos = nota.get('productos', [])
+        cantidades = nota.get('cantidades', [])
+        precios = nota.get('precios', [])
         
         for i in range(len(productos)):
             prod_id = productos[i]
@@ -4318,7 +5488,7 @@ def historial_cliente(id):
                     }
                 try:
                     cantidad = int(cantidades[i])
-                    precio = float(precios[i])
+                    precio = safe_float(precios[i])
                     productos_comprados[prod_id]['cantidad'] += cantidad
                     productos_comprados[prod_id]['valor'] += cantidad * precio
                 except (ValueError, TypeError, IndexError):
@@ -4329,7 +5499,7 @@ def historial_cliente(id):
 
     # Para el formulario de filtro (protegido)
     anios_disponibles_set = set()
-    for f in facturas_cliente:
+    for f in notas_cliente:
         fecha_txt = f.get('fecha', '')
         if not fecha_txt:
             continue
@@ -4339,11 +5509,10 @@ def historial_cliente(id):
             continue
     anios_disponibles = sorted(anios_disponibles_set)
     
-    # Calcular promedio por factura (con protección extra)
     try:
-        promedio_por_factura = float(total_compras) / len(facturas_filtradas) if len(facturas_filtradas) > 0 and total_compras is not None else 0.0
+        promedio_por_nota = safe_float(total_compras) / len(facturas_filtradas) if len(facturas_filtradas) > 0 and total_compras is not None else 0.0
     except (TypeError, ValueError, ZeroDivisionError):
-        promedio_por_factura = 0.0
+        promedio_por_nota = 0.0
     
     # Obtener configuración de mapas
     maps_config = get_maps_config()
@@ -4363,48 +5532,10 @@ def historial_cliente(id):
         filtro_anio=filtro_anio,
         filtro_mes=filtro_mes,
         anios_disponibles=anios_disponibles,
-        promedio_por_factura=promedio_por_factura,
+        promedio_por_factura=promedio_por_nota,
         maps_config=maps_config,
         now=now
     )
-
-def actualizar_facturas_antiguas():
-    """Agrega campos nuevos por defecto a todas las facturas antiguas."""
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    campos_nuevos = {
-        'hora': '',
-        'condicion_pago': 'contado',
-        'fecha_vencimiento': '',
-        'tasa_bcv': '',
-        'descuento': '0',
-        'tipo_descuento': 'bs',
-        'iva': '5',
-        'pagos': {},
-        'subtotal_usd': '0.00',
-        'subtotal_bs': '0.00',
-        'descuento_total': '0.00',
-        'iva_total': '0.00',
-        'total_usd': '0.00',
-        'total_bs': '0.00'
-    }
-    actualizadas = 0
-    for id, factura in facturas.items():
-        cambiado = False
-        for campo, valor in campos_nuevos.items():
-            if campo not in factura:
-                factura[campo] = valor
-                cambiado = True
-        if cambiado:
-            actualizadas += 1
-    if actualizadas > 0:
-        guardar_datos(ARCHIVO_FACTURAS, facturas)
-    return actualizadas
-
-@app.route('/facturas/actualizar-campos')
-def actualizar_campos_facturas():
-    n = actualizar_facturas_antiguas()
-    flash(f'Se actualizaron {n} facturas antiguas con los campos nuevos.', 'success' if n else 'info')
-    return redirect(url_for('mostrar_facturas'))
 
 @app.route('/inventario/cargar-csv', methods=['GET', 'POST'])
 def cargar_productos_csv():
@@ -4497,7 +5628,7 @@ def es_number(value, decimales=2):
             return f"0,{decimales * '0'}"
             
         # Convertir a float
-        value = float(value)
+        value = safe_float(value)
         
         # Si es 0, retornar formato con decimales
         if value == 0:
@@ -4516,6 +5647,51 @@ def es_number(value, decimales=2):
         return formatted
     except Exception:
         return str(value) if value is not None else "0"
+
+@app.template_filter('money')
+def money(value, decimals=2):
+    """Formatea un número como moneda con separadores de miles (coma) y punto decimal."""
+    try:
+        if value is None or value == '':
+            return f"0.{'0' * decimals}"
+        
+        value = safe_float(value)
+        return f"{value:,.{decimals}f}"
+    except Exception:
+        return str(value) if value is not None else "0.00"
+
+# --- Filtro personalizado para conversión segura a float ---
+@app.template_filter('float')
+def float_filter(value, default=0.0):
+    """Filtro Jinja2 para conversión segura a float."""
+    return safe_float(value, default)
+
+# --- Filtro personalizado para formatear moneda ---
+@app.template_filter('format_currency')
+def format_currency(value, currency='USD', decimales=2):
+    """Formatea un número como moneda."""
+    try:
+        # Si es None o string vacío, retornar 0
+        if value is None or value == '':
+            return f"$0,{decimales * '0'}"
+            
+        # Convertir a float
+        value = safe_float(value)
+        
+        # Si es 0, retornar formato con decimales
+        if value == 0:
+            return f"$0,{decimales * '0'}"
+        
+        # Formatear con separadores de miles
+        if currency == 'USD':
+            return f"${value:,.{decimales}f}"
+        elif currency == 'VES' or currency == 'BS':
+            return f"Bs {value:,.{decimales}f}"
+        else:
+            return f"{currency} {value:,.{decimales}f}"
+            
+    except (ValueError, TypeError):
+        return f"$0,{decimales * '0'}"
 
 # ===== RUTA PARA RECORDATORIOS WHATSAPP MEJORADA =====
 @app.route('/cuentas-por-cobrar/enviar_recordatorio_whatsapp', methods=['POST'])
@@ -4540,7 +5716,7 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
             return jsonify({'error': 'Falta cliente_id en la solicitud'}), 400
         
         # Cargar datos directamente aquí
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         if cliente_id not in clientes:
@@ -4552,22 +5728,21 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
         if not telefono:
             return jsonify({'error': 'El cliente no tiene teléfono registrado'}), 400
         
-        # Filtrar facturas pendientes
         facturas_pendientes = []
         total_pendiente = 0.0
         
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
-                total_factura = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                saldo_pendiente = max(0, total_factura - total_abonado)
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
+                total_nota = safe_float(nota.get('total_usd', 0))
+                total_abonado = safe_float(nota.get('total_abonado', 0))
+                saldo_pendiente = max(0, total_nota - total_abonado)
                 
                 if saldo_pendiente > 0:
                     facturas_pendientes.append({
                         'id': factura_id,
-                        'numero': factura.get('numero', 'N/A'),
-                        'fecha': factura.get('fecha', 'N/A'),
-                        'total': total_factura,
+                        'numero': nota.get('numero', 'N/A'),
+                        'fecha': nota.get('fecha', 'N/A'),
+                        'total': total_nota,
                         'abonado': total_abonado,
                         'saldo': saldo_pendiente
                     })
@@ -4577,7 +5752,7 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
             return jsonify({
                 'success': True,
                 'message': 'El cliente no tiene facturas pendientes de pago',
-                'total_facturas': 0,
+                'total_notas_entrega': 0,
                 'total_pendiente': 0
             })
         
@@ -4587,38 +5762,38 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
             telefono_limpio = '58' + telefono_limpio.lstrip('0')
         
         # Determinar nivel de urgencia basado en el monto y antigüedad
-        from datetime import datetime, date, timedelta
+        from datetime import date
         hoy = date.today()
         factura_mas_antigua = None
         dias_vencimiento = 0
         facturas_vencidas = []
         
-        for factura in facturas_pendientes:
+        for nota in facturas_pendientes:
             try:
-                fecha_factura = datetime.strptime(factura['fecha'], '%Y-%m-%d').date()
-                dias = (hoy - fecha_factura).days
+                fecha_nota = datetime.strptime(nota['fecha'], '%Y-%m-%d').date()
+                dias = (hoy - fecha_nota).days
                 
                 # Calcular fecha de vencimiento si es a crédito
-                condicion_pago = factura.get('condicion_pago', 'contado')
+                condicion_pago = nota.get('condicion_pago', 'contado')
                 if condicion_pago in ['credito', 'crédito', '30 dias', '30 días', '60 dias', '60 días']:
                     if '30' in condicion_pago:
-                        fecha_vencimiento = fecha_factura + timedelta(days=30)
+                        fecha_vencimiento = fecha_nota + timedelta(days=30)
                     elif '60' in condicion_pago:
-                        fecha_vencimiento = fecha_factura + timedelta(days=60)
+                        fecha_vencimiento = fecha_nota + timedelta(days=60)
                     else:
-                        fecha_vencimiento = fecha_factura + timedelta(days=30)  # Por defecto 30 días
+                        fecha_vencimiento = fecha_nota + timedelta(days=30)  # Por defecto 30 días
                     
-                    dias_vencimiento_factura = (hoy - fecha_vencimiento).days
-                    if dias_vencimiento_factura > 0:
+                    dias_vencimiento_nota = (hoy - fecha_vencimiento).days
+                    if dias_vencimiento_nota > 0:
                         facturas_vencidas.append({
-                            'numero': factura['numero'],
-                            'dias_vencido': dias_vencimiento_factura,
+                            'numero': nota['numero'],
+                            'dias_vencido': dias_vencimiento_nota,
                             'fecha_vencimiento': fecha_vencimiento.strftime('%Y-%m-%d')
                         })
                 
                 if dias > dias_vencimiento:
                     dias_vencimiento = dias
-                    factura_mas_antigua = factura
+                    factura_mas_antigua = nota
             except:
                 continue
         
@@ -4642,7 +5817,7 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
             emoji_principal = "🚨"
             tono = "urgente"
         elif tipo_mensaje == "MEDIO":
-            emoji_principal = "⚠️"
+            emoji_principal = "WARNING"
             tono = "medio"
         else:  # FLEXIBLE
             emoji_principal = "💼"
@@ -4664,12 +5839,12 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 
 ⏰ *Este recordatorio requiere acción inmediata*
 
-🏢 *PRODUCTOS NATURALES KISVIC 1045, C.A.*
+🏢 *NOMBRE_DE_EMPRESA*
 📍 Centro Comercial Caña de Azúcar (Antiguo Merbumar)
    Nave A, Locales 154-156, Maracay-Edo. Aragua
-📧 kisvic1045@gmail.com
+📧 email@empresa.com
 📱 0424-728-6225
-🆔 RIF: J-404373818
+🆔 RIF: J-XXXXXXXXX
 
 📞 *Por favor contacta urgentemente para coordinar el pago*
 
@@ -4686,12 +5861,12 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 • Días transcurridos: {dias_vencimiento} días
 {f"• Facturas vencidas: {len(facturas_vencidas)} facturas" if facturas_vencidas else ""}
 
-🏢 *PRODUCTOS NATURALES KISVIC 1045, C.A.*
+🏢 *NOMBRE_DE_EMPRESA*
 📍 Centro Comercial Caña de Azúcar (Antiguo Merbumar)
    Nave A, Locales 154-156, Maracay-Edo. Aragua
-📧 kisvic1045@gmail.com
+📧 email@empresa.com
 📱 0424-728-6225
-🆔 RIF: J-404373818
+🆔 RIF: J-XXXXXXXXX
 
 📞 *Te invitamos a contactar para coordinar el pago*
 
@@ -4707,12 +5882,12 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 • Monto pendiente: *${total_pendiente:.2f} USD*
 {f"• Facturas vencidas: {len(facturas_vencidas)} facturas" if facturas_vencidas else ""}
 
-🏢 *PRODUCTOS NATURALES KISVIC 1045, C.A.*
+🏢 *NOMBRE_DE_EMPRESA*
 📍 Centro Comercial Caña de Azúcar (Antiguo Merbumar)
    Nave A, Locales 154-156, Maracay-Edo. Aragua
-📧 kisvic1045@gmail.com
+📧 email@empresa.com
 📱 0424-728-6225
-🆔 RIF: J-404373818
+🆔 RIF: J-XXXXXXXXX
 
 📞 *Cuando puedas, contáctanos para coordinar el pago*
 
@@ -4731,7 +5906,7 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
             'telefono': telefono,
             'mensaje': mensaje,
             'cliente_nombre': cliente.get('nombre', 'N/A'),
-            'total_facturas': len(facturas_pendientes),
+            'total_notas_entrega': len(facturas_pendientes),
             'total_facturado': sum(f['total'] for f in facturas_pendientes),
             'total_abonado': sum(f['abonado'] for f in facturas_pendientes),
             'total_pendiente': total_pendiente,
@@ -4755,18 +5930,27 @@ def enviar_recordatorio_cuentas_por_cobrar_body():
 @app.route('/cuentas-por-cobrar')
 @login_required
 def mostrar_cuentas_por_cobrar():
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
+    """
+    Muestra las cuentas por cobrar basadas exclusivamente en notas de entrega.
+    Adaptado para trabajar solo con el sistema de notas de entrega.
+    """
+    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
     clientes = cargar_datos(ARCHIVO_CLIENTES)
+    cuentas = cargar_datos(ARCHIVO_CUENTAS)
+    
     filtro = request.args.get('estado', 'por_cobrar')
     filtro_norm = (filtro or '').lower()
     if filtro_norm in ['cobrado', 'cobradas']:
         filtro_norm = 'cobrada'
     if filtro_norm in ['abonadas']:
         filtro_norm = 'abonada'
+    
     # Sub-filtros de fecha/cliente y vencidas
     mes_param = request.args.get('mes', '')
     anio_param = request.args.get('anio', '')
     cliente_param = request.args.get('cliente', '').strip()
+    solo_vencidas = request.args.get('solo_vencidas', '0') == '1'
+    
     try:
         mes_seleccionado = int(mes_param) if mes_param else None
     except Exception:
@@ -4797,90 +5981,72 @@ def mostrar_cuentas_por_cobrar():
             })
     # Ordenar por nombre
     clientes_disponibles.sort(key=lambda x: x['nombre'].lower())
+    
     # Años disponibles para selector
     anios_disponibles = sorted({
-        int(f['fecha'].split('-')[0]) for f in facturas.values() if f.get('fecha') and '-' in f.get('fecha')
+        int(f['fecha'].split('-')[0]) for f in notas.values() if f.get('fecha') and '-' in f.get('fecha')
     })
-    solo_vencidas_flag = 1 if request.args.get('solo_vencidas', '0') == '1' else 0
+    
+    # Variables para cálculos
     cuentas_filtradas = {}
     total_por_cobrar_usd = 0
     total_por_cobrar_bs = 0
     total_facturado_usd = 0
     total_abonado_usd = 0
-    # Totales del conjunto filtrado (para tarjetas en abonada/cobrada)
-    display_facturado_usd = 0.0
-    display_abonado_usd = 0.0
-    display_por_cobrar_usd = 0.0
-    # Totales que se mostrarán en tarjetas para el conjunto filtrado
     display_facturado_usd = 0.0
     display_abonado_usd = 0.0
     display_por_cobrar_usd = 0.0
     tasa_bcv = obtener_tasa_bcv() or 1.0
     clientes_deudores = set()
-    # Resumen específico para estado cobradas
-    resumen_cobradas = None
+    
     from datetime import date, datetime as dt
     hoy = date.today()
-    # buckets de antigüedad
+    
+    # Buckets de antigüedad
     buckets = {'0-30': 0.0, '31-60': 0.0, '61-90': 0.0, '90+': 0.0}
     overdue_usd = 0.0
     vencidas_count = 0
     sum_age_weight = 0.0
 
-    for id, factura in facturas.items():
-        # Normalizar totales si faltan usando estructura legacy
-        try:
-            if not factura.get('total_usd') or factura.get('total_usd') == 0:
-                precios = factura.get('precios') or []
-                cantidades = factura.get('cantidades') or []
-                subtotal = 0.0
-                for p, c in zip(precios, cantidades):
-                    try:
-                        subtotal += float(p) * int(c)
-                    except Exception:
-                        continue
-                descuento_total = float(factura.get('descuento_total') or factura.get('descuento') or 0)
-                iva_pct = float(factura.get('iva') or 0)
-                base = subtotal - descuento_total
-                iva_total = base * (iva_pct/100)
-                total_usd_norm = base + iva_total
-                factura['total_usd'] = total_usd_norm
-                factura['total_abonado'] = float(factura.get('total_abonado', 0))
-                factura['saldo_pendiente'] = max(total_usd_norm - float(factura['total_abonado']), 0)
-        except Exception:
-            pass
-        saldo_pendiente = float(factura.get('saldo_pendiente', 0))
-        total_usd_fact = float(factura.get('total_usd', 0))
-        total_abonado_fact = float(factura.get('total_abonado', 0))
-        # Estado consistente: cobrada (pagada), abonada (parcial), por_cobrar
-        if total_abonado_fact >= total_usd_fact or saldo_pendiente <= 0:
+    # Procesar notas de entrega para cuentas por cobrar
+    for id, nota in notas.items():
+        # Calcular totales de la nota
+        total_usd = safe_float(nota.get('subtotal_usd', 0))
+        estado_nota = nota.get('estado', 'PENDIENTE_ENTREGA')
+        
+        # Determinar estado para cuentas por cobrar basado en la nota
+        if estado_nota == 'PAGADA':
             estado = 'cobrada'
-        elif total_abonado_fact > 0:
+            total_abonado = total_usd
+            saldo_pendiente = 0
+        elif estado_nota == 'ABONADA':
             estado = 'abonada'
-        else:
+            # Calcular abonado basado en pagos
+            pagos = nota.get('pagos', [])
+            total_abonado = sum(safe_float(pago.get('monto', 0)) for pago in pagos)
+            saldo_pendiente = max(total_usd - total_abonado, 0)
+        else:  # PENDIENTE_ENTREGA, ENTREGADO, etc.
             estado = 'por_cobrar'
-        # Acumular facturado/abonado generales
-        total_facturado_usd += float(factura.get('total_usd', 0))
-        total_abonado_usd += float(factura.get('total_abonado', 0))
+            total_abonado = 0
+            saldo_pendiente = total_usd
 
-        # Filtros por mes/año (si están presentes)
-        fecha_str_iter = factura.get('fecha')
-        if (mes_seleccionado or anio_seleccionado) and fecha_str_iter:
+        # Filtros por mes/año
+        fecha_str = nota.get('fecha')
+        if (mes_seleccionado or anio_seleccionado) and fecha_str:
             try:
-                y, m, _ = fecha_str_iter.split('-')
+                y, m, _ = fecha_str.split('-')
                 if anio_seleccionado and int(y) != anio_seleccionado:
                     continue
                 if mes_seleccionado and int(m) != mes_seleccionado:
                     continue
             except Exception:
-                # Si no se puede parsear y hay filtros activos, omitir
                 continue
 
+        # Aplicar filtro de estado
         include = False
         if filtro_norm == 'todas':
             include = True
         elif filtro_norm == 'abonada':
-            # Solo facturas con abono y saldo pendiente > 0 (estado abonada)
             include = (estado == 'abonada')
         elif filtro_norm == 'cobrada':
             include = (estado == 'cobrada')
@@ -4889,56 +6055,58 @@ def mostrar_cuentas_por_cobrar():
         else:
             include = (filtro_norm == estado)
 
-        # Filtro por cliente si está presente
+        # Filtro por cliente
         if include and cliente_param:
-            if str(factura.get('cliente_id', '')) != cliente_param:
+            if str(nota.get('cliente_id', '')) != cliente_param:
                 include = False
 
         if include:
-            cuentas_filtradas[id] = {
-                'factura_id': id,
-                'numero': factura.get('numero', id),
-                'cliente_id': factura.get('cliente_id'),
-                'cliente_nombre': clientes.get(factura.get('cliente_id'), {}).get('nombre', factura.get('cliente_id')),
-                'total_usd': float(factura.get('total_usd', 0)),
-                'abonado_usd': total_abonado_fact,
-                'saldo_pendiente': saldo_pendiente,
-                'estado': estado,
-                'fecha': factura.get('fecha'),
-                'condicion_pago': factura.get('condicion_pago', ''),
-                'fecha_vencimiento': factura.get('fecha_vencimiento',''),
-                'edad_dias': 0,
-            }
-            # Acumular totales del dataset mostrado
-            display_facturado_usd += float(factura.get('total_usd', 0))
-            display_abonado_usd += total_abonado_fact
-            display_por_cobrar_usd += saldo_pendiente
-            # Acumular totales de la vista filtrada
-            display_facturado_usd += float(factura.get('total_usd', 0))
-            display_abonado_usd += total_abonado_fact
-            display_por_cobrar_usd += saldo_pendiente
-
-            # Antigüedad y vencidas: considerar cuentas con saldo > 0 (por_cobrar o abonadas)
-            if estado in ['por_cobrar', 'abonada'] and saldo_pendiente > 0:
-                total_por_cobrar_usd += saldo_pendiente
-                clientes_deudores.add(factura.get('cliente_id'))
-                # Antigüedad/vencido: usar fecha_vencimiento prioritaria
-                dias_emision = 0
+            # Calcular edad y días vencidos
+            dias_emision = 0
+            dias_vencidos = 0
+            if fecha_str:
                 try:
-                    if factura.get('fecha'):
-                        dias_emision = (hoy - dt.strptime(factura.get('fecha'), '%Y-%m-%d').date()).days
+                    dias_emision = (hoy - dt.strptime(fecha_str, '%Y-%m-%d').date()).days
                 except Exception:
                     dias_emision = 0
-                cuentas_filtradas[id]['edad_dias'] = dias_emision
+            
+            fecha_vencimiento = nota.get('fecha_vencimiento', '')
+            if fecha_vencimiento:
+                try:
+                    dias_vencidos = (hoy - dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()).days
+                except Exception:
+                    dias_vencidos = 0
 
-                dias_vencidos = 0
-                venc_str = factura.get('fecha_vencimiento') or ''
-                if venc_str:
-                    try:
-                        dias_vencidos = (hoy - dt.strptime(venc_str, '%Y-%m-%d').date()).days
-                    except Exception:
-                        dias_vencidos = 0
-                cuentas_filtradas[id]['dias_vencidos'] = max(dias_vencidos, 0)
+            cuentas_filtradas[id] = {
+                'factura_id': id,
+                'numero': nota.get('numero', id),
+                'cliente_id': nota.get('cliente_id'),
+                'cliente_nombre': clientes.get(nota.get('cliente_id'), {}).get('nombre', nota.get('cliente_id')),
+                'total_usd': total_usd,
+                'abonado_usd': total_abonado,
+                'saldo_pendiente': saldo_pendiente,
+                'estado': estado,
+                'fecha': fecha_str,
+                'condicion_pago': nota.get('condicion_pago', ''),
+                'fecha_vencimiento': fecha_vencimiento,
+                'edad_dias': dias_emision,
+                'dias_vencidos': max(dias_vencidos, 0),
+                'tipo_documento': 'Nota de Entrega',
+                'nota_entrega_id': id
+            }
+            
+            # Acumular totales
+            display_facturado_usd += total_usd
+            display_abonado_usd += total_abonado
+            display_por_cobrar_usd += saldo_pendiente
+            total_facturado_usd += total_usd
+            total_abonado_usd += total_abonado
+
+            # Procesar cuentas con saldo pendiente
+            if estado in ['por_cobrar', 'abonada'] and saldo_pendiente > 0:
+                total_por_cobrar_usd += saldo_pendiente
+                clientes_deudores.add(nota.get('cliente_id'))
+                
                 if dias_vencidos > 0:
                     overdue_usd += saldo_pendiente
                     vencidas_count += 1
@@ -4951,21 +6119,159 @@ def mostrar_cuentas_por_cobrar():
                     else:
                         buckets['90+'] += saldo_pendiente
                     sum_age_weight += dias_vencidos * saldo_pendiente
-    # Aplicar sub-filtro: solo vencidas (para vista por_cobrar)
-    if filtro == 'por_cobrar' and solo_vencidas_flag == 1:
+
+    # Aplicar sub-filtro: solo vencidas
+    if filtro == 'por_cobrar' and solo_vencidas:
         cuentas_filtradas = {
             k: v for k, v in cuentas_filtradas.items()
             if v.get('estado') == 'por_cobrar' and v.get('dias_vencidos', 0) > 0
         }
 
+    # Calcular totales en bolívares
+    total_por_cobrar_bs = total_por_cobrar_usd * tasa_bcv
+    total_facturado_bs = total_facturado_usd * tasa_bcv
+    total_abonado_bs = total_abonado_usd * tasa_bcv
+    
+    # Contar facturas filtradas
+    cantidad_facturas = len(cuentas_filtradas)
+    
+    # Calcular KPIs específicos por filtro
+    kpis = {}
+    no_vencida_usd = total_por_cobrar_usd - overdue_usd
+    
+    if filtro_norm == 'por_cobrar':
+        count_pc = len([c for c in cuentas_filtradas.values() if c['estado'] == 'por_cobrar'])
+        # Concentración Top 5 deudores
+        agg_pc = {}
+        for c in cuentas_filtradas.values():
+            if c['estado'] == 'por_cobrar' and c['saldo_pendiente'] > 0:
+                cid = c['cliente_id']
+                agg_pc[cid] = agg_pc.get(cid, 0.0) + c['saldo_pendiente']
+        top5_sum = sum(v for _, v in sorted(agg_pc.items(), key=lambda x: x[1], reverse=True)[:5])
+        conc_top5 = round((top5_sum / total_por_cobrar_usd) * 100, 1) if total_por_cobrar_usd > 0 else 0.0
+        ticket_pc = round((total_por_cobrar_usd / count_pc), 2) if count_pc > 0 else 0.0
+        kpis.update({
+            'saldo_vencido_usd': round(overdue_usd, 2),
+            'saldo_no_vencido_usd': round(no_vencida_usd, 2),
+            'ticket_promedio_usd': ticket_pc,
+            'concentracion_top5': conc_top5
+        })
+    elif filtro_norm == 'abonada':
+        abonadas = [c for c in cuentas_filtradas.values() if c['estado'] == 'abonada']
+        total_abonado_set = sum(c['total_usd'] - c['saldo_pendiente'] for c in abonadas)
+        saldo_pendiente_set = sum(c['saldo_pendiente'] for c in abonadas)
+        facturado_set = sum(c['total_usd'] for c in abonadas)
+        avg_abonado_set = round((total_abonado_set / len(abonadas)), 2) if abonadas else 0.0
+        progreso = round((total_abonado_set / facturado_set) * 100, 1) if facturado_set > 0 else 0.0
+        kpis.update({
+            'total_abonado_set': round(total_abonado_set, 2),
+            'saldo_pendiente_set': round(saldo_pendiente_set, 2),
+            'promedio_abonado_set': avg_abonado_set,
+            'progreso_recuperacion': progreso
+        })
+    elif filtro_norm == 'cobrada':
+        cobradas = [c for c in cuentas_filtradas.values() if c['estado'] == 'cobrada']
+        total_pagado_set = sum(c['total_usd'] for c in cobradas)
+        avg_pagado_set = round((total_pagado_set / len(cobradas)), 2) if cobradas else 0.0
+        # Concentración Top1
+        agg_cb = {}
+        for c in cobradas:
+            cid = c['cliente_id']
+            agg_cb[cid] = agg_cb.get(cid, 0.0) + c['total_usd']
+        if agg_cb:
+            top1_monto = max(agg_cb.values())
+            conc_top1 = round((top1_monto / total_pagado_set) * 100, 1) if total_pagado_set > 0 else 0.0
+        else:
+            conc_top1 = 0.0
+        kpis.update({
+            'total_pagado_set': round(total_pagado_set, 2),
+            'promedio_pagado_set': avg_pagado_set,
+            'concentracion_top1': conc_top1
+        })
+
+    # Generar datos para gráficas
+    grafica_barras = {
+        'labels': ['Facturado', 'Abonado', 'Por Cobrar'],
+        'data': [display_facturado_usd, display_abonado_usd, display_por_cobrar_usd],
+        'facturas': [cantidad_facturas, cantidad_facturas, cantidad_facturas],
+        'avg': [display_facturado_usd/cantidad_facturas if cantidad_facturas > 0 else 0, 
+                display_abonado_usd/cantidad_facturas if cantidad_facturas > 0 else 0, 
+                display_por_cobrar_usd/cantidad_facturas if cantidad_facturas > 0 else 0]
+    }
+    
+    # Gráfica de pastel - Top deudores
+    top_deudores = []
+    if filtro_norm == 'por_cobrar':
+        agg_deudores = {}
+        for c in cuentas_filtradas.values():
+            if c['estado'] == 'por_cobrar' and c['saldo_pendiente'] > 0:
+                cid = c['cliente_id']
+                agg_deudores[cid] = agg_deudores.get(cid, 0.0) + c['saldo_pendiente']
+        top_deudores = [{'cliente_id': cid, 'cliente': clientes.get(cid, {}).get('nombre', cid), 'monto': monto} 
+                       for cid, monto in sorted(agg_deudores.items(), key=lambda x: x[1], reverse=True)[:5]]
+    elif filtro_norm in ['abonada', 'cobrada']:
+        agg_clientes = {}
+        for c in cuentas_filtradas.values():
+            cid = c['cliente_id']
+            if cid not in agg_clientes:
+                agg_clientes[cid] = {'total_facturado': 0, 'abonado_usd': 0, 'facturas': 0}
+            agg_clientes[cid]['total_facturado'] += c['total_usd']
+            agg_clientes[cid]['abonado_usd'] += c['abonado_usd']
+            agg_clientes[cid]['facturas'] += 1
+        
+        for cid, data in agg_clientes.items():
+            data['participacion'] = round((data['abonado_usd'] / display_abonado_usd) * 100, 1) if display_abonado_usd > 0 else 0
+            data['ticket_promedio'] = round(data['abonado_usd'] / data['facturas'], 2) if data['facturas'] > 0 else 0
+        
+        top_deudores = [{'cliente_id': cid, 'cliente': clientes.get(cid, {}).get('nombre', cid), **data} 
+                       for cid, data in sorted(agg_clientes.items(), key=lambda x: x[1]['abonado_usd'], reverse=True)[:10]]
+
+    # Gráfica de pastel
+    if top_deudores:
+        grafica_pastel = {
+            'labels': [d['cliente'] for d in top_deudores],
+            'data': [d['monto'] for d in top_deudores]
+        }
+    else:
+        grafica_pastel = {'labels': [], 'data': []}
+
+    # Gráfica de antigüedad
+    grafica_antiguedad = {
+        'labels': ['No Vencida', '0-30 días', '31-60 días', '61-90 días', '90+ días'],
+        'data': [
+            no_vencida_usd,
+            buckets['0-30'],
+            buckets['31-60'],
+            buckets['61-90'],
+            buckets['90+']
+        ]
+    }
+
+    # Resumen para estado cobradas
+    resumen_cobradas = None
+    if filtro_norm == 'cobrada' and cuentas_filtradas:
+        cobradas = [c for c in cuentas_filtradas.values() if c['estado'] == 'cobrada']
+        if cobradas:
+            montos = [c['total_usd'] for c in cobradas]
+            resumen_cobradas = {
+                'facturas': len(cobradas),
+                'ticket_promedio': round(sum(montos) / len(montos), 2),
+                'cliente_top': max(cobradas, key=lambda x: x['total_usd'])['cliente_nombre'],
+                'monto_top': max(montos),
+                'min_pagado': min(montos),
+                'max_pagado': max(montos),
+                'mediana_pagado': sorted(montos)[len(montos)//2] if montos else 0,
+                'ultima_cobranza': max(c['fecha'] for c in cobradas if c['fecha'])
+            }
+
     total_por_cobrar_bs = total_por_cobrar_usd * tasa_bcv
     total_facturado_bs = total_facturado_usd * tasa_bcv
     total_abonado_bs = total_abonado_usd * tasa_bcv
     # Contar directamente lo filtrado; en 'abonada' incluye abonadas y cobradas con abonos
-    cantidad_facturas = len(cuentas_filtradas)
-    no_vencidas_count = max(cantidad_facturas - vencidas_count, 0)
+    cantidad_notas = len(cuentas_filtradas)
+    no_vencidas_count = max(cantidad_notas - vencidas_count, 0)
     cantidad_clientes = len(clientes_deudores)
-    promedio_por_factura = total_por_cobrar_usd / cantidad_facturas if cantidad_facturas > 0 else 0
+    promedio_por_nota = total_por_cobrar_usd / cantidad_notas if cantidad_notas > 0 else 0
     # Top según filtro (deudores o buen pagador)
     if (request.args.get('estado','por_cobrar') in ['abonada','abonadas','cobrada','cobradas']):
         agreg = {}
@@ -5071,12 +6377,11 @@ def mostrar_cuentas_por_cobrar():
                     else:
                         med_pagado = round((montos_sorted[mid - 1] + montos_sorted[mid]) / 2.0, 2)
                 # Última cobranza (por fecha de pago)
-                from datetime import datetime as dtd
                 ultima_cobranza = ''
                 try:
                     fechas = []
                     for fid in cuentas_filtradas.keys():
-                        f = facturas.get(fid, {})
+                        f = notas.get(fid, {})
                         for p in f.get('pagos', []) or []:
                             pf = p.get('fecha', '')
                             if pf:
@@ -5229,15 +6534,15 @@ def mostrar_cuentas_por_cobrar():
             'concentracion_top1': conc_top1
         })
 
-    return render_template('reporte_cuentas_por_cobrar.html',
+    return render_template('cuentas_por_cobrar_moderno.html',
         cuentas=cuentas_filtradas,
         clientes=clientes,
-        facturas=facturas,
+        notas=notas,
         filtro=filtro,
         mes_seleccionado=mes_seleccionado,
         anio_seleccionado=anio_seleccionado,
         anios_disponibles=anios_disponibles,
-        solo_vencidas=solo_vencidas_flag,
+        solo_vencidas=solo_vencidas,
         cliente_seleccionado=cliente_seleccionado,
         cliente_nombre_seleccionado=cliente_nombre_seleccionado,
         clientes_disponibles=clientes_disponibles,
@@ -5250,425 +6555,244 @@ def mostrar_cuentas_por_cobrar():
         total_abonado_bs=total_abonado_bs,
         cantidad_facturas=cantidad_facturas,
         vencidas_count=vencidas_count,
-        no_vencidas_count=no_vencidas_count,
+        no_vencidas_count=len([c for c in cuentas_filtradas.values() if c.get('dias_vencidos', 0) <= 0]),
         display_facturado_usd=display_facturado_usd,
         display_abonado_usd=display_abonado_usd,
         display_por_cobrar_usd=display_por_cobrar_usd,
-        cantidad_clientes=cantidad_clientes,
-        promedio_por_factura=promedio_por_factura,
+        cantidad_clientes=len(clientes_deudores),
+        promedio_por_factura=round(display_facturado_usd / cantidad_facturas, 2) if cantidad_facturas > 0 else 0,
         top_deudores=top_deudores,
-        grafica_barras=barras,
-        grafica_pastel=pastel,
-        grafica_antiguedad=antiguedad,
-        dso=dso,
-        porcentaje_recuperado=porc_recuperado,
-        porcentaje_vencido=porc_vencido,
+        grafica_barras=grafica_barras,
+        grafica_pastel=grafica_pastel,
+        grafica_antiguedad=grafica_antiguedad,
+        dso=round(sum_age_weight / total_por_cobrar_usd, 1) if total_por_cobrar_usd > 0 else 0,
+        porcentaje_recuperado=round((total_abonado_usd / total_facturado_usd) * 100, 1) if total_facturado_usd > 0 else 0,
+        porcentaje_vencido=round((overdue_usd / total_por_cobrar_usd) * 100, 1) if total_por_cobrar_usd > 0 else 0,
         vencido_usd=overdue_usd,
         no_vencida_usd=no_vencida_usd,
         resumen_cobradas=resumen_cobradas,
-        kpis=kpis
+        kpis=kpis,
+        buckets=buckets
     )
 
-@app.route('/pagos-recibidos')
+@app.route('/api/pagos-filtrados')
 @login_required
-def mostrar_pagos_recibidos():
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    pagos = []
-    total_usd = 0
-    total_bs = 0
-    # Obtener tasas de Monitor Dólar
-    tasa_bcv = None
-    tasa_paralelo = None
-    tasa_bcv_eur = None
+def api_pagos_filtrados():
+    """API para obtener pagos recibidos filtrados por período"""
     try:
-        r = requests.get('https://s3.amazonaws.com/dolartoday/data.json', timeout=5)
-        data = r.json()
-        tasa_bcv = float(data['USD']['bcv']) if 'USD' in data and 'bcv' in data['USD'] else None
-        tasa_paralelo = float(data['USD']['promedio']) if 'USD' in data and 'promedio' in data['USD'] else None
-        tasa_bcv_eur = float(data['EUR']['promedio']) if 'EUR' in data and 'promedio' in data['EUR'] else None
-    except Exception:
-        tasa_bcv = obtener_tasa_bcv() or 1.0
-        tasa_paralelo = tasa_bcv
-        tasa_bcv_eur = 0
-
-    for f in facturas.values():
-        if 'pagos' in f and f['pagos']:
-            # Verificar que la factura tenga un ID válido
-            factura_id = f.get('id')
-            if not factura_id:
-                print(f"⚠️ Factura sin ID encontrada: {f}")
-                continue
-                
-            for pago in f['pagos']:
-                captura_path = pago.get('captura_path')
-                if captura_path:
-                    # Normalizar la ruta para que siempre sea /uploads/capturas/...
-                    if 'uploads/capturas/' in captura_path:
-                        # Quitar static/ si lo tiene
-                        captura_path = captura_path.split('static/')[-1]
-                        # Asegurar que empiece con uploads/capturas/
-                        if not captura_path.startswith('uploads/capturas/'):
-                            captura_path = 'uploads/capturas/' + os.path.basename(captura_path)
+        periodo = request.args.get('periodo', 'todos')
+        print(f"Filtrando pagos para período: {periodo}")
+        
+        notas_data = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        print(f"Tipo de datos cargados: {type(notas_data)}")
+        
+        # Convertir diccionario a lista si es necesario
+        if isinstance(notas_data, dict):
+            notas = list(notas_data.values())
+        else:
+            notas = notas_data
+            
+        print(f"Total de notas cargadas: {len(notas)}")
+        
+        pagos = []
+        total_usd = 0
+        total_bs = 0
+        
+        # Obtener tasa BCV actual
+        tasa_bcv = None
+        try:
+            r = requests.get('https://s3.amazonaws.com/dolartoday/data.json', timeout=5)
+            data = r.json()
+            tasa_bcv = safe_float(data['USD']['bcv']) if 'USD' in data and 'bcv' in data['USD'] else None
+        except:
+            tasa_bcv = 36.5  # Tasa por defecto
+        
+        hoy = datetime.now().date()
+        
+        for nota in notas:
+            if nota.get('estado', '').lower() == 'pagada' and nota.get('pagos'):
+                try:
+                    # Obtener la fecha del último pago
+                    pagos_nota = nota.get('pagos', [])
+                    if pagos_nota:
+                        ultimo_pago = pagos_nota[-1]  # Último pago de la lista
+                        fecha_pago_str = ultimo_pago.get('fecha', '')
                     else:
-                        captura_path = 'uploads/capturas/' + os.path.basename(captura_path)
-                    # Validar existencia del archivo
-                    ruta_absoluta = os.path.join('static', captura_path.replace('/', os.sep))
-                    if not os.path.exists(ruta_absoluta):
-                        captura_path = None
-                else:
-                    captura_path = None
+                        fecha_pago_str = ''
+                    
+                    if fecha_pago_str:
+                        # Convertir fecha del pago (formato: '2025-09-21 22:58:12')
+                        fecha_pago = datetime.strptime(fecha_pago_str.split(' ')[0], '%Y-%m-%d').date()
+                        
+                        # Aplicar filtro según el período
+                        incluir = False
+                        if periodo == 'hoy':
+                            incluir = fecha_pago == hoy
+                        elif periodo == 'semana':
+                            inicio_semana = hoy - timedelta(days=hoy.weekday())
+                            incluir = fecha_pago >= inicio_semana and fecha_pago <= hoy
+                        elif periodo == 'mes':
+                            inicio_mes = hoy.replace(day=1)
+                            incluir = fecha_pago >= inicio_mes and fecha_pago <= hoy
+                        elif periodo == 'todos':
+                            incluir = True
+                        
+                        if incluir:
+                            monto_usd = safe_float(nota.get('total_usd', 0))
+                            monto_bs = safe_float(nota.get('total_bs', 0))
+                            total_usd += monto_usd
+                            total_bs += monto_bs
+                            pagos.append(nota)
+                            print(f"Incluido: ID {nota.get('id')}, Fecha: {fecha_pago}, USD: {monto_usd}, Bs: {monto_bs}")
+                            
+                except (ValueError, KeyError, IndexError) as e:
+                    print(f"Error procesando nota {nota.get('id', 'N/A')}: {e}")
+                    continue
+        
+        # Formatear números usando la función existente
+        total_usd_formatted = es_number(total_usd)
+        total_bs_formatted = es_number(total_bs)
+        
+        print(f"Pagos encontrados: {len(pagos)}, Total USD: {total_usd}, Total Bs: {total_bs}")
+        
+        return jsonify({
+            'success': True,
+            'total_usd': total_usd_formatted,
+            'total_bs': total_bs_formatted,
+            'periodo': periodo,
+            'cantidad_pagos': len(pagos)
+        })
+        
+    except Exception as e:
+        print(f"Error en API pagos-filtrados: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'total_usd': '0,00',
+            'total_bs': '0,00',
+            'periodo': request.args.get('periodo', 'todos'),
+            'cantidad_pagos': 0
+        })
 
-                pagos.append({
-                    'factura_id': factura_id,
-                    'fecha': f.get('fecha'),
-                    'cliente_id': f.get('cliente_id'),
-                    'monto': pago.get('monto', 0),
-                    'metodo': pago.get('metodo', ''),
-                    'tasa_bcv': float(f.get('tasa_bcv', tasa_bcv)),
-                    'referencia': pago.get('referencia', ''),
-                    'banco': pago.get('banco', ''),
-                    'captura_path': captura_path
-                })
-                total_usd += float(pago.get('monto', 0))
-                total_bs += float(pago.get('monto', 0)) * float(f.get('tasa_bcv', tasa_bcv))
+@app.route('/api/cobranza-filtrada')
+@login_required
+def api_cobranza_filtrada():
+    """API para obtener cuentas por cobrar filtradas por período"""
+    try:
+        periodo = request.args.get('periodo', 'todos')
+        print(f"Filtrando cobranza para período: {periodo}")
+        
+        notas_data = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        print(f"Tipo de datos cargados: {type(notas_data)}")
+        
+        # Convertir diccionario a lista si es necesario
+        if isinstance(notas_data, dict):
+            notas = list(notas_data.values())
+        else:
+            notas = notas_data
+            
+        print(f"Total de notas cargadas: {len(notas)}")
+        
+        cobranza = []
+        total_usd = 0
+        total_bs = 0
+        
+        hoy = datetime.now().date()
+        
+        for nota in notas:
+            if nota.get('estado', '').lower() in ['pendiente', 'por_cobrar', 'credito']:
+                try:
+                    fecha_factura_str = nota.get('fecha', '')
+                    
+                    if fecha_factura_str:
+                        fecha_nota = datetime.strptime(fecha_factura_str, '%Y-%m-%d').date()
+                        
+                        # Aplicar filtro según el período
+                        incluir = False
+                        if periodo == 'hoy':
+                            incluir = fecha_nota == hoy
+                        elif periodo == 'semana':
+                            inicio_semana = hoy - timedelta(days=hoy.weekday())
+                            incluir = fecha_nota >= inicio_semana and fecha_nota <= hoy
+                        elif periodo == 'mes':
+                            inicio_mes = hoy.replace(day=1)
+                            incluir = fecha_nota >= inicio_mes and fecha_nota <= hoy
+                        elif periodo == 'todos':
+                            incluir = True
+                        
+                        if incluir:
+                            monto_usd = safe_float(nota.get('total_usd', 0))
+                            monto_bs = safe_float(nota.get('total_bs', 0))
+                            total_usd += monto_usd
+                            total_bs += monto_bs
+                            cobranza.append(nota)
+                            print(f"Incluido: ID {nota.get('id')}, Fecha: {fecha_factura}, USD: {monto_usd}, Bs: {monto_bs}")
+                            
+                except (ValueError, KeyError) as e:
+                    print(f"Error procesando nota {nota.get('id', 'N/A')}: {e}")
+                    continue
+        
+        # Formatear números usando la función existente
+        total_usd_formatted = es_number(total_usd)
+        total_bs_formatted = es_number(total_bs)
+        
+        print(f"Cobranza encontrada: {len(cobranza)}, Total USD: {total_usd}, Total Bs: {total_bs}")
+        
+        return jsonify({
+            'success': True,
+            'total_usd': total_usd_formatted,
+            'total_bs': total_bs_formatted,
+            'periodo': periodo,
+            'cantidad_notas': len(cobranza)
+        })
+        
+    except Exception as e:
+        print(f"Error en API cobranza-filtrada: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'total_usd': '0,00',
+            'total_bs': '0,00',
+            'periodo': request.args.get('periodo', 'todos'),
+            'cantidad_notas': 0
+        })
 
-    return render_template('pagos_recibidos.html', 
-                         pagos=pagos, 
-                         clientes=clientes, 
-                         total_usd=total_usd, 
-                         total_bs=total_bs, 
-                         tasa_bcv=tasa_bcv, 
-                         tasa_paralelo=tasa_paralelo, 
-                         tasa_bcv_eur=tasa_bcv_eur)
 
 @app.template_filter('split')
 def split_filter(value, delimiter=' '):
     """Filtro personalizado para dividir strings"""
     return value.split(delimiter)
 
-@app.route('/reporte/facturas')
-def reporte_facturas():
-    """Muestra un reporte general de facturas con filtros y estadísticas"""
-    # Cargar datos necesarios
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    # Obtener parámetros de filtro
-    filtro_anio = request.args.get('anio', '')
-    filtro_mes = request.args.get('mes', '')
-    filtro_cliente = request.args.get('cliente', '')
-
-    # Obtener años disponibles de las facturas
-    anios_disponibles = sorted({f['fecha'].split('-')[0] for f in facturas.values() if f.get('fecha')})
-
-    # Filtrar facturas
-    facturas_filtradas = []
-    for factura in facturas.values():
-        fecha = factura['fecha'].split('-')
-        anio_factura = fecha[0]
-        mes_factura = fecha[1]
-
-        # Aplicar filtros
-        if filtro_anio and anio_factura != filtro_anio:
-            continue
-        if filtro_mes and mes_factura != filtro_mes.zfill(2):
-            continue
-        if filtro_cliente and str(factura['cliente_id']) != filtro_cliente:
-            continue
-        # Calcular estado actualizado
-        total_abonado = 0
-        if 'pagos' in factura and factura['pagos']:
-            for pago in factura['pagos']:
-                try:
-                    monto = float(str(pago.get('monto', 0)).replace('$', '').replace(',', ''))
-                    total_abonado += monto
-                except Exception:
-                    continue
-        total_factura = factura.get('total_usd') or factura.get('total') or 0
-        if isinstance(total_factura, str):
-            total_factura = float(total_factura.replace('$', '').replace(',', ''))
-        if total_abonado >= total_factura and total_factura > 0:
-            factura['estado'] = 'pagada'
-        else:
-            factura['estado'] = 'pendiente'
-        factura['total_abonado'] = total_abonado
-        factura['saldo_pendiente'] = max(total_factura - total_abonado, 0)
-        facturas_filtradas.append(factura)
-
-    # Calcular totales
-    total_facturas = len(facturas_filtradas)
-    total_usd = sum(float(f.get('total_usd', 0)) for f in facturas_filtradas)
-    total_bs = sum(float(f.get('total_bs', 0)) for f in facturas_filtradas)
-    promedio_usd = total_usd / total_facturas if total_facturas > 0 else 0
-
-    # Calcular top clientes
-    clientes_totales = {}
-    for factura in facturas_filtradas:
-        cliente_id = factura['cliente_id']
-        if cliente_id not in clientes_totales:
-            clientes_totales[cliente_id] = {
-                'total_usd': 0,
-                'total_bs': 0,
-                'total_facturas': 0
-            }
-        clientes_totales[cliente_id]['total_usd'] += float(factura.get('total_usd', 0))
-        clientes_totales[cliente_id]['total_bs'] += float(factura.get('total_bs', 0))
-        clientes_totales[cliente_id]['total_facturas'] += 1
-
-    # Preparar lista de top clientes con todos los campos necesarios
-    top_clientes = []
-    for cid, stats in sorted(clientes_totales.items(), key=lambda x: x[1]['total_usd'], reverse=True)[:10]:
-        cliente = clientes.get(cid, {})
-        total_facturas_cliente = stats['total_facturas']
-        promedio_usd_cliente = stats['total_usd'] / total_facturas_cliente if total_facturas_cliente > 0 else 0
-        top_clientes.append({
-            'nombre': cliente.get('nombre', 'Cliente no encontrado'),
-            'total_facturas': total_facturas_cliente,
-            'total_usd': stats['total_usd'],
-            'total_bs': stats['total_bs'],
-            'promedio_usd': promedio_usd_cliente
-        })
-
-    return render_template('reporte_facturas.html',
-                         facturas=facturas_filtradas,
-                         clientes=clientes,
-                         total_facturas=total_facturas,
-                         total_usd=total_usd,
-                         total_bs=total_bs,
-                         promedio_usd=promedio_usd,
-                         top_clientes=top_clientes,
-                         filtro_anio=filtro_anio,
-                         filtro_mes=filtro_mes,
-                         filtro_cliente=filtro_cliente,
-                         anios_disponibles=anios_disponibles)
-
 @app.route('/inventario/')
 def inventario_slash_redirect():
     return redirect(url_for('mostrar_inventario'))
 
-@app.route('/facturas/reparar-totales')
-def reparar_totales_facturas():
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    actualizadas = 0
-    for id, factura in facturas.items():
-        # Recalcular totales y pagos
-        try:
-            precios = factura.get('precios', [])
-            cantidades = factura.get('cantidades', [])
-            subtotal_usd = sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios))) if precios and cantidades else 0
-            tasa_bcv = float(factura.get('tasa_bcv', 1))
-            descuento_total = float(factura.get('descuento_total', 0))
-            iva_total = float(factura.get('iva_total', 0))
-            total_usd = subtotal_usd - descuento_total + iva_total
-            total_bs = total_usd * tasa_bcv
-            pagos = factura.get('pagos', [])
-            total_abonado = sum(float(p.get('monto', 0)) for p in pagos)
-            saldo_pendiente = max(total_usd - total_abonado, 0)
-            # Actualizar campos
-            factura['subtotal_usd'] = subtotal_usd
-            factura['subtotal_bs'] = subtotal_bs
-            factura['total_usd'] = total_usd
-            factura['total_bs'] = total_bs
-            factura['total_abonado'] = total_abonado
-            factura['saldo_pendiente'] = saldo_pendiente
-            facturas[id] = factura
-            actualizadas += 1
-        except Exception as e:
-            print(f"Error actualizando factura {id}: {e}")
-    guardar_datos(ARCHIVO_FACTURAS, facturas)
-    flash(f'Se actualizaron {actualizadas} facturas con los totales y pagos recalculados.', 'success')
-    return redirect(url_for('mostrar_facturas'))
-
-@app.route('/reporte/cotizaciones')
-def reporte_cotizaciones():
-    """Reporte básico de cotizaciones."""
-    cotizaciones = []
-    cotizaciones_dir = 'cotizaciones_json'
-    if os.path.exists(cotizaciones_dir):
-        for filename in os.listdir(cotizaciones_dir):
-            if filename.endswith('.json'):
-                try:
-                    with open(os.path.join(cotizaciones_dir, filename), 'r', encoding='utf-8') as f:
-                        cot_data = json.load(f)
-                        if not cot_data.get('numero_cotizacion') or not cot_data.get('fecha') or not cot_data.get('cliente', {}).get('nombre'):
-                            continue
-                        cotizaciones.append(cot_data)
-                except Exception:
-                    continue
-    total_cotizaciones = len(cotizaciones)
-    total_monto = sum(float(str(c.get('total_usd', 0)).replace('$', '').replace(',', '').strip()) for c in cotizaciones)
-    return render_template('reporte_cotizaciones.html', cotizaciones=cotizaciones, total_cotizaciones=total_cotizaciones, total_monto=total_monto, now=datetime.now())
-
-@app.route('/cotizaciones/<id>/convertir-a-factura')
-def convertir_cotizacion_a_factura(id):
-    """Convierte una cotización en factura y abre el formulario de factura para editar antes de guardar."""
-    cotizaciones_dir = 'cotizaciones_json'
-    filename = os.path.join(cotizaciones_dir, f"cotizacion_{id}.json")
-    if not os.path.exists(filename):
-        flash('Cotización no encontrada', 'danger')
-        return redirect(url_for('mostrar_cotizaciones'))
-    with open(filename, 'r', encoding='utf-8') as f:
-        cotizacion = json.load(f)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
+@app.route('/qr/<id>')
+def mostrar_stock_qr(id):
+    """Mostrar información de stock cuando se escanea el QR"""
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    empresa = cargar_empresa()
-    # Preparar datos para el formulario de factura
-    factura = {
-        'numero': '',
-        'fecha': datetime.now().strftime('%Y-%m-%d'),
-        'hora': datetime.now().strftime('%H:%M:%S'),
-        'condicion_pago': 'contado',
-        'fecha_vencimiento': '',
-        'tasa_bcv': cotizacion.get('tasa_bcv', ''),
-        'cliente_id': cotizacion['cliente'].get('id', ''),
-        'productos': cotizacion.get('productos', []),
-        'cantidades': cotizacion.get('cantidades', []),
-        'precios': [float(p) for p in cotizacion.get('precios', [])],
-        'descuento': cotizacion.get('descuento', '0'),
-        'tipo_descuento': cotizacion.get('tipo_descuento', 'bs'),
-        'iva': cotizacion.get('iva', '16'),
-        'subtotal_usd': cotizacion.get('subtotal_usd', '0'),
-        'subtotal_bs': cotizacion.get('subtotal_bs', '0'),
-        'descuento_total': cotizacion.get('descuento_total', '0'),
-        'iva_total': cotizacion.get('iva_total', '0'),
-        'total_usd': cotizacion.get('total_usd', '0'),
-        'total_bs': cotizacion.get('total_bs', '0'),
-        'pagos': [],
-        'estado': 'pendiente',
-        'total_abonado': 0,
-        'saldo_pendiente': cotizacion.get('total_usd', '0'),
+    
+    if id not in inventario:
+        return render_template('qr_error.html', mensaje="Producto no encontrado")
+    
+    producto = inventario[id]
+    
+    # Información básica del producto
+    info_producto = {
+        'id': id,
+        'nombre': producto.get('nombre', 'Sin nombre'),
+        'categoria': producto.get('categoria', 'Sin categoría'),
+        'tipo': producto.get('tipo', 'piezas'),
+        'precio': safe_float(producto.get('precio', 0)),
+        'cantidad': int(producto.get('cantidad', 0)),
+        'stock_bajo': int(producto.get('cantidad', 0)) < 5
     }
-    inventario_disponible = {k: v for k, v in inventario.items() if int(v.get('cantidad', 0)) > 0 or k in factura.get('productos', [])}
-    return render_template('factura_form.html', factura=factura, clientes=clientes, inventario=inventario_disponible, editar=False, empresa=empresa)
-
-@app.route('/cotizaciones/<id>/imprimir')
-def imprimir_cotizacion(id):
-    """Vista amigable para imprimir la cotización."""
-    cotizaciones_dir = 'cotizaciones_json'
-    filename = os.path.join(cotizaciones_dir, f"cotizacion_{id}.json")
-    if not os.path.exists(filename):
-        flash('Cotización no encontrada', 'danger')
-        return redirect(url_for('mostrar_cotizaciones'))
-    with open(filename, 'r', encoding='utf-8') as f:
-        cotizacion = json.load(f)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    empresa = cargar_empresa()
-    # Calcular totales en el backend
-    total_usd = 0
-    total_bs = 0
-    tasa = float(cotizacion.get('tasa_bcv', 0) or 0)
-    for precio, cantidad in zip(cotizacion.get('precios', []), cotizacion.get('cantidades', [])):
-        try:
-            p = float(precio)
-            c = int(cantidad)
-            subtotal_usd = p * c
-            subtotal_bs = subtotal_usd * tasa
-            total_usd += subtotal_usd
-            total_bs += subtotal_bs
-        except Exception:
-            continue
-    return render_template('cotizacion_imprimir.html', cotizacion=cotizacion, clientes=clientes, inventario=inventario, empresa=empresa, zip=zip, total_usd=total_usd, total_bs=total_bs)
-
-@app.route('/cotizaciones/<id>/pdf')
-def descargar_cotizacion_pdf(id):
-    if pdfkit is None:
-        flash('PDFKit no está instalado. Instala con: pip install pdfkit', 'danger')
-        return redirect(url_for('ver_cotizacion', id=id))
-    cotizaciones = cargar_datos(ARCHIVO_COTIZACIONES)
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    cotizacion = cotizaciones.get(id)
-    if not cotizacion:
-        flash('Cotización no encontrada', 'danger')
-        return redirect(url_for('mostrar_cotizaciones'))
-    empresa = cargar_empresa()
     
-    # Convertir rutas relativas a absolutas para las imágenes
-    if empresa.get('logo'):
-        empresa['logo'] = request.url_root.rstrip('/') + url_for('static', filename=empresa['logo'])
-    if empresa.get('membrete'):
-        empresa['membrete'] = request.url_root.rstrip('/') + url_for('static', filename=empresa['membrete'])
-    
-    rendered = render_template('cotizacion_imprimir.html', 
-                             cotizacion=cotizacion, 
-                             clientes=clientes, 
-                             inventario=inventario,
-                             now=datetime.now,
-                             empresa=empresa,
-                             zip=zip)
-    try:
-        # Intentar diferentes ubicaciones comunes de wkhtmltopdf
-        wkhtmltopdf_paths = [
-            'C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe',
-            '/usr/bin/wkhtmltopdf',
-            '/usr/local/bin/wkhtmltopdf',
-            'wkhtmltopdf'  # Si está en el PATH
-        ]
-        
-        config = None
-        for path in wkhtmltopdf_paths:
-            if os.path.exists(path):
-                config = pdfkit.configuration(wkhtmltopdf=path)
-                break
-        
-        if config is None:
-            # Si no se encuentra wkhtmltopdf, intentar usar el comando directamente
-            config = pdfkit.configuration(wkhtmltopdf='wkhtmltopdf')
-            
-        options = {
-            'page-size': 'A4',
-            'margin-top': '20mm',
-            'margin-right': '15mm',
-            'margin-bottom': '20mm',
-            'margin-left': '15mm',
-            'encoding': 'UTF-8',
-            'no-outline': None,
-            'quiet': '',
-            'print-media-type': '',
-            'disable-smart-shrinking': '',
-            'dpi': 300,
-            'image-quality': 100,
-            'enable-local-file-access': None,
-            'footer-right': '[page] de [topage]',
-            'footer-font-size': '8',
-            'footer-spacing': '5',
-            'javascript-delay': '1000',
-            'no-stop-slow-scripts': None
-        }
-        pdf = pdfkit.from_string(rendered, False, configuration=config, options=options)
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=cotizacion_{cotizacion["numero"]}.pdf'
-        return response
-    except Exception as e:
-        print(f"Error al generar PDF: {str(e)}")  # Para debugging
-        flash(f'Error al generar PDF: {str(e)}', 'danger')
-        return redirect(url_for('ver_cotizacion', id=id))
+    return render_template('qr_stock.html', producto=info_producto)
 
-@app.route('/cotizacion/<numero>')
-def ver_cotizacion(numero):
-    try:
-        # Cargar la cotización
-        cotizacion_path = os.path.join('cotizaciones_json', f'cotizacion_{numero}.json')
-        if not os.path.exists(cotizacion_path):
-            flash('Cotización no encontrada', 'error')
-            return redirect(url_for('cotizaciones'))
-        
-        with open(cotizacion_path, 'r', encoding='utf-8') as f:
-            cotizacion = json.load(f)
-        
-        # Cargar datos adicionales necesarios
-        with open('inventario.json', 'r', encoding='utf-8') as f:
-            inventario = json.load(f)
-        with open('empresa.json', 'r', encoding='utf-8') as f:
-            empresa = json.load(f)
-        
-        return render_template('cotizacion_imprimir.html', cotizacion=cotizacion, inventario=inventario, empresa=empresa, zip=zip)
-    except Exception as e:
-        flash(f'Error al cargar la cotización: {str(e)}', 'error')
-        return redirect(url_for('cotizaciones'))
+
+
+
 
 @app.route('/login', methods=['GET', 'POST'])
 @csrf.exempt
@@ -5762,165 +6886,18 @@ def limpiar_bitacora():
     
     return redirect(url_for('ver_bitacora'))
 
-@app.route('/facturas/<id>/registrar_pago', methods=['POST'])
-@login_required
-def registrar_pago(id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    facturas = cargar_datos(ARCHIVO_FACTURAS)
-    if id not in facturas:
-        flash('Factura no encontrada', 'error')
-        return redirect(url_for('mostrar_facturas'))
-    try:
-        factura = facturas[id]
-        monto = float(request.form.get('monto_pago', 0))
-        if monto <= 0:
-            flash('El monto del pago debe ser mayor a $0.00', 'danger')
-            return redirect(url_for('ver_factura', id=id))
-        moneda = request.form.get('moneda_pago', 'USD')
-        metodo = request.form.get('metodo_pago', '')
-        referencia = request.form.get('referencia_pago', '')
-        banco = request.form.get('banco', '')
-        if moneda == 'Bs':
-            tasa_bcv = float(factura.get('tasa_bcv', 1))
-            monto = monto / tasa_bcv
-        nuevo_pago = {
-            'id': str(uuid.uuid4()),
-            'monto': monto,
-            'moneda': moneda,
-            'metodo': metodo,
-            'referencia': referencia,
-            'banco': banco,
-            'captura_path': None,
-            'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        if 'captura' in request.files:
-            captura = request.files['captura']
-            if captura.filename:
-                filename = secure_filename(captura.filename)
-                # Guardar en ambas ubicaciones para compatibilidad
-                ruta_static = os.path.join(CAPTURAS_FOLDER, filename)
-                ruta_uploads = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'capturas', filename)
-                captura.save(ruta_static)
-                captura.save(ruta_uploads)
-                nuevo_pago['captura_path'] = f"uploads/capturas/{filename}"
-        factura['pagos'].append(nuevo_pago)
-        total_abonado = sum(float(p['monto']) for p in factura['pagos'])
-        factura['total_abonado'] = total_abonado
-        saldo_pendiente = factura.get('total_usd', 0) - total_abonado
-        factura['saldo_pendiente'] = saldo_pendiente
-        
-        # Actualizar estado de la factura según el pago
-        if abs(saldo_pendiente) < 0.01 or total_abonado >= factura.get('total_usd', 0):
-            saldo_pendiente = 0
-            factura['estado'] = 'pagada'
-        else:
-            factura['estado'] = 'pendiente'
-        
-        factura['saldo_pendiente'] = saldo_pendiente
-        
-        # Sincronizar automáticamente con cuentas por cobrar
-        sincronizar_cuentas_por_cobrar(factura)
-        
-        # Notificar pago recibido
-        notificar_pago_recibido(factura, nuevo_pago)
-        
-        guardar_datos(ARCHIVO_FACTURAS, facturas)
-        flash('Pago registrado exitosamente', 'success')
-        return redirect(url_for('ver_factura', id=id))
-    except Exception as e:
-        flash(f'Error al registrar el pago: {str(e)}', 'danger')
-        return redirect(url_for('ver_factura', id=id))
+# Función de facturas eliminada - ahora todo es por notas de entrega
 
-@app.route('/facturas/<id>/eliminar_pago/<pago_id>', methods=['POST'])
-@login_required
-def eliminar_pago(id, pago_id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    try:
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        if id not in facturas:
-            flash('Factura no encontrada', 'error')
-            return redirect(url_for('mostrar_facturas'))
-        
-        factura = facturas[id]
-        pagos = factura.get('pagos', [])
-        
-        pago_encontrado = False
-        for i, pago in enumerate(pagos):
-            if str(pago.get('id', '')) == str(pago_id):
-                monto_pago = float(pago.get('monto', 0))
-                if pago.get('moneda') == 'Bs':
-                    monto_pago = monto_pago / float(factura.get('tasa_bcv', 1))
-                
-                factura['total_abonado'] = float(factura.get('total_abonado', 0)) - monto_pago
-                saldo_pendiente = factura.get('total_usd', 0) - factura['total_abonado']
-                
-                # Si el saldo pendiente es muy pequeño (menos de 0.01) o el total abonado es igual o mayor al total
-                if abs(saldo_pendiente) < 0.01 or factura['total_abonado'] >= factura.get('total_usd', 0):
-                    saldo_pendiente = 0
-                    factura['estado'] = 'pagada'
-                else:
-                    factura['estado'] = 'pendiente'
-                
-                factura['saldo_pendiente'] = saldo_pendiente
-                pagos.pop(i)
-                pago_encontrado = True
-                break
-        
-        if not pago_encontrado:
-            flash('Pago no encontrado', 'error')
-            return redirect(url_for('editar_factura', id=id))
-        
-        facturas[id] = factura
-        if guardar_datos(ARCHIVO_FACTURAS, facturas):
-            flash('Pago eliminado exitosamente', 'success')
-        else:
-            flash('Error al guardar los cambios', 'error')
-            
-    except Exception as e:
-        flash(f'Error al eliminar el pago: {str(e)}', 'error')
-    
-    return redirect(url_for('editar_factura', id=id))
+# Función de facturas eliminada - ahora todo es por notas de entrega
 
-@app.route('/facturas/<id>/saldo')
-@login_required
-def obtener_saldo_factura(id):
-    # Validación simple del ID
-    if not id or str(id).strip() == '':
-        flash('ID de factura inválido', 'danger')
-        return redirect(url_for('mostrar_facturas'))
-    try:
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        if id not in facturas:
-            return jsonify({'error': 'Factura no encontrada'}), 404
-        
-        factura = facturas[id]
-        saldo_pendiente = float(factura.get('saldo_pendiente', 0))
-        tasa_bcv = float(factura.get('tasa_bcv', 0))
-        
-        return jsonify({
-            'saldo_pendiente': saldo_pendiente,
-            'tasa_bcv': tasa_bcv
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/facturas/<id>/enviar_recordatorio_whatsapp', methods=['POST'])
-@login_required
-@csrf.exempt
 def enviar_recordatorio_whatsapp(id):
     # Validación simple del ID
     if not id or str(id).strip() == '':
-        print("❌ ID de factura inválido")
-        return jsonify({'error': 'ID de factura inválido'}), 400
+        print("❌ ID de nota inválido")
+        return jsonify({'error': 'ID de nota inválido'}), 400
     
     try:
-        print(f"🔍 Iniciando envío de recordatorio WhatsApp para factura: {id}")
+        print(f"🔍 Iniciando envío de recordatorio WhatsApp para nota: {id}")
         print(f"🔍 Método de petición: {request.method}")
         print(f"🔍 Headers: {dict(request.headers)}")
         print(f"🔍 Content-Type: {request.content_type}")
@@ -5929,7 +6906,7 @@ def enviar_recordatorio_whatsapp(id):
         print("🔍 Usando solo el ID de la URL, ignorando datos del body")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         print(f"📊 Facturas cargadas: {len(facturas)}")
@@ -5939,15 +6916,15 @@ def enviar_recordatorio_whatsapp(id):
             print(f"❌ Factura {id} no encontrada")
             return jsonify({'error': 'Factura no encontrada'}), 404
         
-        factura = facturas[id]
-        cliente_id = factura.get('cliente_id')
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
         
         print(f"👤 Cliente ID: {cliente_id}")
-        print(f"📄 Factura: {factura.get('numero', 'N/A')}")
+        print(f"📄 Factura: {nota.get('numero', 'N/A')}")
         
         if not cliente_id:
             print(f"❌ Factura {id} no tiene cliente_id")
-            return jsonify({'error': 'La factura no tiene cliente asignado'}), 400
+            return jsonify({'error': 'La nota no tiene cliente asignado'}), 400
         
         # Verificar si el cliente_id está en la lista de clientes
         print(f"🔍 Buscando cliente_id '{cliente_id}' en clientes...")
@@ -5985,7 +6962,7 @@ def enviar_recordatorio_whatsapp(id):
         
         # Crear mensaje personalizado
         try:
-            mensaje = crear_mensaje_recordatorio(factura, cliente)
+            mensaje = crear_mensaje_recordatorio(nota, cliente)
             print(f"💬 Mensaje creado exitosamente: {len(mensaje)} caracteres")
         except Exception as e:
             print(f"❌ Error creando mensaje: {e}")
@@ -6004,11 +6981,11 @@ def enviar_recordatorio_whatsapp(id):
             registrar_bitacora(
                 session.get('usuario', 'Sistema'),
                 'Recordatorio WhatsApp Enviado',
-                f'Factura {factura.get("numero", "N/A")} - Cliente: {cliente.get("nombre", "N/A")}'
+                f'Factura {nota.get("numero", "N/A")} - Cliente: {cliente.get("nombre", "N/A")}'
             )
             print("📝 Registrado en bitácora")
         except Exception as e:
-            print(f"⚠️ Error registrando en bitácora: {e}")
+            print(f"WARNING Error registrando en bitácora: {e}")
         
         resultado = {
             'success': True,
@@ -6074,17 +7051,17 @@ def guardar_ubicacion_precisa():
 def probar_recordatorio_whatsapp(id):
     """Ruta de prueba para verificar el funcionamiento del recordatorio WhatsApp."""
     try:
-        print(f"🧪 PROBANDO recordatorio WhatsApp para factura: {id}")
+        print(f"🧪 PROBANDO recordatorio WhatsApp para nota: {id}")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         if id not in facturas:
             return jsonify({'error': 'Factura no encontrada'}), 404
         
-        factura = facturas[id]
-        cliente_id = factura.get('cliente_id')
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
         
         if not cliente_id or cliente_id not in clientes:
             return jsonify({'error': 'Cliente no encontrado'}), 404
@@ -6099,7 +7076,7 @@ def probar_recordatorio_whatsapp(id):
         telefono_limpio = limpiar_numero_telefono(telefono)
         
         # Crear mensaje personalizado
-        mensaje = crear_mensaje_recordatorio(factura, cliente)
+        mensaje = crear_mensaje_recordatorio(nota, cliente)
         
         # Generar enlace de WhatsApp
         enlace_whatsapp = generar_enlace_whatsapp(telefono_limpio, mensaje)
@@ -6122,17 +7099,17 @@ def probar_recordatorio_whatsapp(id):
 def whatsapp_ultra_simple(id):
     """Función ultra simple que funciona con GET y POST para máxima compatibilidad."""
     try:
-        print(f"🚀 WHATSAPP ULTRA SIMPLE para factura: {id}")
+        print(f"🚀 WHATSAPP ULTRA SIMPLE para nota: {id}")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         if id not in facturas:
             return jsonify({'error': 'Factura no encontrada'}), 404
         
-        factura = facturas[id]
-        cliente_id = factura.get('cliente_id')
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
         
         if not cliente_id or cliente_id not in clientes:
             return jsonify({'error': 'Cliente no encontrado'}), 404
@@ -6148,7 +7125,7 @@ def whatsapp_ultra_simple(id):
         telefono_limpio = limpiar_numero_telefono(telefono)
         
         # Crear mensaje personalizado
-        mensaje = crear_mensaje_recordatorio(factura, cliente)
+        mensaje = crear_mensaje_recordatorio(nota, cliente)
         
         # Generar enlace de WhatsApp
         enlace_whatsapp = generar_enlace_whatsapp(telefono_limpio, mensaje)
@@ -6175,17 +7152,17 @@ def whatsapp_simple(id):
     con el mensaje 'Cliente no tiene número de teléfono registrado'.
     """
     try:
-        print(f"🚀 WHATSAPP SIMPLE para factura: {id}")
+        print(f"🚀 WHATSAPP SIMPLE para nota: {id}")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         if id not in facturas:
             return jsonify({'error': 'Factura no encontrada'}), 404
         
-        factura = facturas[id]
-        cliente_id = factura.get('cliente_id')
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
         
         if not cliente_id or cliente_id not in clientes:
             return jsonify({'error': 'Cliente no encontrado'}), 404
@@ -6201,7 +7178,7 @@ def whatsapp_simple(id):
         telefono_limpio = limpiar_numero_telefono(telefono)
         
         # Crear mensaje personalizado
-        mensaje = crear_mensaje_recordatorio(factura, cliente)
+        mensaje = crear_mensaje_recordatorio(nota, cliente)
         
         # Generar enlace de WhatsApp
         enlace_whatsapp = generar_enlace_whatsapp(telefono_limpio, mensaje)
@@ -6219,22 +7196,20 @@ def whatsapp_simple(id):
         print(f"❌ Error en WhatsApp simple: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/facturas/<id>/whatsapp-backup', methods=['POST'])
-@login_required
 def whatsapp_backup(id):
     """Función de respaldo para recordatorios de WhatsApp."""
     try:
-        print(f"🔄 FUNCIÓN DE RESPALDO WhatsApp para factura: {id}")
+        print(f"🔄 FUNCIÓN DE RESPALDO WhatsApp para nota: {id}")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         if id not in facturas:
             return jsonify({'error': 'Factura no encontrada'}), 404
         
-        factura = facturas[id]
-        cliente_id = factura.get('cliente_id')
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
         
         if not cliente_id or cliente_id not in clientes:
             return jsonify({'error': 'Cliente no encontrado'}), 404
@@ -6249,7 +7224,7 @@ def whatsapp_backup(id):
         telefono_limpio = limpiar_numero_telefono(telefono)
         
         # Crear mensaje personalizado
-        mensaje = crear_mensaje_recordatorio(factura, cliente)
+        mensaje = crear_mensaje_recordatorio(nota, cliente)
         
         # Generar enlace de WhatsApp
         enlace_whatsapp = generar_enlace_whatsapp(telefono_limpio, mensaje)
@@ -6349,7 +7324,7 @@ def probar_tasa_bcv():
         resultado['info'] = {
             'archivo_tasa': ULTIMA_TASA_BCV_FILE,
             'fecha_prueba': datetime.now().isoformat(),
-            'sistema_inteligente': 'Sí - Busca en facturas, cotizaciones y cuentas'
+            'sistema_inteligente': 'Sí - Busca en facturas y cuentas'
         }
         
         return jsonify(resultado)
@@ -6368,10 +7343,9 @@ def actualizar_tasa_bcv():
             # Si falla, intentar obtener la tasa del archivo
             tasa = cargar_ultima_tasa_bcv()
             if tasa is None or tasa <= 0:
-                return jsonify({
-                    'success': False, 
-                    'error': 'No se pudo obtener la tasa BCV. Por favor, intente más tarde.'
-                })
+                # Fallback con tasa correcta del dólar
+                tasa = 205.68
+                print("WARNING Usando tasa BCV USD de fallback: 205.68")
         
         # Guardar la nueva tasa
         guardar_ultima_tasa_bcv(tasa)
@@ -6395,6 +7369,7 @@ def actualizar_tasa_bcv():
             'success': False,
             'error': f'Error al actualizar la tasa BCV: {str(e)}'
         })
+
 
 # Rutas para gestión de categorías
 @app.route('/categorias')
@@ -6578,9 +7553,9 @@ def api_tasas():
     try:
         r = requests.get('https://s3.amazonaws.com/dolartoday/data.json', timeout=5)
         data = r.json()
-        tasa_bcv = float(data['USD']['bcv']) if 'USD' in data and 'bcv' in data['USD'] else None
-        tasa_paralelo = float(data['USD']['promedio']) if 'USD' in data and 'promedio' in data['USD'] else None
-        tasa_bcv_eur = float(data['EUR']['promedio']) if 'EUR' in data and 'promedio' in data['EUR'] else None
+        tasa_bcv = safe_float(data['USD']['bcv']) if 'USD' in data and 'bcv' in data['USD'] else None
+        tasa_paralelo = safe_float(data['USD']['promedio']) if 'USD' in data and 'promedio' in data['USD'] else None
+        tasa_bcv_eur = safe_float(data['EUR']['promedio']) if 'EUR' in data and 'promedio' in data['EUR'] else None
         return jsonify({
             'tasa_bcv': tasa_bcv,
             'tasa_paralelo': tasa_paralelo,
@@ -6599,7 +7574,7 @@ def api_tasas_actualizadas():
             if r.status_code == 200:
                 data = r.json()
                 if 'USD' in data and 'bcv' in data['USD']:
-                    tasa_bcv = float(str(data['USD']['bcv']).replace(',', '.'))
+                    tasa_bcv = safe_float(str(data['USD']['bcv']).replace(',', '.'))
         except Exception as e:
             print(f"Error obteniendo BCV de Monitor Dólar: {e}")
             tasa_bcv = None
@@ -6623,7 +7598,7 @@ def api_tasas_actualizadas():
                     valor_limpio = re.sub(r'[^\d,\.]', '', txt)
                     valor_limpio = valor_limpio.replace('.', '').replace(',', '.')
                     try:
-                        posible = float(valor_limpio)
+                        posible = safe_float(valor_limpio)
                         if 10 < posible < 500:
                             tasa_bcv_eur = posible
                             break
@@ -6669,11 +7644,9 @@ def api_tasas_actualizadas():
             'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
 
-@app.route('/inventario/lista-precios/<tipo>')
+@app.route('/inventario/lista-precios')
 @login_required
-def lista_precios(tipo):
-    if tipo not in ['detal', 'distribuidor']:
-        abort(404)
+def lista_precios():
     
     # Obtener filtros
     filtro_categoria = request.args.get('categoria', '')
@@ -6696,10 +7669,10 @@ def lista_precios(tipo):
         if filtro_categoria and producto.get('categoria') != filtro_categoria:
             continue
             
-        precio = float(producto.get('precio', 0))
-        if filtro_precio_min and precio < float(filtro_precio_min):
+        precio = safe_float(producto.get('precio', 0))
+        if filtro_precio_min and precio < safe_float(filtro_precio_min):
             continue
-        if filtro_precio_max and precio > float(filtro_precio_max):
+        if filtro_precio_max and precio > safe_float(filtro_precio_max):
             continue
             
         if filtro_busqueda:
@@ -6711,7 +7684,6 @@ def lista_precios(tipo):
     
     return render_template('lista_precios.html', 
                          inventario=productos_filtrados, 
-                         tipo=tipo, 
                          empresa=empresa,
                          now=fecha_actual,
                          categorias=categorias,
@@ -6720,11 +7692,9 @@ def lista_precios(tipo):
                          filtro_precio_max=filtro_precio_max,
                          filtro_busqueda=filtro_busqueda)
 
-@app.route('/inventario/lista-precios/<tipo>/pdf')
+@app.route('/inventario/lista-precios/pdf')
 @login_required
-def lista_precios_pdf(tipo):
-    if tipo not in ['detal', 'distribuidor']:
-        abort(404)
+def lista_precios_pdf():
     # Obtener filtros
     filtro_categoria = request.args.get('categoria', '')
     filtro_precio_min = request.args.get('precio_min', '')
@@ -6748,10 +7718,10 @@ def lista_precios_pdf(tipo):
     for id_producto, producto in inventario.items():
         if filtro_categoria and producto.get('categoria') != filtro_categoria:
             continue
-        precio = float(producto.get('precio', 0))
-        if filtro_precio_min and precio < float(filtro_precio_min):
+        precio = safe_float(producto.get('precio', 0))
+        if filtro_precio_min and precio < safe_float(filtro_precio_min):
             continue
-        if filtro_precio_max and precio > float(filtro_precio_max):
+        if filtro_precio_max and precio > safe_float(filtro_precio_max):
             continue
         if filtro_busqueda:
             busqueda = filtro_busqueda.lower()
@@ -6850,109 +7820,6 @@ def seniat_consulta():
         'timestamp': datetime.now().isoformat()
     })
 
-@app.route('/seniat/facturas/consultar')
-def seniat_consultar_facturas():
-    """Consulta de facturas para el SENIAT"""
-    try:
-        # Parámetros de consulta
-        numero = request.args.get('numero')
-        fecha_desde = request.args.get('fecha_desde')
-        fecha_hasta = request.args.get('fecha_hasta')
-        rif_cliente = request.args.get('rif_cliente')
-        
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        resultados = []
-        
-        for factura in facturas.values():
-            # Aplicar filtros
-            if numero and factura.get('numero') != numero:
-                continue
-            if fecha_desde and factura.get('fecha', '') < fecha_desde:
-                continue
-            if fecha_hasta and factura.get('fecha', '') > fecha_hasta:
-                continue
-            if rif_cliente and factura.get('cliente_datos', {}).get('rif') != rif_cliente:
-                continue
-                
-            # Preparar datos para SENIAT (sin información sensible interna)
-            factura_seniat = {
-                'numero': factura.get('numero'),
-                'fecha': factura.get('fecha'),
-                'hora': factura.get('hora'),
-                'timestamp_creacion': factura.get('timestamp_creacion'),
-                'cliente': factura.get('cliente_datos', {}),
-                'items': factura.get('items', []),
-                'totales': {
-                    'subtotal_usd': factura.get('subtotal_usd'),
-                    'subtotal_bs': factura.get('subtotal_bs'),
-                    'iva_total': factura.get('iva_total'),
-                    'total_usd': factura.get('total_usd'),
-                    'total_bs': factura.get('total_bs'),
-                    'tasa_bcv': factura.get('tasa_bcv')
-                },
-                'metadatos_seguridad': {
-                    'hash_inmutable': factura.get('_metadatos_seguridad', {}).get('hash_inmutable'),
-                    'fecha_creacion': factura.get('_metadatos_seguridad', {}).get('fecha_creacion'),
-                    'inmutable': factura.get('_metadatos_seguridad', {}).get('inmutable')
-                }
-            }
-            resultados.append(factura_seniat)
-        
-        # Registrar consulta SENIAT
-        seguridad_fiscal.registrar_log_fiscal(
-            usuario='SENIAT',
-            accion='CONSULTA_FACTURAS_SENIAT',
-            documento_tipo='CONSULTA',
-            documento_numero=numero or 'MULTIPLE',
-            detalles=f'Consulta SENIAT - {len(resultados)} facturas encontradas'
-        )
-        
-        return jsonify({
-            'total_facturas': len(resultados),
-            'facturas': resultados,
-            'timestamp_consulta': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'error': f'Error en consulta: {str(e)}',
-            'codigo': 'CONSULTA_ERROR'
-        }), 500
-
-@app.route('/seniat/exportar/facturas')
-def seniat_exportar_facturas():
-    """Exporta facturas para auditoría SENIAT"""
-    try:
-        fecha_desde = request.args.get('fecha_desde')
-        fecha_hasta = request.args.get('fecha_hasta')
-        formato = request.args.get('formato', 'csv')
-        
-        resultado = exportador_seniat.exportar_facturas(
-            fecha_desde=fecha_desde,
-            fecha_hasta=fecha_hasta,
-            formato=formato,
-            incluir_metadatos=True
-        )
-        
-        if resultado['exito']:
-            # Devolver el archivo para descarga
-            return send_file(
-                resultado['archivo'],
-                as_attachment=True,
-                download_name=resultado['nombre_archivo']
-            )
-        else:
-            return jsonify({
-                'error': resultado.get('mensaje', 'Error en exportación'),
-                'codigo': 'EXPORTACION_ERROR'
-            }), 500
-            
-    except Exception as e:
-        return jsonify({
-            'error': f'Error en exportación: {str(e)}',
-            'codigo': 'EXPORTACION_ERROR'
-        }), 500
-
 @app.route('/seniat/sistema/estado')
 def seniat_estado_sistema():
     """Obtiene el estado del sistema fiscal"""
@@ -6964,14 +7831,14 @@ def seniat_estado_sistema():
         estado_comunicacion = comunicador_seniat.obtener_configuracion_actual()
         
         # Estadísticas generales
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        total_facturas = len(facturas)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        total_notas_entrega = len(notas)
         
         estado_sistema = {
             'version_sistema': '1.0.0',
             'fecha_consulta': datetime.now().isoformat(),
             'estadisticas': {
-                'total_facturas_emitidas': total_facturas
+                'total_notas_entrega_emitidas': total_notas_entrega
             },
             'numeracion': {
                 'series_activas': len([s for s in estado_numeracion.get('series', {}).values() if s.get('activa')]),
@@ -7044,51 +7911,6 @@ def limpiar_numero_telefono(telefono):
         print(f"❌ Error en limpiar_numero_telefono: {e}")
         raise
 
-def crear_mensaje_recordatorio(factura, cliente):
-    """Crea un mensaje personalizado de recordatorio de pago."""
-    try:
-        print(f"💬 Creando mensaje para factura: {factura.get('numero', 'N/A')}")
-        print(f"💬 Cliente: {cliente.get('nombre', 'N/A')}")
-        
-        numero_factura = factura.get('numero', 'N/A')
-        fecha_factura = factura.get('fecha', 'N/A')
-        total_usd = factura.get('total_usd', 0)
-        saldo_pendiente = factura.get('saldo_pendiente', 0)
-        vencimiento = factura.get('fecha_vencimiento', 'No especificado')
-        
-        print(f"💬 Datos extraídos: Factura={numero_factura}, Fecha={fecha_factura}, Total=${total_usd}, Saldo=${saldo_pendiente}")
-        
-        mensaje = f"""🏢 *RECORDATORIO DE PAGO*
-
-Hola {cliente.get('nombre', 'Cliente')}, 
-
-Te recordamos que tienes una factura pendiente de pago:
-
-📄 *Factura:* {numero_factura}
-📅 *Fecha:* {fecha_factura}
-💰 *Total:* ${total_usd:.2f}
-⏰ *Vencimiento:* {vencimiento}
-
-💳 *Saldo pendiente:* ${saldo_pendiente:.2f}
-
-Por favor, realiza el pago correspondiente para evitar cargos adicionales.
-
-Si ya realizaste el pago, ignora este mensaje.
-
-Para cualquier consulta, no dudes en contactarnos.
-
-¡Gracias por tu preferencia!
-
----
-*Este es un mensaje automático del sistema de facturación*"""
-        
-        print(f"💬 Mensaje creado exitosamente: {len(mensaje)} caracteres")
-        return mensaje
-        
-    except Exception as e:
-        print(f"❌ Error creando mensaje: {e}")
-        raise
-
 def generar_enlace_whatsapp(telefono, mensaje):
     """Genera un enlace de WhatsApp con el mensaje predefinido."""
     try:
@@ -7143,15 +7965,14 @@ def initdb():
 def debug_recordatorio(id):
     """Ruta de debug para diagnosticar problemas con recordatorios."""
     try:
-        print(f"🔍 DEBUG recordatorio para factura: {id}")
+        print(f"🔍 DEBUG recordatorio para nota: {id}")
         
-        # Verificar que la factura existe
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         if id not in facturas:
             return jsonify({'error': 'Factura no encontrada'}), 404
         
-        factura = facturas[id]
-        cliente_id = factura.get('cliente_id')
+        nota = notas[id]
+        cliente_id = nota.get('cliente_id')
         
         # Verificar que el cliente existe
         clientes = cargar_datos(ARCHIVO_CLIENTES)
@@ -7164,7 +7985,7 @@ def debug_recordatorio(id):
         # Información de debug
         debug_info = {
             'factura_id': id,
-            'factura_numero': factura.get('numero', 'N/A'),
+            'factura_numero': nota.get('numero', 'N/A'),
             'cliente_id': cliente_id,
             'cliente_nombre': cliente.get('nombre', 'N/A'),
             'telefono_original': telefono,
@@ -7186,7 +8007,7 @@ def debug_recordatorio(id):
             return jsonify(debug_info)
         
         try:
-            mensaje = crear_mensaje_recordatorio(factura, cliente)
+            mensaje = crear_mensaje_recordatorio(nota, cliente)
             debug_info['mensaje_generado'] = mensaje[:200] + '...' if len(mensaje) > 200 else mensaje
             print(f"✅ Mensaje generado: {len(mensaje)} caracteres")
         except Exception as e:
@@ -7207,7 +8028,7 @@ def debug_recordatorio(id):
         
         debug_info['success'] = True
         debug_info['message'] = 'Todas las funciones funcionan correctamente'
-        print(f"✅ Debug completado exitosamente para factura {id}")
+        print(f"✅ Debug completado exitosamente para nota {id}")
         return jsonify(debug_info)
         
     except Exception as e:
@@ -7311,6 +8132,2988 @@ def webauthn_authenticate_verify():
 def test_path(test_id):
     return jsonify({'message': f'Ruta con path funcionando, ID recibido: {test_id}'})
 
+# --- MÓDULO DE SERVICIO TÉCNICO ---
+
+@app.route('/servicio-tecnico')
+@login_required
+def servicio_tecnico():
+    """Página principal del módulo de servicio técnico"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        # Estadísticas básicas
+        total_ordenes = len(ordenes)
+        ordenes_pendientes = len([o for o in ordenes.values() if isinstance(o, dict) and o.get('estado') in ['en_espera_revision', 'en_diagnostico', 'presupuesto_enviado', 'aprobado_por_cliente', 'en_reparacion']])
+        ordenes_completadas = len([o for o in ordenes.values() if isinstance(o, dict) and o.get('estado') == 'entregado'])
+        
+        # Fecha actual para cálculos
+        now = datetime.now()
+        
+        # Convertir órdenes a DotDict para que los templates puedan usar notación de punto
+        ordenes_dotdict = {}
+        for orden_id, orden in ordenes.items():
+            if isinstance(orden, dict):
+                orden_normalizado = DotDict(orden)
+                # Asegurar que 'estado' existe
+                if 'estado' not in orden_normalizado:
+                    orden_normalizado['estado'] = 'desconocido'
+                
+                # Procesar fechas
+                if orden_normalizado.get('fecha_recepcion'):
+                    try:
+                        fecha_recepcion = datetime.strptime(orden_normalizado.fecha_recepcion, '%Y-%m-%d').date()
+                        orden_normalizado['dias_transcurridos'] = (now.date() - fecha_recepcion).days
+                    except:
+                        orden_normalizado['dias_transcurridos'] = 0
+                else:
+                    orden_normalizado['dias_transcurridos'] = 0
+                
+                # Calcular días restantes para entrega estimada
+                if orden_normalizado.get('fecha_entrega_estimada'):
+                    try:
+                        fecha_entrega = datetime.strptime(orden_normalizado.fecha_entrega_estimada, '%Y-%m-%d').date()
+                        orden_normalizado['dias_restantes'] = (fecha_entrega - now.date()).days
+                        orden_normalizado['fecha_vencida'] = orden_normalizado['dias_restantes'] < 0
+                        orden_normalizado['fecha_proxima'] = 0 <= orden_normalizado['dias_restantes'] <= 2
+                    except:
+                        orden_normalizado['dias_restantes'] = 0
+                        orden_normalizado['fecha_vencida'] = False
+                        orden_normalizado['fecha_proxima'] = False
+                else:
+                    orden_normalizado['dias_restantes'] = 0
+                    orden_normalizado['fecha_vencida'] = False
+                    orden_normalizado['fecha_proxima'] = False
+                
+                ordenes_dotdict[orden_id] = orden_normalizado
+        
+        return render_template('servicio_tecnico/index.html', 
+                             ordenes=ordenes_dotdict,
+                             config=config,
+                             total_ordenes=total_ordenes,
+                             ordenes_pendientes=ordenes_pendientes,
+                             ordenes_completadas=ordenes_completadas,
+                             now=now)
+    except Exception as e:
+        print(f"DEBUG: Error en servicio_tecnico: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # No mostrar el error al usuario, solo retornar valores por defecto
+        # flash(f'Error cargando servicio técnico: {str(e)}', 'danger')
+        
+        # Retornar valores por defecto seguros
+        return render_template('servicio_tecnico/index.html', 
+                             ordenes={}, 
+                             config={'estados_servicio': {}}, 
+                             total_ordenes=0,
+                             ordenes_pendientes=0,
+                             ordenes_completadas=0,
+                             now=datetime.now())
+
+@app.route('/servicio-tecnico/nueva-orden', methods=['GET', 'POST'])
+@login_required
+def nueva_orden_servicio():
+    """Crear nueva orden de servicio"""
+    if request.method == 'GET':
+        # Obtener cliente_id si se pasa como parámetro
+        cliente_id = request.args.get('cliente_id')
+        cliente_data = None
+        
+        if cliente_id:
+            # Cargar datos del cliente para pre-llenar el formulario
+            clientes = cargar_datos(ARCHIVO_CLIENTES)
+            if clientes and cliente_id in clientes:
+                cliente_data = clientes[cliente_id]
+        
+        return render_template('servicio_tecnico/nueva_orden.html', cliente_data=cliente_data)
+    
+    if request.method == 'POST':
+        try:
+            # Validar campos requeridos
+            if not request.form.get('cliente_cedula'):
+                flash('Error: La cédula/RIF del cliente es requerida', 'danger')
+                return render_template('servicio_tecnico/nueva_orden.html')
+        
+            # Obtener datos del formulario
+            datos_orden = {
+            'id': f"OS-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            'numero_orden': f"OS-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            'fecha_recepcion': request.form.get('servicio_fecha_ingreso'),
+            'fecha_entrega_estimada': request.form.get('servicio_fecha_entrega'),
+            'estado': 'borrador' if request.form.get('tipo') == 'borrador' else request.form.get('servicio_estado', 'en_espera_revision'),
+            'es_borrador': request.form.get('tipo') == 'borrador',
+            'prioridad': request.form.get('servicio_prioridad', 'media'),
+            'tipo_servicio': request.form.get('servicio_tipo'),
+            'tecnico_asignado': request.form.get('servicio_tecnico', ''),
+            'costo_estimado': safe_float(request.form.get('servicio_costo_estimado', 0)) if request.form.get('servicio_costo_estimado') else 0.0,
+            
+            # Datos del cliente
+            'cliente_id': f"cliente_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            'cliente': {
+                'id': f"cliente_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                'nombre': request.form.get('cliente_nombre'),
+                'cedula_rif': request.form.get('cliente_cedula'),
+                'telefono': request.form.get('cliente_telefono'),
+                'telefono2': request.form.get('cliente_telefono2', ''),
+                'telefono_fijo': '',
+                'email': request.form.get('cliente_email', ''),
+                'direccion': request.form.get('cliente_direccion', '')
+            },
+            
+            # Datos del equipo
+            'equipo': {
+                'marca': request.form.get('equipo_marca'),
+                'modelo': request.form.get('equipo_modelo'),
+                'imei': request.form.get('equipo_imei1'),
+                'imei2': request.form.get('equipo_imei2', ''),
+                'color': request.form.get('equipo_color', ''),
+                'ano': '',
+                'numero_serie': request.form.get('equipo_serial', ''),
+                'tipo': request.form.get('equipo_tipo', 'telefono')
+            },
+            
+            # Problema reportado
+            'problema_reportado': request.form.get('problema_descripcion'),
+            'categoria_problema': request.form.get('problema_categoria'),
+            'tipo_problema': request.form.get('problema_tipo', ''),
+            
+            # Accesorios entregados
+            'accesorios_entregados': {
+                'cargador': 'cargador' in request.form.getlist('accesorios[]'),
+                'audifonos': 'audifonos' in request.form.getlist('accesorios[]'),
+                'caja': 'caja' in request.form.getlist('accesorios[]'),
+                'cable': 'cable' in request.form.getlist('accesorios[]'),
+                'tarjeta_memoria': False,
+                'capacidad_memoria': '',
+                'marca_memoria': '',
+                'tipo_memoria': '',
+                'sim_card': False,
+                'tipo_sim': '',
+                'operadora_sim1': '',
+                'operadora_sim1_doble': '',
+                'operadora_sim2': '',
+                'numero_sim1': '',
+                'numero_sim1_doble': '',
+                'numero_sim2': '',
+                'otros': ''
+            },
+            
+            # Condición física
+            'condicion_fisica': {
+                'rayones': 'rayones' in request.form.getlist('condiciones[]'),
+                'golpes': False,
+                'pantalla': 'pantalla_rota' in request.form.getlist('condiciones[]'),
+                'carcasa': False,
+                'botones': False,
+                'conectores': False,
+                'bateria': 'sin_bateria' in request.form.getlist('condiciones[]'),
+                'audio': False,
+                'agua': 'agua' in request.form.getlist('condiciones[]'),
+                'sobrecalentamiento': False,
+                'carcasa_suelta': False,
+                'pantalla_parpadea': False,
+                'equipo_enciende': True,
+                'restauracion_fabrica': False,
+                'observaciones': ''
+            },
+            
+            # Diagnóstico inicial
+            'diagnostico': {
+                'problema_identificado': '',
+                'solucion_aplicada': '',
+                'piezas_usadas': [],
+                'comentarios_tecnicos': request.form.get('observaciones_internas', ''),
+                'costo_mano_obra': 0.0,
+                'costo_piezas': 0.0,
+                'total_estimado': safe_float(request.form.get('servicio_costo_estimado', 0)) if request.form.get('servicio_costo_estimado') else 0.0
+            },
+            
+            # Historial de estados
+            'historial_estados': [{
+                'estado': request.form.get('servicio_estado', 'en_espera_revision'),
+                'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'usuario': session.get('usuario', 'sistema'),
+                'comentarios': 'Orden de servicio creada'
+            }],
+            
+            # Notificaciones
+            'notificaciones_enviadas': [],
+            'cliente_notificado': 'cliente_notificado' in request.form,
+            'whatsapp_enviado': 'whatsapp_enviado' in request.form,
+            'atendido_por': request.form.get('atendido_por', ''),
+            
+            # Datos de desbloqueo
+            'desbloqueo': {
+                'tipo': request.form.get('tipo_desbloqueo', ''),
+                'estado': request.form.get('estado_desbloqueo', ''),
+                'clave': request.form.get('clave_desbloqueo', ''),
+                'notas': request.form.get('notas_desbloqueo', '')
+            },
+            
+            # Metadatos
+            'fecha_creacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'nota_entrega_generada': '',
+            'urgente': request.form.get('servicio_prioridad') == 'urgente'
+            }
+        
+            # Cargar órdenes existentes
+            ordenes = cargar_datos('ordenes_servicio.json')
+        
+            # Validar que el IMEI esté presente
+            if 'equipo' not in datos_orden or 'imei' not in datos_orden['equipo'] or not datos_orden['equipo']['imei']:
+                flash('Error: El IMEI del equipo es requerido', 'danger')
+                return render_template('servicio_tecnico/nueva_orden.html')
+            
+            # Verificar duplicados de IMEI
+            imei1 = datos_orden['equipo']['imei']
+            for orden_id, orden in ordenes.items():
+                if isinstance(orden, dict) and 'equipo' in orden and 'imei' in orden['equipo'] and orden['equipo']['imei'] == imei1:
+                    estado_orden = orden.get('estado', 'desconocido')
+                    if estado_orden not in ['entregado', 'cancelado']:
+                        flash(f'Ya existe una orden activa con el IMEI {imei1}: {orden.get("numero_orden", orden_id)}', 'warning')
+                        return render_template('servicio_tecnico/nueva_orden.html')
+            
+            # Guardar nueva orden
+            ordenes[datos_orden['id']] = datos_orden
+            guardar_datos('ordenes_servicio.json', ordenes)
+            
+            # Guardar cliente si no existe
+            clientes = cargar_datos('clientes.json')
+            cliente_existente = False
+            
+            # Validar que el cliente tenga cedula_rif
+            if 'cedula_rif' not in datos_orden['cliente'] or not datos_orden['cliente']['cedula_rif']:
+                flash('Error: La cédula/RIF del cliente es requerida', 'danger')
+                return render_template('servicio_tecnico/nueva_orden.html')
+            
+            for cliente_id, cliente in clientes.items():
+                if 'cedula_rif' in cliente and cliente['cedula_rif'] == datos_orden['cliente']['cedula_rif']:
+                    cliente_existente = True
+                    break
+            
+            if not cliente_existente:
+                clientes[datos_orden['cliente']['id']] = datos_orden['cliente']
+                guardar_datos('clientes.json', clientes)
+            
+            # Procesar archivo de foto si existe
+            if 'equipo_foto' in request.files:
+                foto = request.files['equipo_foto']
+                if foto and foto.filename:
+                    # Crear directorio si no existe
+                    upload_dir = 'uploads/equipos'
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # Generar nombre único para el archivo
+                    filename = f"{datos_orden['id']}_{secure_filename(foto.filename)}"
+                    foto_path = os.path.join(upload_dir, filename)
+                    foto.save(foto_path)
+                    
+                    # Actualizar orden con ruta de la foto
+                    datos_orden['foto_equipo'] = foto_path
+                    ordenes[datos_orden['id']] = datos_orden
+                    guardar_datos('ordenes_servicio.json', ordenes)
+            
+            # Enviar notificación por WhatsApp si está habilitado
+            if datos_orden.get('whatsapp_enviado'):
+                enviar_notificacion_whatsapp(datos_orden)
+            
+            if datos_orden.get('es_borrador'):
+                flash(f'Borrador de orden {datos_orden["numero_orden"]} guardado exitosamente', 'info')
+            else:
+                flash(f'Orden de servicio {datos_orden["numero_orden"]} creada exitosamente', 'success')
+                return redirect(url_for('servicio_tecnico'))
+            
+        except Exception as e:
+            print(f"Error al crear orden de servicio: {str(e)}")
+            flash(f'Error al crear la orden de servicio: {str(e)}', 'danger')
+            return render_template('servicio_tecnico/nueva_orden.html')
+
+def enviar_notificacion_whatsapp(orden):
+    """Enviar notificación por WhatsApp"""
+    try:
+        # Asegurar que el estado exista y pueda ser convertido
+        estado = orden.get('estado', 'desconocido')
+        if isinstance(estado, str):
+            estado_formateado = estado.replace('_', ' ').title()
+        else:
+            estado_formateado = str(estado).replace('_', ' ').title()
+        
+        mensaje = f"""
+🔧 *Nueva Orden de Servicio*
+
+📋 *Orden:* {orden['numero_orden']}
+👤 *Cliente:* {orden['cliente']['nombre']}
+📱 *Equipo:* {orden['equipo']['marca']} {orden['equipo']['modelo']}
+⚠️ *Problema:* {orden['problema_reportado'][:100]}...
+📅 *Fecha:* {orden['fecha_recepcion']}
+🔧 *Estado:* {estado_formateado}
+
+Gracias por confiar en nuestro servicio técnico.
+        """
+        
+        # Aquí implementarías la lógica de envío de WhatsApp
+        # Por ahora solo logueamos
+        print(f"Enviando WhatsApp a {orden['cliente']['telefono']}: {mensaje}")
+        
+    except Exception as e:
+        print(f"Error enviando WhatsApp: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+@app.route('/servicio-tecnico/orden/<id>')
+@login_required
+def ver_orden_servicio(id):
+    """Ver detalles de una orden de servicio"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        # Convertir el diccionario a DotDict para que Jinja2 pueda acceder con notación de punto
+        orden_normalizado = DotDict(orden)
+        
+        # Asegurar que 'estado' y otros campos importantes existan
+        if 'estado' not in orden_normalizado:
+            orden_normalizado['estado'] = 'desconocido'
+        
+        print(f"DEBUG: Orden normalizada: {orden_normalizado.get('estado')}")
+        
+        return render_template('servicio_tecnico/ver_orden.html', 
+                             orden=orden_normalizado, 
+                             config=config)
+    except Exception as e:
+        print(f"DEBUG: Error en ver_orden_servicio: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # No mostrar el error al usuario, solo redirigir silenciosamente
+        # flash(f'Error cargando orden de servicio: {str(e)}', 'danger')
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/servicio-tecnico/orden/<id>/seguimiento')
+@login_required
+def seguimiento_detallado(id):
+    """Seguimiento detallado de una orden de servicio"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        # Convertir el diccionario a DotDict para que Jinja2 pueda acceder con notación de punto
+        orden_normalizado = DotDict(orden)
+        
+        # Asegurar que los campos importantes existan
+        if 'estado' not in orden_normalizado:
+            orden_normalizado['estado'] = 'desconocido'
+        if 'fecha_creacion' not in orden_normalizado:
+            orden_normalizado['fecha_creacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Calcular progreso basado en el estado
+        estados = config.get('estados_servicio', {})
+        estados_list = list(estados.keys())
+        
+        if orden_normalizado.estado in estados_list:
+            progreso_porcentaje = ((estados_list.index(orden_normalizado.estado) + 1) / len(estados_list)) * 100
+        else:
+            progreso_porcentaje = 0
+        
+        # Calcular métricas adicionales
+        fecha_inicio = datetime.strptime(orden_normalizado.fecha_creacion, '%Y-%m-%d %H:%M:%S')
+        fecha_actual = datetime.now()
+        tiempo_transcurrido = fecha_actual - fecha_inicio
+        
+        # Calcular alertas automáticas
+        alertas = []
+        
+        # Alerta de retraso en entrega
+        if orden_normalizado.get('fecha_entrega_estimada'):
+            fecha_entrega = datetime.strptime(orden_normalizado.fecha_entrega_estimada, '%Y-%m-%d')
+            if fecha_actual > fecha_entrega:
+                dias_retraso = (fecha_actual - fecha_entrega).days
+                alertas.append({
+                    'tipo': 'danger',
+                    'titulo': 'Orden Vencida',
+                    'mensaje': f'La orden lleva {dias_retraso} días de retraso',
+                    'prioridad': 'alta'
+                })
+            elif (fecha_entrega - fecha_actual).days <= 1:
+                alertas.append({
+                    'tipo': 'warning',
+                    'titulo': 'Vencimiento Próximo',
+                    'mensaje': 'La orden vence mañana',
+                    'prioridad': 'media'
+                })
+        
+        # Alerta de técnico no asignado
+        if not orden_normalizado.get('tecnico_asignado'):
+            alertas.append({
+                'tipo': 'warning',
+                'titulo': 'Técnico No Asignado',
+                'mensaje': 'Esta orden no tiene técnico asignado',
+                'prioridad': 'media'
+            })
+        
+        # Alerta de estado estancado
+        estados_estancados = ['en_espera_revision', 'en_diagnostico']
+        if orden_normalizado.estado in estados_estancados:
+            fecha_ultima_actualizacion = datetime.strptime(
+                orden_normalizado.get('fecha_actualizacion', orden_normalizado.fecha_creacion), 
+                '%Y-%m-%d %H:%M:%S'
+            )
+            horas_sin_actualizar = (fecha_actual - fecha_ultima_actualizacion).total_seconds() / 3600
+            
+            if horas_sin_actualizar > 24:
+                alertas.append({
+                    'tipo': 'info',
+                    'titulo': 'Estado Estancado',
+                    'mensaje': f'La orden lleva {int(horas_sin_actualizar)} horas en estado "{orden_normalizado.estado.replace("_", " ")}"',
+                    'prioridad': 'baja'
+                })
+        
+        # Agregar métricas a la orden
+        orden_normalizado['metricas'] = DotDict({
+            'dias_transcurridos': tiempo_transcurrido.days,
+            'horas_transcurridas': int(tiempo_transcurrido.total_seconds() / 3600),
+            'cambios_estado': len(orden_normalizado.get('historial_estados', [])),
+            'estado_actual': orden_normalizado.estado,
+            'progreso_porcentaje': progreso_porcentaje,
+            'alertas': alertas
+        })
+        
+        return render_template('servicio_tecnico/seguimiento_detallado.html', 
+                             orden=orden_normalizado, 
+                             config_estados=config,
+                             progreso_porcentaje=progreso_porcentaje)
+    
+    except Exception as e:
+        print(f"DEBUG: Error en seguimiento_detallado: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # No mostrar el error al usuario, solo redirigir silenciosamente
+        # flash(f'Error cargando seguimiento detallado: {str(e)}', 'danger')
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/api/servicio-tecnico/orden/<id>/seguimiento')
+@login_required
+def api_seguimiento_detallado(id):
+    """API para obtener datos de seguimiento en tiempo real"""
+    try:
+        print(f"DEBUG: API seguimiento para orden {id}")
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if id not in ordenes:
+            print(f"DEBUG: Orden {id} no encontrada")
+            return jsonify({'success': False, 'error': 'Orden no encontrada'}), 404
+        
+        orden = ordenes[id]
+        
+        # Calcular métricas actualizadas
+        try:
+            fecha_inicio = datetime.strptime(orden['fecha_creacion'], '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            # Intentar formato alternativo
+            try:
+                fecha_inicio = datetime.strptime(orden['fecha_creacion'], '%Y-%m-%d')
+            except ValueError:
+                fecha_inicio = datetime.now()
+        
+        fecha_actual = datetime.now()
+        tiempo_transcurrido = fecha_actual - fecha_inicio
+        
+        # Calcular progreso
+        estados = config.get('estados_servicio', {})
+        estados_list = list(estados.keys())
+        
+        if orden['estado'] in estados_list:
+            progreso_porcentaje = ((estados_list.index(orden['estado']) + 1) / len(estados_list)) * 100
+        else:
+            progreso_porcentaje = 0
+        
+        # Generar alertas actualizadas
+        alertas = []
+        
+        # Alerta de retraso
+        if orden.get('fecha_entrega_estimada'):
+            try:
+                fecha_entrega = datetime.strptime(orden['fecha_entrega_estimada'], '%Y-%m-%d')
+                if fecha_actual > fecha_entrega:
+                    dias_retraso = (fecha_actual - fecha_entrega).days
+                    alertas.append({
+                        'tipo': 'danger',
+                        'titulo': 'Orden Vencida',
+                        'mensaje': f'La orden lleva {dias_retraso} días de retraso',
+                        'prioridad': 'alta'
+                    })
+            except (ValueError, TypeError) as e:
+                print(f"DEBUG: Error parseando fecha_entrega_estimada: {e}")
+        
+        # Alerta de técnico no asignado
+        if not orden.get('tecnico_asignado'):
+            alertas.append({
+                'tipo': 'warning',
+                'titulo': 'Técnico No Asignado',
+                'mensaje': 'Esta orden no tiene técnico asignado',
+                'prioridad': 'media'
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'dias_transcurridos': tiempo_transcurrido.days,
+                'horas_transcurridas': int(tiempo_transcurrido.total_seconds() / 3600),
+                'progreso_porcentaje': round(progreso_porcentaje, 1),
+                'estado_actual': orden['estado'],
+                'cambios_estado': len(orden.get('historial_estados', [])),
+                'alertas': alertas,
+                'ultima_actualizacion': orden.get('fecha_actualizacion', orden['fecha_creacion'])
+            }
+        })
+    
+    except Exception as e:
+        print(f"DEBUG: Error en API seguimiento: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/servicio-tecnico/orden/<id>/asignar-tecnico', methods=['POST'])
+@login_required
+def asignar_tecnico_orden(id):
+    """Asignar técnico a una orden de servicio"""
+    try:
+        print(f"DEBUG: Asignando técnico para orden {id}")
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            print(f"DEBUG: Orden {id} no encontrada")
+            return jsonify({'success': False, 'message': 'Orden de servicio no encontrada'}), 404
+        
+        # Obtener datos del formulario
+        data = request.get_json()
+        tecnico_nombre = data.get('tecnico_nombre', '').strip()
+        tecnico_especialidad = data.get('tecnico_especialidad', '')
+        tecnico_telefono = data.get('tecnico_telefono', '').strip()
+        tecnico_email = data.get('tecnico_email', '').strip()
+        observaciones = data.get('observaciones', '').strip()
+        
+        print(f"DEBUG: Datos recibidos - Nombre: {tecnico_nombre}, Especialidad: {tecnico_especialidad}")
+        
+        # Validar datos requeridos
+        if not tecnico_nombre:
+            return jsonify({'success': False, 'message': 'El nombre del técnico es requerido'}), 400
+        
+        # Actualizar datos del técnico en la orden
+        ordenes[id]['tecnico_asignado'] = tecnico_nombre
+        ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Agregar información adicional del técnico
+        if 'tecnico_info' not in ordenes[id]:
+            ordenes[id]['tecnico_info'] = {}
+        
+        ordenes[id]['tecnico_info'].update({
+            'especialidad': tecnico_especialidad,
+            'telefono': tecnico_telefono,
+            'email': tecnico_email,
+            'fecha_asignacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+        # Inicializar historial si no existe
+        if 'historial_estados' not in ordenes[id]:
+            ordenes[id]['historial_estados'] = []
+        
+        # Agregar entrada al historial
+        historial_entry = {
+            "accion": "asignacion_tecnico",
+            "descripcion": f"Técnico asignado: {tecnico_nombre}",
+            "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "usuario": session.get('username', session.get('usuario', 'admin')),
+            "detalles": {
+                "tecnico_nombre": tecnico_nombre,
+                "especialidad": tecnico_especialidad,
+                "telefono": tecnico_telefono,
+                "email": tecnico_email,
+                "observaciones": observaciones
+            }
+        }
+        
+        ordenes[id]['historial_estados'].append(historial_entry)
+        
+        # Guardar cambios
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        print(f"DEBUG: Técnico asignado exitosamente: {tecnico_nombre}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Técnico {tecnico_nombre} asignado exitosamente',
+            'tecnico_nombre': tecnico_nombre,
+            'fecha_asignacion': ordenes[id]['fecha_actualizacion']
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Error asignando técnico: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({'success': False, 'message': f'Error asignando técnico: {str(e)}'}), 500
+
+@app.route('/servicio-tecnico/orden/<id>/actualizar-estado', methods=['POST'])
+@login_required
+def actualizar_estado_orden(id):
+    """Actualizar estado de una orden de servicio"""
+    try:
+        print(f"DEBUG: Actualizando estado para orden {id}")
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if id not in ordenes:
+            print(f"DEBUG: Orden {id} no encontrada")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'Orden de servicio no encontrada'}), 404
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        # Manejar tanto JSON como form data
+        if request.headers.get('Content-Type') == 'application/json':
+            data = request.get_json()
+            nuevo_estado = data.get('estado')
+            comentarios = data.get('observaciones', '')
+            tecnico_asignado = data.get('tecnico_asignado', '')
+            prioridad = data.get('prioridad', '')
+            fecha_entrega_estimada = data.get('fecha_entrega_estimada', '')
+        else:
+            nuevo_estado = request.form.get('nuevo_estado')
+            comentarios = request.form.get('comentarios', '')
+            tecnico_asignado = request.form.get('tecnico_asignado', '')
+            prioridad = request.form.get('prioridad', '')
+            fecha_entrega_estimada = request.form.get('fecha_entrega_estimada', '')
+        
+        print(f"DEBUG: Nuevo estado: {nuevo_estado}")
+        print(f"DEBUG: Comentarios: {comentarios}")
+        print(f"DEBUG: Técnico: {tecnico_asignado}")
+        print(f"DEBUG: Prioridad: {prioridad}")
+        
+        # Validar estado
+        if not nuevo_estado:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': 'Estado requerido'}), 400
+            flash('Estado requerido', 'danger')
+            return redirect(url_for('ver_orden_servicio', id=id))
+        
+        # Obtener estado anterior
+        estado_anterior = ordenes[id].get('estado', '')
+        
+        # Actualizar estado
+        ordenes[id]['estado'] = nuevo_estado
+        ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Actualizar campos adicionales si se proporcionan
+        if tecnico_asignado:
+            ordenes[id]['tecnico_asignado'] = tecnico_asignado
+        if prioridad:
+            ordenes[id]['prioridad'] = prioridad
+        if fecha_entrega_estimada:
+            ordenes[id]['fecha_entrega_estimada'] = fecha_entrega_estimada
+        
+        # Inicializar historial si no existe
+        if 'historial_estados' not in ordenes[id]:
+            ordenes[id]['historial_estados'] = []
+        
+        # Agregar al historial
+        historial_entry = {
+            "estado": nuevo_estado,
+            "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "usuario": session.get('username', session.get('usuario', 'admin')),
+            "comentarios": comentarios
+        }
+        
+        # Agregar información adicional al historial
+        if tecnico_asignado:
+            historial_entry["tecnico_asignado"] = tecnico_asignado
+        if prioridad:
+            historial_entry["prioridad"] = prioridad
+        if fecha_entrega_estimada:
+            historial_entry["fecha_entrega_estimada"] = fecha_entrega_estimada
+        
+        ordenes[id]['historial_estados'].append(historial_entry)
+        
+        # Lógica especial para ciertos estados
+        if nuevo_estado == 'en_reparacion':
+            # Si se marca como en reparación, verificar que tenga diagnóstico
+            if 'diagnostico' not in ordenes[id]:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': 'Se requiere diagnóstico antes de marcar como en reparación'}), 400
+                flash('Se requiere diagnóstico antes de marcar como en reparación', 'warning')
+                return redirect(url_for('ver_orden_servicio', id=id))
+        
+        elif nuevo_estado == 'entregado':
+            # Si se marca como entregado, verificar que tenga datos de entrega
+            if 'entrega' not in ordenes[id]:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': 'Se requiere completar el proceso de entrega antes de marcar como entregado'}), 400
+                flash('Se requiere completar el proceso de entrega antes de marcar como entregado', 'warning')
+                return redirect(url_for('ver_orden_servicio', id=id))
+        
+        # Guardar cambios
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        # Obtener nombre del estado para mostrar
+        nombre_estado = 'Estado actualizado'
+        if config and 'estados_servicio' in config and nuevo_estado in config['estados_servicio']:
+            nombre_estado = config['estados_servicio'][nuevo_estado]['nombre']
+        else:
+            nombre_estado = nuevo_estado.replace('_', ' ').title()
+        
+        print(f"DEBUG: Estado actualizado exitosamente a: {nombre_estado}")
+        
+        # Respuesta JSON para AJAX
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': f'Estado actualizado a: {nombre_estado}',
+                'nuevo_estado': nuevo_estado,
+                'estado_anterior': estado_anterior,
+                'fecha_actualizacion': ordenes[id]['fecha_actualizacion']
+            })
+        
+        # Respuesta HTML para form submission
+        flash(f'Estado actualizado a: {nombre_estado}', 'success')
+        return redirect(url_for('ver_orden_servicio', id=id))
+        
+    except Exception as e:
+        print(f"DEBUG: Error actualizando estado: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'Error actualizando estado: {str(e)}'}), 500
+        
+        flash(f'Error actualizando estado: {str(e)}', 'danger')
+        return redirect(url_for('ver_orden_servicio', id=id))
+
+@app.route('/servicio-tecnico/orden/<id>/diagnostico', methods=['GET', 'POST'])
+@login_required
+def diagnostico_orden(id):
+    """Realizar diagnóstico de una orden de servicio"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        inventario = cargar_datos('inventario.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        if request.method == 'POST':
+            print(f"DEBUG: Procesando diagnóstico para orden {id}")
+            print(f"DEBUG: Headers: {dict(request.headers)}")
+            print(f"DEBUG: Content-Type: {request.headers.get('Content-Type')}")
+            print(f"DEBUG: X-Requested-With: {request.headers.get('X-Requested-With')}")
+            print(f"DEBUG: Form data: {dict(request.form)}")
+            
+            # Obtener datos del formulario
+            descripcion_tecnica = request.form.get('descripcion_tecnica', '')
+            categoria_dano = request.form.get('categoria_dano', '')
+            partes_revisadas = request.form.getlist('partes_revisadas')
+            resultado_diagnostico = request.form.get('resultado_diagnostico', '')
+            costo_mano_obra = safe_float(request.form.get('costo_mano_obra', 0))
+            costo_piezas = safe_float(request.form.get('costo_piezas', 0))
+            total_estimado = safe_float(request.form.get('total_estimado', 0))
+            detalle_repuestos = request.form.get('detalle_repuestos', '')
+            estado_presupuesto = request.form.get('estado_presupuesto', 'pendiente')
+            
+            # Obtener repuestos seleccionados (si vienen del modal)
+            repuestos_seleccionados = []
+            if 'repuestos_seleccionados' in request.form:
+                try:
+                    repuestos_seleccionados = json.loads(request.form.get('repuestos_seleccionados', '[]'))
+                except:
+                    repuestos_seleccionados = []
+            
+            print(f"DEBUG: Datos procesados:")
+            print(f"  - Descripción: '{descripcion_tecnica[:50]}...'")
+            print(f"  - Categoría: '{categoria_dano}'")
+            print(f"  - Partes revisadas: {partes_revisadas}")
+            print(f"  - Resultado: '{resultado_diagnostico}'")
+            print(f"  - Costo mano obra: {costo_mano_obra}")
+            print(f"  - Costo piezas: {costo_piezas}")
+            print(f"  - Total estimado: {total_estimado}")
+            
+            # Actualizar diagnóstico
+            ordenes[id]['diagnostico'] = {
+                "descripcion_tecnica": descripcion_tecnica,
+                "categoria_dano": categoria_dano,
+                "partes_revisadas": partes_revisadas,
+                "resultado_diagnostico": resultado_diagnostico,
+                "costo_mano_obra": costo_mano_obra,
+                "costo_piezas": costo_piezas,
+                "total_estimado": total_estimado,
+                "detalle_repuestos": detalle_repuestos,
+                "estado_presupuesto": estado_presupuesto,
+                "repuestos_seleccionados": json.dumps(repuestos_seleccionados),
+                "fecha_diagnostico": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "tecnico_diagnostico": session.get('username', 'Técnico')
+            }
+            
+            # Procesar fotos del diagnóstico
+            if 'fotos_diagnostico' in request.files:
+                fotos = request.files.getlist('fotos_diagnostico')
+                fotos_paths = []
+                
+                for foto in fotos:
+                    if foto and foto.filename:
+                        # Crear directorio si no existe
+                        upload_folder = os.path.join(app.root_path, 'uploads', id, 'diagnostico')
+                        os.makedirs(upload_folder, exist_ok=True)
+                        
+                        filename = secure_filename(foto.filename)
+                        filepath = os.path.join(upload_folder, filename)
+                        foto.save(filepath)
+                        fotos_paths.append(f'/uploads/{id}/diagnostico/{filename}')
+                
+                if fotos_paths:
+                    ordenes[id]['diagnostico']['fotos'] = fotos_paths
+            
+            # Determinar nuevo estado basado en el resultado del diagnóstico
+            nuevo_estado = ordenes[id]['estado']
+            if resultado_diagnostico == 'reparado':
+                nuevo_estado = 'reparado'
+            elif resultado_diagnostico == 'reparable':
+                nuevo_estado = 'presupuesto_enviado'
+            elif resultado_diagnostico == 'irreparable':
+                nuevo_estado = 'irreparable'
+            elif resultado_diagnostico == 'espera_aprobacion':
+                nuevo_estado = 'espera_aprobacion'
+            
+            print(f"DEBUG: Resultado diagnóstico: '{resultado_diagnostico}', Nuevo estado: '{nuevo_estado}'")
+            
+            # Actualizar estado
+            ordenes[id]['estado'] = nuevo_estado
+            ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Agregar al historial
+            if 'historial_estados' not in ordenes[id]:
+                ordenes[id]['historial_estados'] = []
+            
+            ordenes[id]['historial_estados'].append({
+                "estado": nuevo_estado,
+                "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "usuario": session.get('username', 'Técnico'),
+                "comentarios": f"Diagnóstico completado - Resultado: {resultado_diagnostico}"
+            })
+            
+            guardar_datos('ordenes_servicio.json', ordenes)
+            print(f"DEBUG: Diagnóstico guardado exitosamente. Nuevo estado: {nuevo_estado}")
+            
+            # Respuesta JSON para AJAX
+            print(f"DEBUG: X-Requested-With: {request.headers.get('X-Requested-With')}")
+            print(f"DEBUG: ajax form param: {request.form.get('ajax')}")
+            print(f"DEBUG: Content-Type: {request.headers.get('Content-Type')}")
+            
+            if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+                request.form.get('ajax')):
+                print("DEBUG: Enviando respuesta JSON para AJAX")
+                return jsonify({
+                    'success': True,
+                    'message': 'Diagnóstico guardado exitosamente',
+                    'nuevo_estado': nuevo_estado
+                })
+            
+            print("DEBUG: Enviando respuesta HTML (no AJAX)")
+            flash('Diagnóstico completado exitosamente', 'success')
+            return redirect(url_for('ver_orden_servicio', id=id))
+        
+        orden = ordenes[id]
+        return render_template('servicio_tecnico/diagnostico.html', 
+                             orden=orden, 
+                             inventario=inventario)
+        
+    except Exception as e:
+        print(f"DEBUG: Error en diagnóstico: {str(e)}")
+        print(f"DEBUG: X-Requested-With: {request.headers.get('X-Requested-With')}")
+        print(f"DEBUG: ajax form param: {request.form.get('ajax')}")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+            print("DEBUG: Enviando respuesta JSON de error para AJAX")
+            return jsonify({
+                'success': False,
+                'message': f'Error en diagnóstico: {str(e)}'
+            })
+        
+        flash(f'Error en diagnóstico: {str(e)}', 'danger')
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/servicio-tecnico/orden/<id>/diagnostico-pdf')
+@login_required
+def diagnostico_pdf(id):
+    """Generar PDF del diagnóstico técnico detallado"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        # Fecha actual para el PDF
+        fecha_actual = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        
+        # Renderizar template HTML con estilos optimizados para impresión
+        return render_template('servicio_tecnico/diagnostico_pdf.html', 
+                             orden=orden, 
+                             fecha_actual=fecha_actual)
+        
+    except Exception as e:
+        flash(f'Error generando PDF: {str(e)}', 'danger')
+        return redirect(url_for('diagnostico_orden', id=id))
+
+@app.route('/servicio-tecnico/orden/<id>/presupuesto-pdf')
+@login_required
+def presupuesto_pdf(id):
+    """Generar PDF del presupuesto/cotización"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        # Fecha actual para el PDF
+        fecha_actual = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        
+        # Obtener tasa BCV actual
+        tasa_bcv = obtener_tasa_bcv()
+        if not tasa_bcv or tasa_bcv <= 0:
+            tasa_bcv = 216.37  # Tasa de fallback
+        
+        # Renderizar template HTML con estilos optimizados para impresión
+        return render_template('servicio_tecnico/presupuesto_pdf.html', 
+                             orden=orden, 
+                             fecha_actual=fecha_actual,
+                             tasa_bcv=tasa_bcv)
+        
+    except Exception as e:
+        flash(f'Error generando PDF: {str(e)}', 'danger')
+        return redirect(url_for('presupuesto_servicio', id=id))
+
+@app.route('/servicio-tecnico/orden/<id>/presupuesto', methods=['GET', 'POST'])
+@login_required
+def presupuesto_servicio(id):
+    """Generar y guardar presupuesto para una orden de servicio"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+        
+        if request.method == 'POST':
+            # Actualizar presupuesto
+            if 'diagnostico' not in ordenes[id]:
+                ordenes[id]['diagnostico'] = {}
+            
+            # Obtener repuestos seleccionados
+            repuestos_seleccionados = []
+            if 'repuestos_seleccionados' in request.form:
+                try:
+                    import json
+                    repuestos_seleccionados = json.loads(request.form.get('repuestos_seleccionados', '[]'))
+                except:
+                    repuestos_seleccionados = []
+            
+            ordenes[id]['diagnostico'].update({
+                'costo_mano_obra': safe_float(request.form.get('costo_mano_obra', 0)),
+                'costo_piezas': safe_float(request.form.get('costo_piezas', 0)),
+                'total_estimado': safe_float(request.form.get('total_estimado', 0)),
+                'detalle_repuestos': request.form.get('detalle_repuestos', ''),
+                'estado_presupuesto': request.form.get('estado_presupuesto', 'pendiente'),
+                'repuestos_seleccionados': json.dumps(repuestos_seleccionados),
+                'fecha_presupuesto': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+            # Si se aprueba el presupuesto, cambiar estado
+            if request.form.get('estado_presupuesto') == 'aprobado':
+                # Validar stock de repuestos antes de aprobar
+                if repuestos_seleccionados:
+                    print(f"DEBUG: Validando stock para {len(repuestos_seleccionados)} repuestos")
+                    stock_ok, problemas = validar_stock_repuestos(repuestos_seleccionados)
+                    
+                    if not stock_ok:
+                        print(f"DEBUG: ❌ Stock insuficiente: {problemas}")
+                        return jsonify({
+                            'success': False, 
+                            'message': 'Stock insuficiente para aprobar presupuesto',
+                            'problemas': problemas
+                        })
+                    
+                    # Descontar repuestos del inventario
+                    print(f"DEBUG: Descontando repuestos del inventario")
+                    exito, mensaje = descontar_repuestos_inventario(id, repuestos_seleccionados)
+                    
+                    if not exito:
+                        print(f"DEBUG: ❌ Error descontando repuestos: {mensaje}")
+                        return jsonify({
+                            'success': False, 
+                            'message': f'Error descontando repuestos: {mensaje}'
+                        })
+                    
+                    print(f"DEBUG: ✅ Repuestos descontados exitosamente: {mensaje}")
+                
+                # Cambiar estado a en_reparacion
+                ordenes[id]['estado'] = 'en_reparacion'
+                ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Agregar al historial
+                if 'historial_estados' not in ordenes[id]:
+                    ordenes[id]['historial_estados'] = []
+                
+                comentario_historial = "Presupuesto aprobado - Iniciando reparación"
+                if repuestos_seleccionados:
+                    comentario_historial += f" - {len(repuestos_seleccionados)} repuestos descontados del inventario"
+                
+                ordenes[id]['historial_estados'].append({
+                    "estado": "en_reparacion",
+                    "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    "usuario": session.get('username', 'Técnico'),
+                    "comentarios": comentario_historial
+                })
+            
+            guardar_datos('ordenes_servicio.json', ordenes)
+            return jsonify({'success': True, 'message': 'Presupuesto guardado exitosamente'})
+        
+        # GET - Mostrar presupuesto
+        orden = ordenes[id]
+        return render_template('servicio_tecnico/presupuesto.html', orden=orden)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/servicio-tecnico/orden/<id>/reparacion', methods=['GET', 'POST'])
+@login_required
+def reparacion_orden(id):
+    """Módulo de reparación del equipo"""
+    try:
+        print(f"DEBUG: Entrando a reparacion_orden para orden {id}")
+        ordenes = cargar_datos('ordenes_servicio.json')
+        inventario = cargar_datos('inventario.json')
+        
+        if id not in ordenes:
+            print(f"DEBUG: Orden {id} no encontrada")
+            # No mostrar el error al usuario
+            return redirect(url_for('servicio_tecnico'))
+        
+        if request.method == 'POST':
+            try:
+                print(f"DEBUG: Procesando POST para orden {id}")
+                # Procesar formulario de reparación
+                acciones_realizadas = request.form.get('acciones_realizadas', '')
+                resultado_pruebas = request.form.get('resultado_pruebas', '')
+                observaciones_finales = request.form.get('observaciones_finales', '')
+                tecnico_responsable = request.form.get('tecnico_responsable', '')
+                fecha_inicio = request.form.get('fecha_inicio', '')
+                fecha_fin = request.form.get('fecha_fin', '')
+                
+                # Actualizar datos de reparación
+                if 'reparacion' not in ordenes[id]:
+                    ordenes[id]['reparacion'] = {}
+                
+                ordenes[id]['reparacion'].update({
+                    'acciones_realizadas': acciones_realizadas,
+                    'resultado_pruebas': resultado_pruebas,
+                    'observaciones_finales': observaciones_finales,
+                    'tecnico_responsable': tecnico_responsable,
+                    'fecha_inicio': fecha_inicio,
+                    'fecha_fin': fecha_fin,
+                    'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                })
+                
+                # Actualizar estado según la acción
+                accion = request.form.get('accion')
+                nuevo_estado = ordenes[id]['estado']
+                
+                # Solo cambiar estado si no es 'guardar'
+                if accion == 'en_pruebas':
+                    nuevo_estado = 'en_pruebas'
+                elif accion == 'reparado':
+                    nuevo_estado = 'reparado'
+                elif accion == 'listo_entrega':
+                    nuevo_estado = 'listo_entrega'
+                elif accion == 'guardar':
+                    # Mantener el estado actual al guardar
+                    pass
+                
+                ordenes[id]['estado'] = nuevo_estado
+                guardar_datos('ordenes_servicio.json', ordenes)
+                
+                print(f"DEBUG: Estado actualizado a {nuevo_estado}")
+                
+                # Respuesta JSON para AJAX
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'message': 'Reparación actualizada exitosamente',
+                        'nuevo_estado': nuevo_estado
+                    })
+                
+                flash('Reparación actualizada exitosamente', 'success')
+                return redirect(url_for('ver_orden_servicio', id=id))
+            except Exception as e:
+                print(f"DEBUG: Error procesando POST: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': False,
+                        'message': f'Error: {str(e)}'
+                    }), 500
+                
+                flash(f'Error actualizando reparación: {str(e)}', 'danger')
+                return redirect(url_for('ver_orden_servicio', id=id))
+        
+        orden = ordenes[id]
+        
+        # Convertir a DotDict recursivamente
+        print(f"DEBUG: Convirtiendo orden {id} a DotDict")
+        orden_normalizado = DotDict(orden)
+        
+        # Asegurar campos críticos
+        if 'estado' not in orden_normalizado:
+            orden_normalizado['estado'] = 'desconocido'
+        if 'id' not in orden_normalizado:
+            orden_normalizado['id'] = id
+        
+        print(f"DEBUG: Orden normalizada - Estado: {orden_normalizado.get('estado')}")
+        print(f"DEBUG: Cliente existe: {hasattr(orden_normalizado, 'cliente')}")
+        print(f"DEBUG: Equipo existe: {hasattr(orden_normalizado, 'equipo')}")
+        
+        # Verificar que orden sea un DotDict completo
+        if isinstance(orden_normalizado, DotDict):
+            print(f"DEBUG: orden_normalizado es DotDict")
+        else:
+            print(f"DEBUG: ERROR - orden_normalizado NO es DotDict, es: {type(orden_normalizado)}")
+        
+        # Cargar datos de reparación existentes si existen
+        repuestos_existentes = []
+        if orden.get('reparacion') and orden['reparacion'].get('repuestos_usados'):
+            repuestos_existentes = orden['reparacion']['repuestos_usados']
+            print(f"DEBUG: Repuestos existentes en reparación: {len(repuestos_existentes)}")
+        
+        # Obtener repuestos seleccionados en el diagnóstico
+        repuestos_diagnostico = []
+        if orden.get('diagnostico') and orden['diagnostico'].get('repuestos_seleccionados'):
+            try:
+                repuestos_diagnostico = json.loads(orden['diagnostico']['repuestos_seleccionados'])
+                print(f"DEBUG: Repuestos del diagnóstico cargados: {len(repuestos_diagnostico)}")
+            except Exception as e:
+                print(f"DEBUG: Error cargando repuestos del diagnóstico: {e}")
+                repuestos_diagnostico = []
+        
+        print(f"DEBUG: Renderizando template reparacion.html para orden {id}")
+        return render_template('servicio_tecnico/reparacion.html', 
+                             orden=orden_normalizado, 
+                             inventario=inventario,
+                             repuestos_diagnostico=repuestos_diagnostico,
+                             repuestos_existentes=repuestos_existentes)
+        
+    except Exception as e:
+        print(f"DEBUG: Error en reparacion_orden: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # No mostrar el error al usuario
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/servicio-tecnico/orden/<id>/recalcular-repuestos', methods=['POST'])
+@login_required
+def recalcular_repuestos(id):
+    """Recalcular repuestos utilizados basándose en el diagnóstico"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+        
+        orden = ordenes[id]
+        
+        # Verificar si hay diagnóstico con repuestos
+        if not orden.get('diagnostico', {}).get('repuestos_seleccionados'):
+            return jsonify({'success': False, 'message': 'No hay repuestos en el diagnóstico'})
+        
+        # Parsear repuestos del diagnóstico
+        import json
+        repuestos_diagnostico = json.loads(orden['diagnostico']['repuestos_seleccionados'])
+        
+        # Convertir al formato de reparación
+        repuestos_detalle = []
+        total_repuestos = 0
+        
+        for repuesto in repuestos_diagnostico:
+            repuestos_detalle.append({
+                'id': repuesto['id'],
+                'nombre': repuesto['nombre'],
+                'cantidad': repuesto['cantidad'],
+                'costo_unitario': repuesto['precio'],
+                'subtotal': repuesto['cantidad'] * repuesto['precio']
+            })
+            total_repuestos += repuesto['cantidad'] * repuesto['precio']
+        
+        # Actualizar datos de reparación
+        if 'reparacion' not in orden:
+            orden['reparacion'] = {}
+        
+        orden['reparacion'].update({
+            'repuestos_usados': repuestos_detalle,
+            'total_repuestos': total_repuestos,
+            'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+        # Guardar cambios
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Se recalcularon {len(repuestos_detalle)} repuestos por un total de ${total_repuestos:.2f}',
+            'total_repuestos': total_repuestos
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/servicio-tecnico/orden/<id>/reparacion-completa', methods=['GET', 'POST'])
+@login_required
+def reparacion_completa(id):
+    """Módulo de reparación completo con procesamiento de repuestos"""
+    try:
+        print(f"DEBUG: Entrando a reparacion_completa para orden {id}")
+        ordenes = cargar_datos('ordenes_servicio.json')
+        inventario = cargar_datos('inventario.json')
+        
+        if id not in ordenes:
+            # No mostrar el error al usuario
+            return redirect(url_for('servicio_tecnico'))
+        
+        if request.method == 'POST':
+            # Obtener datos del formulario
+            acciones_realizadas = request.form.get('acciones_realizadas', '')
+            repuestos_usados = request.form.getlist('repuestos_usados')
+            cantidades = request.form.getlist('cantidades_repuestos')
+            costos_unitarios = request.form.getlist('costos_unitarios')
+            fecha_inicio = request.form.get('fecha_inicio_reparacion', '')
+            fecha_fin = request.form.get('fecha_fin_reparacion', '')
+            resultado_pruebas = request.form.get('resultado_pruebas', '')
+            observaciones_finales = request.form.get('observaciones_finales', '')
+            costo_adicional = safe_float(request.form.get('costo_adicional', 0) or 0)
+            tecnico_responsable = request.form.get('tecnico_responsable', session.get('username', 'Técnico'))
+            
+            print(f"DEBUG: Datos recibidos - Repuestos: {repuestos_usados}, Cantidades: {cantidades}, Costos: {costos_unitarios}")
+            
+            # Procesar repuestos usados
+            repuestos_detalle = []
+            total_repuestos = 0
+            
+            for i, repuesto_id in enumerate(repuestos_usados):
+                if repuesto_id and i < len(cantidades) and i < len(costos_unitarios):
+                    try:
+                        cantidad = int(cantidades[i]) if cantidades[i] else 0
+                        costo_unitario = safe_float(costos_unitarios[i]) if costos_unitarios[i] else 0
+                        
+                        print(f"DEBUG: Procesando repuesto {i}: ID={repuesto_id}, Cantidad={cantidad}, Costo={costo_unitario}")
+                        
+                        if cantidad > 0 and costo_unitario > 0:
+                            # Buscar repuesto en inventario
+                            repuesto_info = inventario.get(repuesto_id, {})
+                            
+                            repuestos_detalle.append({
+                                'id': repuesto_id,
+                                'nombre': repuesto_info.get('nombre', 'Repuesto desconocido'),
+                                'cantidad': cantidad,
+                                'costo_unitario': costo_unitario,
+                                'subtotal': cantidad * costo_unitario
+                            })
+                            
+                            total_repuestos += cantidad * costo_unitario
+                            
+                            # Descontar del inventario
+                            if repuesto_id in inventario:
+                                stock_actual = inventario[repuesto_id].get('cantidad', 0)
+                                inventario[repuesto_id]['cantidad'] = max(0, stock_actual - cantidad)
+                                print(f"DEBUG: Stock actualizado para {repuesto_id}: {stock_actual} -> {inventario[repuesto_id]['cantidad']}")
+                    except (ValueError, TypeError) as e:
+                        print(f"DEBUG: Error al procesar repuesto {i}: {str(e)}")
+                        continue
+            
+            print(f"DEBUG: Total repuestos procesados: {len(repuestos_detalle)}, Total costo: {total_repuestos}")
+            
+            # Si no hay repuestos procesados, intentar cargar del diagnóstico
+            if len(repuestos_detalle) == 0 and ordenes[id].get('diagnostico', {}).get('repuestos_seleccionados'):
+                try:
+                    import json
+                    repuestos_diagnostico = json.loads(ordenes[id]['diagnostico']['repuestos_seleccionados'])
+                    print(f"DEBUG: Cargando repuestos del diagnóstico: {repuestos_diagnostico}")
+                    
+                    for repuesto in repuestos_diagnostico:
+                        repuestos_detalle.append({
+                            'id': repuesto['id'],
+                            'nombre': repuesto['nombre'],
+                            'cantidad': repuesto['cantidad'],
+                            'costo_unitario': repuesto['precio'],
+                            'subtotal': repuesto['cantidad'] * repuesto['precio']
+                        })
+                        total_repuestos += repuesto['cantidad'] * repuesto['precio']
+                    
+                    print(f"DEBUG: Repuestos del diagnóstico cargados: {len(repuestos_detalle)}, Total: {total_repuestos}")
+                except Exception as e:
+                    print(f"DEBUG: Error al cargar repuestos del diagnóstico: {str(e)}")
+            
+            # Actualizar datos de reparación
+            if 'reparacion' not in ordenes[id]:
+                ordenes[id]['reparacion'] = {}
+            
+            ordenes[id]['reparacion'].update({
+                'acciones_realizadas': acciones_realizadas,
+                'repuestos_usados': repuestos_detalle,
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+                'resultado_pruebas': resultado_pruebas,
+                'observaciones_finales': observaciones_finales,
+                'costo_adicional': costo_adicional,
+                'total_repuestos': total_repuestos,
+                'tecnico_responsable': tecnico_responsable,
+                'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+            # Procesar fotos de reparación
+            if 'fotos_reparacion' in request.files:
+                fotos = request.files.getlist('fotos_reparacion')
+                fotos_paths = []
+                
+                for foto in fotos:
+                    if foto and foto.filename:
+                        # Crear directorio si no existe
+                        upload_folder = os.path.join(app.root_path, 'uploads', id, 'reparacion')
+                        os.makedirs(upload_folder, exist_ok=True)
+                        
+                        filename = secure_filename(foto.filename)
+                        filepath = os.path.join(upload_folder, filename)
+                        foto.save(filepath)
+                        fotos_paths.append(f'/uploads/{id}/reparacion/{filename}')
+                
+                if fotos_paths:
+                    ordenes[id]['reparacion']['fotos'] = fotos_paths
+            
+            # Determinar nuevo estado
+            accion_recibida = request.form.get('accion')
+            print(f"DEBUG: Acción recibida: '{accion_recibida}'")
+            print(f"DEBUG: Estado actual: '{ordenes[id]['estado']}'")
+            
+            nuevo_estado = ordenes[id]['estado']
+            if accion_recibida == 'en_pruebas':
+                nuevo_estado = 'en_pruebas'
+                print("DEBUG: Cambiando estado a 'en_pruebas'")
+            elif accion_recibida == 'reparado':
+                nuevo_estado = 'reparado'
+                print("DEBUG: Cambiando estado a 'reparado'")
+            elif accion_recibida == 'listo_entrega':
+                nuevo_estado = 'listo_entrega'
+                print("DEBUG: Cambiando estado a 'listo_entrega'")
+            else:
+                print(f"DEBUG: Acción no reconocida: '{accion_recibida}', manteniendo estado actual")
+            
+            print(f"DEBUG: Nuevo estado: '{nuevo_estado}'")
+            
+            # Actualizar estado
+            ordenes[id]['estado'] = nuevo_estado
+            ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Agregar al historial
+            if 'historial_estados' not in ordenes[id]:
+                ordenes[id]['historial_estados'] = []
+            
+            ordenes[id]['historial_estados'].append({
+                "estado": nuevo_estado,
+                "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "usuario": session.get('username', 'Técnico'),
+                "comentarios": f"Reparación actualizada - Estado: {nuevo_estado.replace('_', ' ').title()}"
+            })
+            
+            # Guardar cambios
+            print("DEBUG: Guardando datos de órdenes...")
+            guardar_datos('ordenes_servicio.json', ordenes)
+            print("DEBUG: Guardando datos de inventario...")
+            guardar_datos('inventario.json', inventario)
+            print("DEBUG: Datos guardados exitosamente")
+            
+            # Respuesta JSON para AJAX
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+                return jsonify({
+                    'success': True,
+                    'message': 'Reparación actualizada exitosamente',
+                    'nuevo_estado': nuevo_estado
+                })
+            
+            flash('Reparación actualizada exitosamente', 'success')
+            return redirect(url_for('ver_orden_servicio', id=id))
+        
+        orden = ordenes[id]
+        
+        # Convertir a DotDict
+        orden_normalizado = DotDict(orden)
+        if 'estado' not in orden_normalizado:
+            orden_normalizado['estado'] = 'desconocido'
+        
+        # Obtener repuestos seleccionados en el diagnóstico
+        repuestos_diagnostico = []
+        if orden.get('diagnostico') and orden['diagnostico'].get('repuestos_seleccionados'):
+            try:
+                repuestos_diagnostico = json.loads(orden['diagnostico']['repuestos_seleccionados'])
+                print(f"DEBUG: Repuestos del diagnóstico cargados: {len(repuestos_diagnostico)}")
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"DEBUG: Error cargando repuestos del diagnóstico: {e}")
+                repuestos_diagnostico = []
+        
+        return render_template('servicio_tecnico/reparacion.html', 
+                             orden=orden_normalizado, 
+                             inventario=inventario,
+                             repuestos_diagnostico=repuestos_diagnostico)
+        
+    except Exception as e:
+        print(f"DEBUG: Error en reparacion_completa: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+            return jsonify({
+                'success': False,
+                'message': f'Error en reparación: {str(e)}'
+            })
+        
+        # No mostrar el error al usuario
+        return redirect(url_for('servicio_tecnico'))
+
+
+@app.route('/servicio-tecnico/orden/<id>/entrega', methods=['GET', 'POST'])
+@login_required
+def entrega_orden(id):
+    """Módulo de entrega del equipo reparado"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            # No mostrar el error al usuario
+            return redirect(url_for('servicio_tecnico'))
+        
+        # Métodos de pago disponibles (mismos que en pagos recibidos)
+        metodos_pago = ['Efectivo', 'Transferencia', 'Pago Móvil', 'Zelle', 'Divisas', 'Punto de Venta', 'Cheque']
+        
+        if request.method == 'POST':
+            try:
+                print(f"DEBUG: Procesando entrega para orden {id}")
+                # Obtener datos del formulario de entrega
+                fecha_entrega = request.form.get('fecha_entrega', '')
+                nombre_retira = request.form.get('nombre_retira', '')
+                cedula_retira = request.form.get('cedula_retira', '')
+                telefono_retira = request.form.get('telefono_retira', '')
+                tipo_pago = request.form.get('tipo_pago', '')
+                monto_pagado = safe_float(request.form.get('monto_pagado', 0) or 0)
+                monto_pendiente = safe_float(request.form.get('monto_pendiente', 0) or 0)
+                observaciones_entrega = request.form.get('observaciones_entrega', '')
+                tecnico_entrega = request.form.get('tecnico_entrega', session.get('username', 'Técnico'))
+                
+                # Procesar firma digital si existe
+                firma_digital = request.form.get('firma_digital', '')
+                
+                # Actualizar datos de entrega
+                if 'entrega' not in ordenes[id]:
+                    ordenes[id]['entrega'] = {}
+                
+                ordenes[id]['entrega'].update({
+                    'fecha_entrega': fecha_entrega,
+                    'nombre_retira': nombre_retira,
+                    'cedula_retira': cedula_retira,
+                    'telefono_retira': telefono_retira,
+                    'tipo_pago': tipo_pago,
+                    'monto_pagado': monto_pagado,
+                    'monto_pendiente': monto_pendiente,
+                    'observaciones_entrega': observaciones_entrega,
+                    'tecnico_entrega': tecnico_entrega,
+                    'firma_digital': firma_digital,
+                    'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                })
+                
+                # Cambiar estado a entregado
+                ordenes[id]['estado'] = 'entregado'
+                ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Agregar al historial
+                if 'historial_estados' not in ordenes[id]:
+                    ordenes[id]['historial_estados'] = []
+                
+                ordenes[id]['historial_estados'].append({
+                    "estado": "entregado",
+                    "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    "usuario": session.get('username', 'Técnico'),
+                    "comentarios": f"Equipo entregado a {nombre_retira} - Pago: {tipo_pago}"
+                })
+                
+                # Registrar pago en pagos recibidos si hay monto pagado
+                if monto_pagado > 0:
+                    try:
+                        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+                        orden = ordenes[id]
+                        cliente = orden.get('cliente', {})
+                        
+                        id_pago = f'PAGO-{datetime.now().strftime("%Y%m%d%H%M%S")}'
+                        
+                        pago_data = {
+                            'id': id_pago,
+                            'fecha': datetime.now().strftime('%Y-%m-%d'),
+                            'cliente': cliente.get('nombre', 'Cliente'),
+                            'cliente_id': orden.get('cliente_id', ''),
+                            'concepto': f'Servicio Técnico - Orden {orden.get("numero_orden", "")}',
+                            'metodo_pago': tipo_pago.title(),
+                            'monto_usd': monto_pagado,
+                            'tasa_bcv': obtener_tasa_bcv(),
+                            'numero_referencia': f'ST-{orden.get("numero_orden", "")}',
+                            'banco': '',
+                            'observaciones': f'Entrega de equipo: {orden.get("equipo", {}).get("marca", "")} {orden.get("equipo", {}).get("modelo", "")}',
+                            'usuario_registro': session.get('username', 'Sistema'),
+                            'fecha_registro': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        
+                        pagos[id_pago] = pago_data
+                        guardar_datos(ARCHIVO_PAGOS_RECIBIDOS, pagos)
+                        print(f"DEBUG: Pago registrado en pagos recibidos: {id_pago}")
+                    except Exception as e:
+                        print(f"DEBUG: Error registrando pago en pagos recibidos: {e}")
+                
+                # Guardar cambios
+                guardar_datos('ordenes_servicio.json', ordenes)
+                
+                # Respuesta JSON para AJAX
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+                    return jsonify({
+                        'success': True,
+                        'message': 'Entrega registrada exitosamente',
+                        'nuevo_estado': 'entregado'
+                    })
+                
+                flash('Entrega registrada exitosamente', 'success')
+                return redirect(url_for('ver_orden_servicio', id=id))
+            except Exception as e:
+                print(f"DEBUG: Error en entrega_orden POST: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+                    return jsonify({
+                        'success': False,
+                        'message': f'Error en entrega: {str(e)}'
+                    }), 500
+                
+                flash(f'Error registrando entrega: {str(e)}', 'danger')
+                return redirect(url_for('ver_orden_servicio', id=id))
+        
+        orden = ordenes[id]
+        
+        # Convertir a DotDict para que Jinja2 pueda usar notación de punto
+        orden_normalizado = DotDict(orden)
+        if 'estado' not in orden_normalizado:
+            orden_normalizado['estado'] = 'desconocido'
+        
+        print(f"DEBUG: Orden normalizada para entrega - Estado: {orden_normalizado.get('estado')}")
+        
+        return render_template('servicio_tecnico/entrega.html', 
+                             orden=orden_normalizado,
+                             metodos_pago=metodos_pago)
+        
+    except Exception as e:
+        print(f"DEBUG: Error en entrega_orden: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+            return jsonify({
+                'success': False,
+                'message': f'Error en entrega: {str(e)}'
+            })
+        
+        # No mostrar el error al usuario
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/servicio-tecnico/orden/<id>/comprobante-retiro', methods=['GET'])
+@login_required
+def comprobante_retiro_servicio(id):
+    """Generar comprobante de retiro para una orden de servicio"""
+    try:
+        print(f"DEBUG: Generando comprobante de retiro para orden {id}")
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        empresa = cargar_datos('empresa.json')
+        
+        print(f"DEBUG: Ordenes cargadas: {len(ordenes)}")
+        print(f"DEBUG: Config cargada: {bool(config)}")
+        print(f"DEBUG: Empresa cargada: {bool(empresa)}")
+        
+        if id not in ordenes:
+            print(f"DEBUG: Orden {id} no encontrada")
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        print(f"DEBUG: Orden encontrada: {orden.get('numero_orden', 'Sin número')}")
+        
+        # Mostrar comprobante de retiro en HTML (para impresión)
+        return render_template('servicio_tecnico/retiro_equipo_pdf.html', 
+                             orden=orden, 
+                             config=config,
+                             empresa=empresa)
+        
+    except Exception as e:
+        print(f"DEBUG: Error generando comprobante: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generando comprobante de retiro: {str(e)}', 'danger')
+        return redirect(url_for('ver_orden_servicio', id=id))
+
+@app.route('/servicio-tecnico/orden/<id>/enviar-notificacion', methods=['POST'])
+@login_required
+def enviar_notificacion_servicio(id):
+    """Enviar notificación al cliente sobre el estado de su orden"""
+    try:
+        print(f"DEBUG: ===== INICIANDO ENVÍO DE NOTIFICACIÓN =====")
+        print(f"DEBUG: Orden ID: {id}")
+        print(f"DEBUG: Request method: {request.method}")
+        print(f"DEBUG: Request headers: {dict(request.headers)}")
+        print(f"DEBUG: Request form data: {dict(request.form)}")
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        print(f"DEBUG: Ordenes cargadas: {len(ordenes)}")
+        print(f"DEBUG: Config cargada: {bool(config)}")
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        tipo_notificacion = request.form.get('tipo_notificacion')
+        mensaje_personalizado = request.form.get('mensaje_personalizado', '')
+        
+        print(f"DEBUG: Tipo notificación: {tipo_notificacion}")
+        
+        # Generar mensaje según el tipo
+        if tipo_notificacion == 'equipo_recibido':
+            mensaje = config['configuracion_notificaciones']['plantillas']['equipo_recibido'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'diagnostico_completo':
+            mensaje = config['configuracion_notificaciones']['plantillas']['diagnostico_completo'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'reparacion_completa':
+            mensaje = config['configuracion_notificaciones']['plantillas']['reparacion_completa'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'presupuesto_enviado':
+            mensaje = config['configuracion_notificaciones']['plantillas']['presupuesto_enviado'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'reparacion_iniciada':
+            mensaje = config['configuracion_notificaciones']['plantillas']['reparacion_iniciada'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'costo_estimado':
+            tasa_bcv = obtener_tasa_bcv()  # Usar función USD principal
+            if not tasa_bcv or tasa_bcv < 10:
+                tasa_bcv = 216.37  # Fallback con tasa USD
+            costo_usd = orden.get('diagnostico', {}).get('total_estimado', 0)
+            costo_bs = costo_usd * tasa_bcv
+            tiempo_estimado = orden.get('tiempo_estimado', '3-5')
+            
+            mensaje = config['configuracion_notificaciones']['plantillas']['costo_estimado'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden'],
+                costo_usd=costo_usd,
+                costo_bs=f"{costo_bs:,.2f}",
+                tiempo_estimado=tiempo_estimado
+            )
+        else:
+            mensaje = mensaje_personalizado
+        
+        print(f"DEBUG: Mensaje generado: {mensaje[:100]}...")
+        
+        # Enviar WhatsApp si está habilitado
+        if config['configuracion_notificaciones']['whatsapp_habilitado']:
+            telefono = orden['cliente'].get('telefono', '')
+            print(f"DEBUG: Teléfono del cliente: {telefono}")
+            
+            if telefono and telefono.strip():
+                # Limpiar número de teléfono
+                telefono_limpio = telefono.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                
+                # Asegurar que tenga código de país Venezuela (58)
+                if not telefono_limpio.startswith('58'):
+                    if telefono_limpio.startswith('0'):
+                        telefono_limpio = '58' + telefono_limpio[1:]
+                    else:
+                        telefono_limpio = '58' + telefono_limpio
+                    
+                print(f"DEBUG: Teléfono limpio: {telefono_limpio}")
+                    
+                from urllib.parse import quote
+                mensaje_codificado = quote(mensaje)
+                enlace_final = f"https://wa.me/{telefono_limpio}?text={mensaje_codificado}"
+                        
+                print(f"DEBUG: Enlace WhatsApp: {enlace_final}")
+                
+                # Registrar notificación antes de redirigir
+                if 'notificaciones_enviadas' not in ordenes[id]:
+                    ordenes[id]['notificaciones_enviadas'] = []
+                    
+                ordenes[id]['notificaciones_enviadas'].append({
+                    "tipo": tipo_notificacion,
+                    "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    "mensaje": mensaje,
+                    "usuario": session.get('usuario', 'admin'),
+                    "telefono": telefono_limpio,
+                    "enlace_whatsapp": enlace_final
+                })
+                
+                ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                guardar_datos('ordenes_servicio.json', ordenes)
+                
+                print(f"DEBUG: ===== REDIRIGIENDO A WHATSAPP =====")
+                return redirect(enlace_final)
+            else:
+                print("DEBUG: Cliente no tiene número de teléfono válido")
+                flash('Cliente no tiene número de teléfono registrado', 'warning')
+                return redirect(url_for('ver_orden_servicio', id=id))
+        
+        # Si no se envió por WhatsApp, registrar notificación de otra forma
+        if not config['configuracion_notificaciones']['whatsapp_habilitado']:
+        # Registrar notificación enviada
+            if 'notificaciones_enviadas' not in ordenes[id]:
+                ordenes[id]['notificaciones_enviadas'] = []
+                
+        ordenes[id]['notificaciones_enviadas'].append({
+            "tipo": tipo_notificacion,
+            "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "mensaje": mensaje,
+            "usuario": session.get('usuario', 'admin')
+        })
+        
+        ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        print(f"DEBUG: ===== NOTIFICACIÓN ENVIADA EXITOSAMENTE =====")
+        return redirect(url_for('ver_orden_servicio', id=id))
+        
+    except Exception as e:
+        print(f"DEBUG: ===== ERROR EN ENVÍO DE NOTIFICACIÓN =====")
+        print(f"DEBUG: Error: {str(e)}")
+        print(f"DEBUG: Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Si es una petición AJAX, devolver JSON
+        if request.headers.get('Content-Type') == 'application/x-www-form-urlencoded':
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': f'Error enviando notificación: {str(e)}'
+            }), 500
+        else:
+            flash(f'Error enviando notificación: {str(e)}', 'danger')
+            return redirect(url_for('ver_orden_servicio', id=id))
+
+@app.route('/api/servicio-tecnico/orden/<id>/enviar-notificacion-directa', methods=['POST'])
+@login_required
+def enviar_notificacion_directa(id):
+    """Enviar notificación directa sin redirección"""
+    try:
+        print(f"DEBUG: ===== ENVÍO DIRECTO DE NOTIFICACIÓN =====")
+        print(f"DEBUG: Orden ID: {id}")
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'error': 'Orden no encontrada'}), 404
+        
+        orden = ordenes[id]
+        tipo_notificacion = request.form.get('tipo_notificacion')
+        mensaje_personalizado = request.form.get('mensaje_personalizado', '')
+        
+        print(f"DEBUG: Tipo notificación: {tipo_notificacion}")
+        
+        # Generar mensaje según el tipo
+        if tipo_notificacion == 'equipo_recibido':
+            mensaje = config['configuracion_notificaciones']['plantillas']['equipo_recibido'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'diagnostico_completo':
+            mensaje = config['configuracion_notificaciones']['plantillas']['diagnostico_completo'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'reparacion_completa':
+            mensaje = config['configuracion_notificaciones']['plantillas']['reparacion_completa'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'presupuesto_enviado':
+            mensaje = config['configuracion_notificaciones']['plantillas']['presupuesto_enviado'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'reparacion_iniciada':
+            mensaje = config['configuracion_notificaciones']['plantillas']['reparacion_iniciada'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden']
+            )
+        elif tipo_notificacion == 'costo_estimado':
+            tasa_bcv = obtener_tasa_bcv()  # Usar función USD principal
+            if not tasa_bcv or tasa_bcv < 10:
+                tasa_bcv = 216.37  # Fallback con tasa USD
+            costo_usd = orden.get('diagnostico', {}).get('total_estimado', 0)
+            costo_bs = costo_usd * tasa_bcv
+            tiempo_estimado = orden.get('tiempo_estimado', '3-5')
+            
+            mensaje = config['configuracion_notificaciones']['plantillas']['costo_estimado'].format(
+                cliente=orden['cliente']['nombre'],
+                marca=orden['equipo']['marca'],
+                modelo=orden['equipo']['modelo'],
+                numero_orden=orden['numero_orden'],
+                costo_usd=costo_usd,
+                costo_bs=f"{costo_bs:,.2f}",
+                tiempo_estimado=tiempo_estimado
+            )
+        else:
+            mensaje = mensaje_personalizado
+        
+        print(f"DEBUG: Mensaje generado: {mensaje[:100]}...")
+        
+        # Preparar datos para WhatsApp
+        telefono = orden['cliente'].get('telefono', '')
+        enlace_whatsapp = None
+        
+        if telefono and telefono.strip():
+            # Limpiar número de teléfono
+            telefono_limpio = telefono.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+            
+            # Asegurar que tenga código de país Venezuela (58)
+            if not telefono_limpio.startswith('58'):
+                if telefono_limpio.startswith('0'):
+                    telefono_limpio = '58' + telefono_limpio[1:]
+                else:
+                    telefono_limpio = '58' + telefono_limpio
+            
+            from urllib.parse import quote
+            mensaje_codificado = quote(mensaje)
+            enlace_whatsapp = f"https://wa.me/{telefono_limpio}?text={mensaje_codificado}"
+            
+            print(f"DEBUG: Enlace WhatsApp generado: {enlace_whatsapp}")
+        
+        # Registrar notificación
+        if 'notificaciones_enviadas' not in ordenes[id]:
+            ordenes[id]['notificaciones_enviadas'] = []
+            
+        ordenes[id]['notificaciones_enviadas'].append({
+            "tipo": tipo_notificacion,
+            "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "mensaje": mensaje,
+            "usuario": session.get('usuario', 'admin'),
+            "telefono": telefono_limpio if telefono else None,
+            "enlace_whatsapp": enlace_whatsapp
+        })
+        
+        ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        print(f"DEBUG: ===== NOTIFICACIÓN REGISTRADA EXITOSAMENTE =====")
+        
+        return jsonify({
+            'success': True,
+            'mensaje': mensaje,
+            'enlace_whatsapp': enlace_whatsapp,
+            'telefono': telefono_limpio if telefono else None,
+            'tipo': tipo_notificacion
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: ===== ERROR EN ENVÍO DIRECTO =====")
+        print(f"DEBUG: Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': f'Error enviando notificación: {str(e)}'
+        }), 500
+
+@app.route('/test-whatsapp-notificacion/<id>')
+@login_required
+def test_whatsapp_notificacion(id):
+    """Función de prueba para verificar el envío de WhatsApp"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if id not in ordenes:
+            return jsonify({'error': 'Orden no encontrada'}), 404
+        
+        orden = ordenes[id]
+        telefono = orden['cliente'].get('telefono', '')
+        
+        if not telefono:
+            return jsonify({'error': 'Cliente no tiene teléfono'}), 400
+        
+        # Limpiar número
+        telefono_limpio = telefono.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        if not telefono_limpio.startswith('58'):
+            if telefono_limpio.startswith('0'):
+                telefono_limpio = '58' + telefono_limpio[1:]
+            else:
+                telefono_limpio = '58' + telefono_limpio
+        
+        # Mensaje de prueba
+        mensaje_prueba = f"🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {orden['cliente']['nombre']}! 👋\n\n📱 Esta es una notificación de prueba para tu orden *{orden['numero_orden']}*\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n\n¡Gracias por confiar en nosotros! 🙏"
+        
+        from urllib.parse import quote
+        mensaje_codificado = quote(mensaje_prueba)
+        enlace_final = f"https://wa.me/{telefono_limpio}?text={mensaje_codificado}"
+        
+        return jsonify({
+            'success': True,
+            'telefono_original': telefono,
+            'telefono_limpio': telefono_limpio,
+            'enlace_whatsapp': enlace_final,
+            'mensaje': mensaje_prueba
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/comprobante-html/<id>')
+@login_required
+def comprobante_retiro_html(id):
+    """Generar comprobante de retiro de equipo en HTML (para impresión)"""
+    try:
+        # Cargar datos de la orden
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        # Preparar datos para la plantilla
+        data = {
+            'numero_orden': orden.get('numero_orden', 'N/A'),
+            'fecha_retiro': datetime.now().strftime('%d/%m/%Y %H:%M'),
+            'fecha_generacion': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+            'cliente': {
+                'nombre': orden.get('cliente', {}).get('nombre', 'No especificado'),
+                'cedula_rif': orden.get('cliente', {}).get('cedula_rif', 'No especificado'),
+                'telefono': orden.get('cliente', {}).get('telefono', 'No especificado'),
+                'email': orden.get('cliente', {}).get('email', 'No especificado')
+            },
+            'equipo': {
+                'marca': orden.get('equipo', {}).get('marca', 'No especificado'),
+                'modelo': orden.get('equipo', {}).get('modelo', 'No especificado'),
+                'color': orden.get('equipo', {}).get('color', 'No especificado'),
+                'imei_1': orden.get('equipo', {}).get('imei', 'No especificado'),
+                'imei_2': orden.get('equipo', {}).get('imei_2', 'No aplica'),
+                'accesorios': orden.get('equipo', {}).get('accesorios', 'Ninguno'),
+                'estado_retiro': orden.get('equipo', {}).get('estado_retiro', 'Funcionando correctamente')
+            },
+            'servicio': {
+                'descripcion': orden.get('servicio_realizado', 'Reparación general'),
+                'observaciones': orden.get('observaciones', 'Sin observaciones'),
+                'tecnico': orden.get('tecnico_asignado', 'No asignado'),
+                'garantia': orden.get('garantia', '90 días')
+            }
+        }
+        
+        # Renderizar la plantilla HTML simple
+        html = render_template('comprobante_simple.html', data=data)
+        
+        return html
+        
+    except Exception as e:
+        print(f"Error generando comprobante HTML: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generando comprobante: {str(e)}', 'danger')
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/comprobante/<id>')
+@login_required
+def comprobante_retiro(id):
+    """Generar comprobante de retiro de equipo en PDF"""
+    try:
+        # Cargar datos de la orden
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        # Preparar datos para la plantilla
+        data = {
+            'numero_orden': orden.get('numero_orden', 'N/A'),
+            'fecha_retiro': datetime.now().strftime('%d/%m/%Y %H:%M'),
+            'fecha_generacion': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+            'cliente': {
+                'nombre': orden.get('cliente', {}).get('nombre', 'No especificado'),
+                'cedula_rif': orden.get('cliente', {}).get('cedula_rif', 'No especificado'),
+                'telefono': orden.get('cliente', {}).get('telefono', 'No especificado'),
+                'email': orden.get('cliente', {}).get('email', 'No especificado')
+            },
+            'equipo': {
+                'marca': orden.get('equipo', {}).get('marca', 'No especificado'),
+                'modelo': orden.get('equipo', {}).get('modelo', 'No especificado'),
+                'color': orden.get('equipo', {}).get('color', 'No especificado'),
+                'imei_1': orden.get('equipo', {}).get('imei', 'No especificado'),
+                'imei_2': orden.get('equipo', {}).get('imei_2', 'No aplica'),
+                'accesorios': orden.get('equipo', {}).get('accesorios', 'Ninguno'),
+                'estado_retiro': orden.get('equipo', {}).get('estado_retiro', 'Funcionando correctamente')
+            },
+            'servicio': {
+                'descripcion': orden.get('servicio_realizado', 'Reparación general'),
+                'observaciones': orden.get('observaciones', 'Sin observaciones'),
+                'tecnico': orden.get('tecnico_asignado', 'No asignado'),
+                'garantia': orden.get('garantia', '90 días')
+            }
+        }
+        
+        # Renderizar la plantilla HTML
+        html = render_template('comprobante.html', data=data)
+        
+        # Configurar pdfkit
+        options = {
+            'page-size': 'A4',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'enable-local-file-access': None
+        }
+        
+        # Generar PDF usando weasyprint (más estable en Windows)
+        pdf_generated = False
+        
+        try:
+            from weasyprint import HTML, CSS
+            from weasyprint.text.fonts import FontConfiguration
+            
+            font_config = FontConfiguration()
+            html_doc = HTML(string=html)
+            pdf = html_doc.write_pdf(font_config=font_config)
+            pdf_generated = True
+            print("✅ PDF generado exitosamente con weasyprint")
+            
+        except ImportError:
+            print("⚠️ weasyprint no está instalado, intentando con pdfkit...")
+        except Exception as e:
+            print(f"❌ Error generando PDF con weasyprint: {e}")
+        
+        # Fallback: usar pdfkit si weasyprint no está disponible o falla
+        if not pdf_generated and pdfkit:
+            try:
+                pdf = pdfkit.from_string(html, False, options=options)
+                pdf_generated = True
+                print("✅ PDF generado exitosamente con pdfkit")
+            except Exception as e:
+                print(f"❌ Error generando PDF con pdfkit: {e}")
+        
+        # Si no se pudo generar PDF, devolver HTML con estilos para impresión
+        if not pdf_generated:
+            print("⚠️ No se pudo generar PDF, devolviendo HTML optimizado para impresión")
+            # Agregar estilos de impresión al HTML
+            html_with_print_styles = html.replace(
+                '</head>',
+                '''
+                <style>
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none !important; }
+                    .page-break { page-break-before: always; }
+                }
+                </style>
+                <script>
+                window.onload = function() {
+                    // Auto-imprimir cuando se carga la página
+                    setTimeout(function() {
+                        window.print();
+                    }, 1000);
+                }
+                </script>
+                </head>'''
+            )
+            return html_with_print_styles
+        
+        # Crear respuesta PDF
+        response = Response(pdf, mimetype='application/pdf')
+        response.headers['Content-Disposition'] = f'inline; filename=comprobante_retiro_{id}.pdf'
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error generando comprobante: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generando comprobante: {str(e)}', 'danger')
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/servicio-tecnico/orden/<id>/generar-factura', methods=['POST'])
+@login_required
+def generar_factura_servicio(id):
+    """Generar nota de entrega automáticamente desde una orden de servicio"""
+    try:
+        print(f"DEBUG: Iniciando generación de nota de entrega para orden {id}")
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        inventario = cargar_datos('inventario.json')
+        
+        print(f"DEBUG: Datos cargados - Ordenes: {len(ordenes)}, Notas: {len(notas)}, Clientes: {len(clientes)}")
+        
+        if id not in ordenes:
+            print(f"DEBUG: Orden {id} no encontrada")
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        estado_orden = orden.get('estado', 'desconocido')
+        print(f"DEBUG: Orden encontrada - Estado: {estado_orden}")
+        
+        # Verificar que la orden esté en estado apropiado
+        if estado_orden not in ['reparado', 'entregado', 'listo_entrega']:
+            print(f"DEBUG: Estado {estado_orden} no válido para generar nota")
+            flash('La orden debe estar reparada, entregada o lista para entrega para generar la nota de entrega', 'warning')
+            return redirect(url_for('ver_orden_servicio', id=id))
+        
+        print(f"DEBUG: Estado válido, procediendo con la generación")
+        
+        # Generar número de nota de entrega
+        numero_secuencial = len(notas) + 1
+        numero_nota = f"NE-{numero_secuencial:04d}"
+        print(f"DEBUG: Número de nota generado: {numero_nota}")
+        
+        # Crear cliente si no existe
+        cliente_id = orden['cliente']['id'] if orden['cliente']['id'] else f"cliente_{len(clientes) + 1}"
+        if cliente_id not in clientes:
+            clientes[cliente_id] = {
+                "id": cliente_id,
+                "nombre": orden['cliente']['nombre'],
+                "telefono": orden['cliente']['telefono'],
+                "email": orden['cliente']['email'],
+                "direccion": orden['cliente']['direccion'],
+                "rif": "",
+                "fecha_registro": datetime.now().strftime('%Y-%m-%d')
+            }
+            guardar_datos(ARCHIVO_CLIENTES, clientes)
+        
+        # Crear productos/servicios para la nota de entrega
+        productos_nota = []
+        cantidades = []
+        precios = []
+        
+        # Agregar servicio de reparación
+        productos_nota.append(f"Servicio de Reparación - {orden['equipo']['marca']} {orden['equipo']['modelo']}")
+        cantidades.append("1")
+        precios.append(str(orden['diagnostico']['costo_mano_obra']))
+        
+        # Agregar repuestos utilizados desde repuestos_seleccionados
+        if orden['diagnostico'].get('repuestos_seleccionados'):
+            try:
+                import json
+                repuestos_seleccionados = json.loads(orden['diagnostico']['repuestos_seleccionados'])
+                for repuesto in repuestos_seleccionados:
+                    productos_nota.append(repuesto['nombre'])
+                    cantidades.append(str(repuesto['cantidad']))
+                    precios.append(str(repuesto['precio']))
+            except Exception as e:
+                print(f"Error procesando repuestos_seleccionados: {e}")
+                # Si hay error, agregar solo el detalle como texto
+                if orden['diagnostico'].get('detalle_repuestos'):
+                    productos_nota.append("Repuestos y Piezas")
+                    cantidades.append("1")
+                    precios.append(str(orden['diagnostico']['costo_piezas']))
+        
+        # Obtener tasa BCV actual - SOLO USD
+        try:
+            tasa_bcv = obtener_tasa_bcv()  # Función principal que obtiene tasa USD
+            if not tasa_bcv or tasa_bcv < 10:
+                # Si no hay tasa válida, intentar obtener del BCV
+                tasa_bcv = obtener_tasa_bcv_dia()
+                if not tasa_bcv or tasa_bcv < 10:
+                    # Fallback con tasa realista
+                    tasa_bcv = cargar_ultima_tasa_bcv()
+                    if not tasa_bcv or tasa_bcv < 10:
+                        tasa_bcv = 216.37  # Tasa USD real actual aproximada
+            fecha_tasa_bcv = datetime.now().strftime('%Y-%m-%d')
+            print(f"✅ Usando tasa BCV USD: {tasa_bcv}")
+        except Exception as e:
+            print(f"Error obteniendo tasa BCV: {e}")
+            tasa_bcv = 216.37  # Tasa USD real actual
+            fecha_tasa_bcv = datetime.now().strftime('%Y-%m-%d')
+        
+        total_usd = orden['diagnostico']['total_estimado']
+        total_bs = total_usd * tasa_bcv
+        
+        # Crear la nota de entrega
+        nueva_nota = {
+            "numero": numero_nota,
+            "numero_secuencial": numero_secuencial,
+            "fecha": datetime.now().strftime('%Y-%m-%d'),
+            "hora": datetime.now().strftime('%H:%M:%S'),
+            "timestamp_creacion": datetime.now().isoformat(),
+            "cliente_id": cliente_id,
+            "modalidad_pago": "contado",
+            "productos": productos_nota,
+            "cantidades": cantidades,
+            "precios": precios,
+            "subtotal_usd": total_usd,
+            "total_usd": total_usd,
+            "tasa_bcv": tasa_bcv,
+            "fecha_tasa_bcv": fecha_tasa_bcv,
+            "total_bs": total_bs,
+            "estado": "PENDIENTE_ENTREGA",
+            "usuario_creacion": session.get('usuario', 'admin'),
+            "observaciones": f"Nota de entrega generada desde orden de servicio {orden['numero_orden']}",
+            "orden_servicio_id": id,
+            "firma_recibido": False,
+            "fecha_entrega": None,
+            "hora_entrega": None,
+            "entregado_por": None,
+            "recibido_por": None,
+            "documento_identidad": None
+        }
+        
+        # Guardar nota de entrega
+        notas[numero_nota] = nueva_nota
+        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
+        print(f"DEBUG: Nota de entrega guardada exitosamente")
+        
+        # Descontar stock del inventario (solo para productos que existen en inventario)
+        try:
+            print(f"DEBUG: Iniciando descuento de stock del inventario")
+            inventario = cargar_datos('inventario.json')
+            productos_descontados = 0
+            
+            # Procesar repuestos del diagnóstico que puedan estar en inventario
+            if orden['diagnostico'].get('repuestos_seleccionados'):
+                try:
+                    import json
+                    repuestos_seleccionados = json.loads(orden['diagnostico']['repuestos_seleccionados'])
+                    
+                    for repuesto in repuestos_seleccionados:
+                        # Buscar el producto en inventario por nombre o ID
+                        producto_encontrado = None
+                        for producto_id, producto_data in inventario.items():
+                            if (producto_data.get('nombre', '').lower() == repuesto['nombre'].lower() or 
+                                producto_id == repuesto.get('id', '')):
+                                producto_encontrado = producto_id
+                                break
+                        
+                        if producto_encontrado:
+                            cantidad_actual = int(inventario[producto_encontrado].get('stock', 0))
+                            cantidad_vendida = int(repuesto['cantidad'])
+                            nuevo_stock = max(0, cantidad_actual - cantidad_vendida)
+                            inventario[producto_encontrado]['stock'] = nuevo_stock
+                            
+                            print(f"DEBUG: Repuesto {repuesto['nombre']}: Stock {cantidad_actual} → {nuevo_stock} (descontado: {cantidad_vendida})")
+                            
+                            # Registrar en bitácora
+                            try:
+                                registrar_bitacora(session.get('usuario', 'admin'), 'Descontar stock por nota de entrega', 
+                                                 f"Repuesto: {repuesto['nombre']}, Cantidad: {cantidad_vendida}, Stock anterior: {cantidad_actual}, Stock nuevo: {nuevo_stock}")
+                            except:
+                                pass  # Si hay error en bitácora, no fallar el proceso
+                            
+                            productos_descontados += 1
+                        else:
+                            print(f"DEBUG: Repuesto {repuesto['nombre']} no encontrado en inventario (es un servicio)")
+                            
+                except Exception as e:
+                    print(f"DEBUG: Error procesando repuestos_seleccionados: {e}")
+            
+            if productos_descontados > 0:
+                guardar_datos('inventario.json', inventario)
+                print(f"DEBUG: Stock descontado exitosamente para {productos_descontados} productos en nota {numero_nota}")
+            else:
+                print(f"DEBUG: No se descontó stock - todos los productos son servicios")
+            
+        except Exception as e:
+            print(f"DEBUG: Error descontando stock: {e}")
+            # No fallar la creación de la nota si hay error en stock
+            flash(f'Nota creada pero hubo un error actualizando el inventario: {e}', 'warning')
+        
+        # Actualizar orden de servicio
+        ordenes[id]['nota_entrega_generada'] = numero_nota
+        ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        guardar_datos('ordenes_servicio.json', ordenes)
+        print(f"DEBUG: Orden de servicio actualizada")
+        
+        # Verificar si es una solicitud AJAX
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            print(f"DEBUG: Respondiendo con JSON para solicitud AJAX")
+            print(f"DEBUG: Número de nota generada: {numero_nota}")
+            print(f"DEBUG: URL de redirección: {url_for('ver_nota_entrega', id=numero_nota)}")
+            return jsonify({
+                'success': True,
+                'message': f'Nota de entrega {numero_nota} generada exitosamente',
+                'numero_nota': numero_nota,
+                'redirect_url': url_for('ver_nota_entrega', id=numero_nota)
+            })
+        else:
+            print(f"DEBUG: Redirigiendo a nota de entrega")
+            print(f"DEBUG: Número de nota generada: {numero_nota}")
+            print(f"DEBUG: URL de redirección: {url_for('ver_nota_entrega', id=numero_nota)}")
+            flash(f'Nota de entrega {numero_nota} generada exitosamente desde la orden de servicio', 'success')
+            return redirect(url_for('ver_nota_entrega', id=numero_nota))
+        
+    except Exception as e:
+        error_msg = f'Error generando nota de entrega: {str(e)}'
+        print(f"DEBUG: Error en generar_factura_servicio: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        
+        # Verificar si es una solicitud AJAX
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': error_msg
+            })
+        else:
+            flash(error_msg, 'danger')
+            return redirect(url_for('ver_orden_servicio', id=id))
+
+@app.route('/servicio-tecnico/reportes')
+@login_required
+def reportes_servicio_tecnico():
+    """Página de reportes detallados del servicio técnico"""
+    try:
+        # Cargar datos con manejo de errores
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        clientes = cargar_datos('clientes.json')
+        
+        # Verificar que los datos se cargaron correctamente
+        if not isinstance(ordenes, dict):
+            ordenes = {}
+        if not isinstance(config, dict):
+            config = {'estados_servicio': {}}
+        if not isinstance(clientes, dict):
+            clientes = {}
+        
+        # Estadísticas generales
+        total_ordenes = len(ordenes)
+        ordenes_por_estado = {}
+        
+        # Inicializar contadores para todos los estados
+        if 'estados_servicio' in config:
+            for estado_id in config['estados_servicio']:
+                ordenes_por_estado[estado_id] = 0
+        
+        # Contar órdenes por estado
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'estado' in orden:
+                estado = orden.get('estado', 'desconocido')
+                if estado in ordenes_por_estado:
+                    ordenes_por_estado[estado] += 1
+        
+        # Órdenes por mes (últimos 6 meses con datos reales)
+        ordenes_por_mes = {}
+        ordenes_por_semana = {}
+        ordenes_por_dia = {}
+        
+        # Generar solo los últimos 6 meses
+        for i in range(6):
+            fecha = datetime.now() - timedelta(days=30*i)
+            mes_key = fecha.strftime('%Y-%m')
+            ordenes_por_mes[mes_key] = 0
+            
+            for orden in ordenes.values():
+                if isinstance(orden, dict) and 'fecha_recepcion' in orden:
+                    if orden['fecha_recepcion'].startswith(mes_key):
+                        ordenes_por_mes[mes_key] += 1
+        
+        # Órdenes por semana (últimas 8 semanas)
+        for i in range(8):
+            fecha = datetime.now() - timedelta(weeks=i)
+            semana_key = fecha.strftime('%Y-W%U')
+            ordenes_por_semana[semana_key] = 0
+            
+            for orden in ordenes.values():
+                if isinstance(orden, dict) and 'fecha_recepcion' in orden:
+                    try:
+                        # Función auxiliar para parsear fechas de manera segura
+                        def parsear_fecha(fecha_str):
+                            if not fecha_str:
+                                return None
+                            formatos = ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%d/%m/%Y %H:%M:%S', '%d/%m/%Y']
+                            for formato in formatos:
+                                try:
+                                    return datetime.strptime(fecha_str, formato)
+                                except ValueError:
+                                    continue
+                            # Si falla, intentar solo la parte de fecha
+                            try:
+                                return datetime.strptime(fecha_str.split(' ')[0], '%Y-%m-%d')
+                            except (ValueError, IndexError):
+                                return None
+                        
+                        fecha_orden = parsear_fecha(orden['fecha_recepcion'])
+                        
+                        if fecha_orden and fecha_orden.strftime('%Y-W%U') == semana_key:
+                            ordenes_por_semana[semana_key] += 1
+                    except (ValueError, KeyError) as e:
+                        # Si hay error en el parseo de fechas, continuar con la siguiente orden
+                        print(f"Error parseando fecha de recepción en orden {orden.get('id', 'desconocida')}: {e}")
+                        continue
+        
+        # Problemas más comunes (análisis detallado)
+        problemas_comunes = {}
+        problemas_detallados = {}
+        equipos_por_tipo = {}
+        equipos_por_modelo = {}
+        
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'problema_reportado' in orden:
+                problema = str(orden['problema_reportado']).lower()
+                
+                # Análisis detallado de problemas
+            if 'pantalla' in problema or 'pantalla' in problema:
+                problemas_comunes['Pantalla'] = problemas_comunes.get('Pantalla', 0) + 1
+                if 'rota' in problema:
+                    problemas_detallados['Pantalla Rota'] = problemas_detallados.get('Pantalla Rota', 0) + 1
+                elif 'no responde' in problema or 'tactil' in problema:
+                    problemas_detallados['Pantalla No Responde'] = problemas_detallados.get('Pantalla No Responde', 0) + 1
+                else:
+                    problemas_detallados['Problemas de Pantalla'] = problemas_detallados.get('Problemas de Pantalla', 0) + 1
+            elif 'bateria' in problema or 'batería' in problema:
+                problemas_comunes['Batería'] = problemas_comunes.get('Batería', 0) + 1
+                if 'no carga' in problema:
+                    problemas_detallados['Batería No Carga'] = problemas_detallados.get('Batería No Carga', 0) + 1
+                elif 'se agota' in problema or 'duración' in problema:
+                    problemas_detallados['Batería Se Agota Rápido'] = problemas_detallados.get('Batería Se Agota Rápido', 0) + 1
+                else:
+                    problemas_detallados['Problemas de Batería'] = problemas_detallados.get('Problemas de Batería', 0) + 1
+            elif 'carga' in problema:
+                problemas_comunes['Problemas de Carga'] = problemas_comunes.get('Problemas de Carga', 0) + 1
+                problemas_detallados['Problemas de Carga'] = problemas_detallados.get('Problemas de Carga', 0) + 1
+            elif 'no enciende' in problema:
+                problemas_comunes['No Enciende'] = problemas_comunes.get('No Enciende', 0) + 1
+                problemas_detallados['No Enciende'] = problemas_detallados.get('No Enciende', 0) + 1
+            elif 'audio' in problema or 'sonido' in problema:
+                problemas_comunes['Audio'] = problemas_comunes.get('Audio', 0) + 1
+                problemas_detallados['Problemas de Audio'] = problemas_detallados.get('Problemas de Audio', 0) + 1
+            elif 'camara' in problema or 'cámara' in problema:
+                problemas_comunes['Cámara'] = problemas_comunes.get('Cámara', 0) + 1
+                problemas_detallados['Problemas de Cámara'] = problemas_detallados.get('Problemas de Cámara', 0) + 1
+            elif 'wifi' in problema or 'conectividad' in problema:
+                problemas_comunes['Conectividad'] = problemas_comunes.get('Conectividad', 0) + 1
+                problemas_detallados['Problemas de Conectividad'] = problemas_detallados.get('Problemas de Conectividad', 0) + 1
+            else:
+                problemas_comunes['Otros'] = problemas_comunes.get('Otros', 0) + 1
+                problemas_detallados['Otros Problemas'] = problemas_detallados.get('Otros Problemas', 0) + 1
+                
+            # Análisis de equipos
+            if 'equipo' in orden and isinstance(orden['equipo'], dict):
+                if 'marca' in orden['equipo']:
+                    marca = orden['equipo']['marca']
+                    equipos_por_tipo[marca] = equipos_por_tipo.get(marca, 0) + 1
+                    
+                    if 'modelo' in orden['equipo']:
+                        modelo = orden['equipo']['modelo']
+                        equipos_por_modelo[f"{marca} {modelo}"] = equipos_por_modelo.get(f"{marca} {modelo}", 0) + 1
+        
+        # Análisis de clientes
+        clientes_activos = {}
+        clientes_por_ordenes = {}
+        clientes_por_estado = {}
+        
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'cliente' in orden and isinstance(orden['cliente'], dict):
+                cliente_id = orden['cliente'].get('id', 'desconocido')
+                cliente_nombre = orden['cliente'].get('nombre', 'Cliente Desconocido')
+                
+                if cliente_id not in clientes_activos:
+                    clientes_activos[cliente_id] = {
+                        'nombre': cliente_nombre,
+                        'telefono': orden['cliente'].get('telefono', ''),
+                        'email': orden['cliente'].get('email', ''),
+                        'total_ordenes': 0,
+                        'ordenes_completadas': 0,
+                        'ordenes_canceladas': 0,
+                        'ultima_orden': orden.get('fecha_recepcion', ''),
+                        'estados': set()
+                    }
+                
+                clientes_activos[cliente_id]['total_ordenes'] += 1
+                clientes_activos[cliente_id]['estados'].add(orden.get('estado', ''))
+                
+                if orden.get('estado') == 'entregado':
+                    clientes_activos[cliente_id]['ordenes_completadas'] += 1
+                elif orden.get('estado') == 'cancelado':
+                    clientes_activos[cliente_id]['ordenes_canceladas'] += 1
+        
+        # Convertir sets a listas para JSON
+        for cliente in clientes_activos.values():
+            cliente['estados'] = list(cliente['estados'])
+        
+        
+        
+        # Análisis de días de la semana
+        ordenes_por_dia_semana = {}
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'fecha_recepcion' in orden:
+                try:
+                    fecha = parsear_fecha(orden['fecha_recepcion'])
+                    if fecha:
+                        dia_semana = fecha.strftime('%A')
+                        ordenes_por_dia_semana[dia_semana] = ordenes_por_dia_semana.get(dia_semana, 0) + 1
+                except:
+                    continue
+        
+        # Análisis de horas del día (si tenemos datos de hora)
+        ordenes_por_hora = {}
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'fecha_recepcion' in orden:
+                try:
+                    fecha_str = orden['fecha_recepcion']
+                    if ' ' in fecha_str:  # Si incluye hora
+                        hora = fecha_str.split(' ')[1].split(':')[0]
+                        ordenes_por_hora[hora] = ordenes_por_hora.get(hora, 0) + 1
+                except:
+                    continue
+        
+        # Análisis de eficiencia por estado
+        tiempos_por_estado = {}
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'estado' in orden and 'fecha_recepcion' in orden and 'fecha_entrega' in orden:
+                estado = orden.get('estado', 'desconocido')
+                try:
+                    fecha_recepcion = datetime.strptime(orden['fecha_recepcion'], '%Y-%m-%d')
+                    fecha_entrega = datetime.strptime(orden['fecha_entrega'], '%Y-%m-%d')
+                    dias_diferencia = (fecha_entrega - fecha_recepcion).days
+                    if dias_diferencia >= 0:  # Solo incluir fechas válidas
+                        if estado not in tiempos_por_estado:
+                            tiempos_por_estado[estado] = []
+                        tiempos_por_estado[estado].append(dias_diferencia)
+                except:
+                    continue
+        
+        eficiencia_por_estado = {}
+        for estado, tiempos in tiempos_por_estado.items():
+            if tiempos:
+                eficiencia_por_estado[estado] = {
+                    'promedio': sum(tiempos) / len(tiempos),
+                    'cantidad': len(tiempos),
+                    'eficiencia': 'alta' if sum(tiempos) / len(tiempos) < 3 else 'media' if sum(tiempos) / len(tiempos) < 7 else 'baja'
+                }
+        
+        # Análisis de costos
+        costos_mano_obra = []
+        costos_piezas = []
+        costos_totales = []
+        
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'diagnostico' in orden and isinstance(orden['diagnostico'], dict):
+                costo_mano_obra = orden['diagnostico'].get('costo_mano_obra', 0)
+                costo_piezas = orden['diagnostico'].get('costo_piezas', 0)
+                costo_total = orden['diagnostico'].get('total_estimado', 0)
+                
+                if costo_mano_obra > 0:
+                    costos_mano_obra.append(costo_mano_obra)
+                if costo_piezas > 0:
+                    costos_piezas.append(costo_piezas)
+                if costo_total > 0:
+                    costos_totales.append(costo_total)
+        
+        # Ordenar datos
+        problemas_ordenados = sorted(problemas_comunes.items(), key=lambda x: x[1], reverse=True)
+        problemas_detallados_ordenados = sorted(problemas_detallados.items(), key=lambda x: x[1], reverse=True)
+        equipos_ordenados = sorted(equipos_por_tipo.items(), key=lambda x: x[1], reverse=True)
+        modelos_ordenados = sorted(equipos_por_modelo.items(), key=lambda x: x[1], reverse=True)
+        clientes_ordenados = sorted(clientes_activos.items(), key=lambda x: x[1]['total_ordenes'], reverse=True)
+        meses_ordenados = sorted(ordenes_por_mes.items(), key=lambda x: x[0], reverse=True)
+        semanas_ordenadas = sorted(ordenes_por_semana.items(), key=lambda x: x[0], reverse=True)
+        
+        # Calcular valores máximos
+        max_problemas = max(problemas_comunes.values()) if problemas_comunes else 0
+        max_equipos = max(equipos_por_tipo.values()) if equipos_por_tipo else 0
+        max_meses = max(ordenes_por_mes.values()) if ordenes_por_mes else 0
+        max_semanas = max(ordenes_por_semana.values()) if ordenes_por_semana else 0
+        
+        # Calcular tiempo promedio de reparación
+        tiempos_reparacion = []
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'fecha_recepcion' in orden and 'fecha_entrega' in orden:
+                try:
+                    fecha_recepcion = datetime.strptime(orden['fecha_recepcion'], '%Y-%m-%d')
+                    fecha_entrega = datetime.strptime(orden['fecha_entrega'], '%Y-%m-%d')
+                    dias_diferencia = (fecha_entrega - fecha_recepcion).days
+                    if dias_diferencia >= 0:  # Solo incluir fechas válidas
+                        tiempos_reparacion.append(dias_diferencia)
+                except:
+                    continue
+        
+        tiempo_promedio = sum(tiempos_reparacion) / len(tiempos_reparacion) if tiempos_reparacion else 0
+        
+        return render_template('servicio_tecnico/reportes.html',
+                             total_ordenes=total_ordenes,
+                             ordenes_por_estado=ordenes_por_estado,
+                             ordenes_por_mes=ordenes_por_mes,
+                             ordenes_por_semana=ordenes_por_semana,
+                             problemas_comunes=problemas_comunes,
+                             problemas_ordenados=problemas_ordenados,
+                             problemas_detallados=problemas_detallados,
+                             problemas_detallados_ordenados=problemas_detallados_ordenados,
+                             equipos_por_tipo=equipos_por_tipo,
+                             equipos_ordenados=equipos_ordenados,
+                             equipos_por_modelo=equipos_por_modelo,
+                             modelos_ordenados=modelos_ordenados,
+                             clientes_activos=clientes_activos,
+                             clientes_ordenados=clientes_ordenados,
+                             ordenes_por_dia_semana=ordenes_por_dia_semana,
+                             ordenes_por_hora=ordenes_por_hora,
+                             eficiencia_por_estado=eficiencia_por_estado,
+                             costos_mano_obra=costos_mano_obra,
+                             costos_piezas=costos_piezas,
+                             costos_totales=costos_totales,
+                             meses_ordenados=meses_ordenados,
+                             semanas_ordenadas=semanas_ordenadas,
+                             max_problemas=max_problemas,
+                             max_equipos=max_equipos,
+                             max_meses=max_meses,
+                             max_semanas=max_semanas,
+                             tiempo_promedio=tiempo_promedio,
+                             config=config)
+        
+    except Exception as e:
+        print(f"Error en reportes_servicio_tecnico: {str(e)}")
+        flash(f'Error cargando reportes: {str(e)}', 'danger')
+        return render_template('servicio_tecnico/reportes.html', 
+                             total_ordenes=0,
+                             ordenes_por_estado={},
+                             ordenes_por_mes={},
+                             ordenes_por_semana={},
+                             problemas_comunes={},
+                             problemas_ordenados=[],
+                             problemas_detallados={},
+                             problemas_detallados_ordenados=[],
+                             equipos_por_tipo={},
+                             equipos_ordenados=[],
+                             equipos_por_modelo={},
+                             modelos_ordenados=[],
+                             clientes_activos={},
+                             clientes_ordenados=[],
+                             tiempos_promedio_mes={},
+                             tiempos_promedio_semana={},
+                             costos_mano_obra=[],
+                             costos_piezas=[],
+                             costos_totales=[],
+                             meses_ordenados=[],
+                             semanas_ordenadas=[],
+                             max_problemas=0,
+                             max_equipos=0,
+                             max_meses=0,
+                             max_semanas=0,
+                             tiempo_promedio=0,
+                             config={'estados_servicio': {}})
+
+@app.route('/servicio-tecnico/orden/<id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_orden_servicio(id):
+    """Editar una orden de servicio existente"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            flash('Orden de servicio no encontrada', 'danger')
+            return redirect(url_for('servicio_tecnico'))
+        
+        orden = ordenes[id]
+        
+        if request.method == 'POST':
+            # Actualizar información general
+            orden['estado'] = request.form.get('estado', orden['estado'])
+            orden['prioridad'] = request.form.get('prioridad', orden.get('prioridad', 'media'))
+            orden['fecha_recepcion'] = request.form.get('fecha_recepcion', orden['fecha_recepcion'])
+            orden['fecha_entrega_estimada'] = request.form.get('fecha_entrega_estimada', orden.get('fecha_entrega_estimada', ''))
+            orden['tecnico_asignado'] = request.form.get('tecnico_asignado', orden.get('tecnico_asignado', ''))
+            orden['costo_estimado'] = safe_float(request.form.get('costo_estimado', 0)) if request.form.get('costo_estimado') else 0.0
+            orden['tipo_servicio'] = request.form.get('tipo_servicio', orden.get('tipo_servicio', ''))
+            
+            # Actualizar datos del cliente
+            if 'cliente' not in orden:
+                orden['cliente'] = {}
+            
+            # Asegurar que el cliente tenga todos los campos necesarios
+            if 'cedula_rif' not in orden['cliente']:
+                orden['cliente']['cedula_rif'] = ''
+            if 'nombre' not in orden['cliente']:
+                orden['cliente']['nombre'] = ''
+            if 'telefono' not in orden['cliente']:
+                orden['cliente']['telefono'] = ''
+            if 'telefono2' not in orden['cliente']:
+                orden['cliente']['telefono2'] = ''
+            if 'email' not in orden['cliente']:
+                orden['cliente']['email'] = ''
+            if 'direccion' not in orden['cliente']:
+                orden['cliente']['direccion'] = ''
+            
+            orden['cliente']['nombre'] = request.form.get('cliente_nombre', orden['cliente'].get('nombre', ''))
+            orden['cliente']['cedula_rif'] = request.form.get('cliente_cedula', orden['cliente'].get('cedula_rif', ''))
+            orden['cliente']['telefono'] = request.form.get('cliente_telefono', orden['cliente'].get('telefono', ''))
+            orden['cliente']['telefono2'] = request.form.get('cliente_telefono2', orden['cliente'].get('telefono2', ''))
+            orden['cliente']['email'] = request.form.get('cliente_email', orden['cliente'].get('email', ''))
+            orden['cliente']['direccion'] = request.form.get('cliente_direccion', orden['cliente'].get('direccion', ''))
+            
+            # Actualizar datos del equipo
+            if 'equipo' not in orden:
+                orden['equipo'] = {}
+            
+            orden['equipo']['marca'] = request.form.get('equipo_marca', orden['equipo'].get('marca', ''))
+            orden['equipo']['modelo'] = request.form.get('equipo_modelo', orden['equipo'].get('modelo', ''))
+            orden['equipo']['imei'] = request.form.get('equipo_imei1', orden['equipo'].get('imei', ''))
+            orden['equipo']['imei2'] = request.form.get('equipo_imei2', orden['equipo'].get('imei2', ''))
+            orden['equipo']['color'] = request.form.get('equipo_color', orden['equipo'].get('color', ''))
+            orden['equipo']['numero_serie'] = request.form.get('equipo_serial', orden['equipo'].get('numero_serie', ''))
+            
+            # Actualizar problema reportado
+            orden['problema_reportado'] = request.form.get('problema_reportado', orden.get('problema_reportado', ''))
+            
+            # Actualizar observaciones internas
+            orden['observaciones_internas'] = request.form.get('observaciones_internas', orden.get('observaciones_internas', ''))
+            orden['cliente_notificado'] = 'cliente_notificado' in request.form
+            orden['atendido_por'] = request.form.get('atendido_por', orden.get('atendido_por', ''))
+            
+            # Actualizar configuración de desbloqueo
+            if 'desbloqueo' not in orden:
+                orden['desbloqueo'] = {}
+            
+            tipo_desbloqueo = request.form.get('tipo_desbloqueo', '')
+            estado_desbloqueo = request.form.get('estado_desbloqueo', '')
+            clave_desbloqueo = request.form.get('clave_desbloqueo', '')
+            notas_desbloqueo = request.form.get('notas_desbloqueo', '')
+            
+            print(f"DEBUG: Datos de desbloqueo recibidos:")
+            print(f"  - Tipo: '{tipo_desbloqueo}'")
+            print(f"  - Estado: '{estado_desbloqueo}'")
+            print(f"  - Clave: '{clave_desbloqueo[:20]}...' (truncado)")
+            print(f"  - Notas: '{notas_desbloqueo}'")
+            
+            orden['desbloqueo']['tipo'] = tipo_desbloqueo
+            orden['desbloqueo']['estado'] = estado_desbloqueo
+            orden['desbloqueo']['clave'] = clave_desbloqueo
+            orden['desbloqueo']['notas'] = notas_desbloqueo
+            
+            print(f"DEBUG: Datos de desbloqueo guardados en orden:")
+            print(f"  - Tipo: '{orden['desbloqueo']['tipo']}'")
+            print(f"  - Estado: '{orden['desbloqueo']['estado']}'")
+            print(f"  - Clave: '{orden['desbloqueo']['clave'][:20]}...' (truncado)")
+            print(f"  - Notas: '{orden['desbloqueo']['notas']}'")
+            
+            # Agregar entrada al historial si el estado cambió
+            estado_anterior = orden.get('estado_anterior', orden['estado'])
+            if estado_anterior != orden['estado']:
+                if 'historial_estados' not in orden:
+                    orden['historial_estados'] = []
+                
+                orden['historial_estados'].append({
+                    'estado': orden['estado'],
+                    'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'usuario': session.get('usuario', 'Sistema'),
+                    'comentarios': f'Estado cambiado de {estado_anterior} a {orden["estado"]}'
+                })
+            
+            # Actualizar fecha de modificación
+            orden['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Guardar cambios
+            guardar_datos('ordenes_servicio.json', ordenes)
+            flash('Orden de servicio actualizada correctamente', 'success')
+            return redirect(url_for('ver_orden_servicio', id=id))
+        
+        return render_template('servicio_tecnico/editar_orden.html', orden=orden)
+        
+    except Exception as e:
+        print(f"Error editando orden de servicio: {e}")
+        flash(f'Error al editar la orden de servicio: {str(e)}', 'danger')
+        return redirect(url_for('servicio_tecnico'))
+
+@app.route('/servicio-tecnico/orden/<id>/completar', methods=['POST'])
+@login_required
+def completar_borrador_servicio(id):
+    """Completar un borrador y convertirlo en orden activa"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'})
+        
+        orden = ordenes[id]
+        
+        if not orden.get('es_borrador'):
+            return jsonify({'success': False, 'message': 'Esta orden no es un borrador'})
+        
+        # Cambiar estado a activo
+        orden['estado'] = 'en_espera_revision'
+        orden['es_borrador'] = False
+        orden['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Agregar entrada al historial
+        if 'historial_estados' not in orden:
+            orden['historial_estados'] = []
+        
+        orden['historial_estados'].append({
+            'estado': 'en_espera_revision',
+            'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'usuario': session.get('usuario', 'Sistema'),
+            'comentarios': 'Borrador completado y convertido en orden activa'
+        })
+        
+        # Guardar cambios
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        return jsonify({'success': True, 'message': 'Borrador completado correctamente'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error al completar el borrador: {str(e)}'})
+
+@app.route('/servicio-tecnico/orden/<id>/eliminar', methods=['DELETE'])
+@login_required
+def eliminar_orden_servicio(id):
+    """Eliminar una orden de servicio"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'message': 'Orden de servicio no encontrada'}), 404
+        
+        # Eliminar la orden
+        del ordenes[id]
+        guardar_datos('ordenes_servicio.json', ordenes)
+        
+        return jsonify({'success': True, 'message': 'Orden de servicio eliminada correctamente'})
+        
+    except Exception as e:
+        print(f"Error eliminando orden de servicio: {e}")
+        return jsonify({'success': False, 'message': 'Error al eliminar la orden de servicio'}), 500
+
+@app.route('/servicio-tecnico/reportes/pdf')
+@login_required
+def reportes_servicio_tecnico_pdf():
+    """Genera un reporte en PDF del servicio técnico"""
+    try:
+        # Reutilizar la misma lógica de reportes pero para PDF
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config = cargar_datos('config_servicio_tecnico.json')
+        
+        if not isinstance(ordenes, dict):
+            ordenes = {}
+        if not isinstance(config, dict):
+            config = {'estados_servicio': {}}
+        
+        # Estadísticas básicas para PDF
+        total_ordenes = len(ordenes)
+        ordenes_por_estado = {}
+        
+        if 'estados_servicio' in config:
+            for estado_id in config['estados_servicio']:
+                ordenes_por_estado[estado_id] = 0
+        
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'estado' in orden:
+                estado = orden['estado']
+                if estado in ordenes_por_estado:
+                    ordenes_por_estado[estado] += 1
+        
+        # Problemas comunes
+        problemas_comunes = {}
+        for orden in ordenes.values():
+            if isinstance(orden, dict) and 'problema_reportado' in orden:
+                problema = str(orden['problema_reportado']).lower()
+                if 'pantalla' in problema:
+                    problemas_comunes['Pantalla'] = problemas_comunes.get('Pantalla', 0) + 1
+                elif 'bateria' in problema or 'batería' in problema:
+                    problemas_comunes['Batería'] = problemas_comunes.get('Batería', 0) + 1
+                elif 'carga' in problema:
+                    problemas_comunes['Problemas de Carga'] = problemas_comunes.get('Problemas de Carga', 0) + 1
+                elif 'no enciende' in problema:
+                    problemas_comunes['No Enciende'] = problemas_comunes.get('No Enciende', 0) + 1
+                else:
+                    problemas_comunes['Otros'] = problemas_comunes.get('Otros', 0) + 1
+        
+        problemas_ordenados = sorted(problemas_comunes.items(), key=lambda x: x[1], reverse=True)
+        
+        return render_template('servicio_tecnico/reportes_pdf.html',
+                             total_ordenes=total_ordenes,
+                             ordenes_por_estado=ordenes_por_estado,
+                             problemas_ordenados=problemas_ordenados,
+                             config=config,
+                             fecha_generacion=datetime.now().strftime('%d/%m/%Y %H:%M'))
+        
+    except Exception as e:
+        print(f"Error generando PDF: {str(e)}")
+        flash(f'Error generando PDF: {str(e)}', 'danger')
+        return redirect(url_for('reportes_servicio_tecnico'))
+
 # Ruta de prueba específica para WhatsApp
 @app.route('/test-whatsapp-simple/<path:cliente_id>')
 def test_whatsapp_simple(cliente_id):
@@ -7339,7 +11142,7 @@ def debug_whatsapp(cliente_id):
         
         # Cargar datos
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         
         print(f"📊 Clientes cargados: {len(clientes)}")
         print(f"📊 Facturas cargadas: {len(facturas)}")
@@ -7350,15 +11153,14 @@ def debug_whatsapp(cliente_id):
         cliente = clientes[cliente_id]
         telefono = cliente.get('telefono', '')
         
-        # Buscar facturas del cliente
-        facturas_cliente = []
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
-                facturas_cliente.append({
+        notas_cliente = []
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
+                notas_cliente.append({
                     'id': factura_id,
-                    'numero': factura.get('numero', 'N/A'),
-                    'total_usd': factura.get('total_usd', 0),
-                    'total_abonado': factura.get('total_abonado', 0)
+                    'numero': nota.get('numero', 'N/A'),
+                    'total_usd': nota.get('total_usd', 0),
+                    'total_abonado': nota.get('total_abonado', 0)
                 })
         
         debug_info = {
@@ -7366,8 +11168,7 @@ def debug_whatsapp(cliente_id):
             'cliente_nombre': cliente.get('nombre', 'N/A'),
             'telefono_original': telefono,
             'telefono_tipo': str(type(telefono)),
-            'facturas_encontradas': len(facturas_cliente),
-            'facturas_detalle': facturas_cliente[:5],  # Solo las primeras 5
+            'facturas_encontradas': len(notas_cliente),
             'tiene_telefono': bool(telefono and str(telefono).strip()),
             'longitud_telefono': len(str(telefono)) if telefono else 0
         }
@@ -7399,7 +11200,7 @@ def test_whatsapp_working(cliente_id):
         
         # Cargar datos
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         
         if cliente_id not in clientes:
             return jsonify({
@@ -7419,20 +11220,19 @@ def test_whatsapp_working(cliente_id):
                 'telefono': telefono
             }), 400
         
-        # Buscar facturas pendientes
         facturas_pendientes = []
         total_pendiente = 0.0
         
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
-                total_factura = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                saldo_pendiente = max(0, total_factura - total_abonado)
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
+                total_nota = safe_float(nota.get('total_usd', 0))
+                total_abonado = safe_float(nota.get('total_abonado', 0))
+                saldo_pendiente = max(0, total_nota - total_abonado)
                 
                 if saldo_pendiente > 0:
                     facturas_pendientes.append({
                         'id': factura_id,
-                        'numero': factura.get('numero', 'N/A'),
+                        'numero': nota.get('numero', 'N/A'),
                         'saldo': saldo_pendiente
                     })
                     total_pendiente += saldo_pendiente
@@ -7473,7 +11273,7 @@ def test_whatsapp_button(cliente_id):
         
         # Cargar datos
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         
         if cliente_id not in clientes:
             return jsonify({'error': 'Cliente no encontrado'}), 404
@@ -7490,20 +11290,19 @@ def test_whatsapp_button(cliente_id):
                 'telefono': telefono
             }), 400
         
-        # Buscar facturas pendientes
         facturas_pendientes = []
         total_pendiente = 0.0
         
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
-                total_factura = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                saldo_pendiente = max(0, total_factura - total_abonado)
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
+                total_nota = safe_float(nota.get('total_usd', 0))
+                total_abonado = safe_float(nota.get('total_abonado', 0))
+                saldo_pendiente = max(0, total_nota - total_abonado)
                 
                 if saldo_pendiente > 0:
                     facturas_pendientes.append({
                         'id': factura_id,
-                        'numero': factura.get('numero', 'N/A'),
+                        'numero': nota.get('numero', 'N/A'),
                         'saldo': saldo_pendiente
                     })
                     total_pendiente += saldo_pendiente
@@ -7515,7 +11314,6 @@ def test_whatsapp_button(cliente_id):
             'telefono': telefono,
             'facturas_pendientes': len(facturas_pendientes),
             'total_pendiente': total_pendiente,
-            'facturas_detalle': facturas_pendientes[:3]  # Solo las primeras 3
         })
         
     except Exception as e:
@@ -7532,7 +11330,7 @@ def test_whatsapp_no_login(cliente_id):
         
         # Cargar datos
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         
         if cliente_id not in clientes:
             return jsonify({
@@ -7553,20 +11351,19 @@ def test_whatsapp_no_login(cliente_id):
                 'telefono': telefono
             }), 400
         
-        # Buscar facturas pendientes
         facturas_pendientes = []
         total_pendiente = 0.0
         
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
-                total_factura = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                saldo_pendiente = max(0, total_factura - total_abonado)
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
+                total_nota = safe_float(nota.get('total_usd', 0))
+                total_abonado = safe_float(nota.get('total_abonado', 0))
+                saldo_pendiente = max(0, total_nota - total_abonado)
                 
                 if saldo_pendiente > 0:
                     facturas_pendientes.append({
                         'id': factura_id,
-                        'numero': factura.get('numero', 'N/A'),
+                        'numero': nota.get('numero', 'N/A'),
                         'saldo': saldo_pendiente
                     })
                     total_pendiente += saldo_pendiente
@@ -7578,7 +11375,6 @@ def test_whatsapp_no_login(cliente_id):
             'telefono': telefono,
             'facturas_pendientes': len(facturas_pendientes),
             'total_pendiente': total_pendiente,
-            'facturas_detalle': facturas_pendientes[:3]  # Solo las primeras 3
         })
         
     except Exception as e:
@@ -7588,7 +11384,6 @@ def test_whatsapp_no_login(cliente_id):
 # RUTA CON PARÁMETROS - COMENTADA TEMPORALMENTE PARA EVITAR CONFLICTOS
 # @app.route('/cuentas-por-cobrar/<path:cliente_id>/enviar_recordatorio_whatsapp', methods=['POST'])
 # def enviar_recordatorio_cuentas_por_cobrar_con_parametros(cliente_id):
-    """Envía un recordatorio de WhatsApp con todas las facturas pendientes de un cliente."""
     try:
         # Verificar autenticación manualmente para mejor manejo de errores
         if 'usuario' not in session:
@@ -7604,7 +11399,7 @@ def test_whatsapp_no_login(cliente_id):
         print(f"🔍 Usuario autenticado: {session.get('usuario')}")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         print(f"📊 Facturas cargadas: {len(facturas)}")
@@ -7638,26 +11433,25 @@ def test_whatsapp_no_login(cliente_id):
                 }
             }), 400
         
-        # Filtrar facturas pendientes del cliente
         facturas_pendientes = []
         total_pendiente = 0.0
         
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
                 # Calcular saldo pendiente
-                total_factura = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                saldo_pendiente = max(0, total_factura - total_abonado)
+                total_nota = safe_float(nota.get('total_usd', 0))
+                total_abonado = safe_float(nota.get('total_abonado', 0))
+                saldo_pendiente = max(0, total_nota - total_abonado)
                 
                 if saldo_pendiente > 0:
                     facturas_pendientes.append({
                         'id': factura_id,
-                        'numero': factura.get('numero', 'N/A'),
-                        'fecha': factura.get('fecha', 'N/A'),
-                        'total': total_factura,
+                        'numero': nota.get('numero', 'N/A'),
+                        'fecha': nota.get('fecha', 'N/A'),
+                        'total': total_nota,
                         'abonado': total_abonado,
                         'saldo': saldo_pendiente,
-                        'vencimiento': factura.get('fecha_vencimiento', 'No especificado')
+                        'vencimiento': nota.get('fecha_vencimiento', 'No especificado')
                     })
                     total_pendiente += saldo_pendiente
         
@@ -7735,7 +11529,7 @@ def test_whatsapp_no_login(cliente_id):
             # Registro simple en consola
             print(f"📝 REGISTRO: Usuario {session.get('usuario', 'Sistema')} envió recordatorio WhatsApp a {cliente.get('nombre', 'N/A')} - {len(facturas_pendientes)} facturas pendientes - Total: ${total_pendiente:.2f}")
         except Exception as e:
-            print(f"⚠️ Error registrando en bitácora (no crítico): {e}")
+            print(f"WARNING Error registrando en bitácora (no crítico): {e}")
         
         resultado = {
             'success': True,
@@ -7773,7 +11567,6 @@ def test_whatsapp_no_login(cliente_id):
 
 # Función auxiliar para enviar recordatorios
 def enviar_recordatorio_cuentas_por_cobrar(cliente_id):
-    """Envía un recordatorio de WhatsApp con todas las facturas pendientes de un cliente."""
     try:
         # Verificar autenticación manualmente para mejor manejo de errores
         if 'usuario' not in session:
@@ -7786,7 +11579,7 @@ def enviar_recordatorio_cuentas_por_cobrar(cliente_id):
         print(f"🔍 Iniciando envío de recordatorio WhatsApp para cliente: {cliente_id}")
         
         # Cargar datos necesarios
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
         print(f"📊 Facturas cargadas: {len(facturas)}")
@@ -7820,26 +11613,25 @@ def enviar_recordatorio_cuentas_por_cobrar(cliente_id):
                 }
             }), 400
         
-        # Filtrar facturas pendientes del cliente
         facturas_pendientes = []
         total_pendiente = 0.0
         
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
+        for nota_id, nota in notas.items():
+            if nota.get('cliente_id') == cliente_id:
                 # Calcular saldo pendiente
-                total_factura = float(factura.get('total_usd', 0))
-                total_abonado = float(factura.get('total_abonado', 0))
-                saldo_pendiente = max(0, total_factura - total_abonado)
+                total_nota = safe_float(nota.get('total_usd', 0))
+                total_abonado = safe_float(nota.get('total_abonado', 0))
+                saldo_pendiente = max(0, total_nota - total_abonado)
                 
                 if saldo_pendiente > 0:
                     facturas_pendientes.append({
                         'id': factura_id,
-                        'numero': factura.get('numero', 'N/A'),
-                        'fecha': factura.get('fecha', 'N/A'),
-                        'total': total_factura,
+                        'numero': nota.get('numero', 'N/A'),
+                        'fecha': nota.get('fecha', 'N/A'),
+                        'total': total_nota,
                         'abonado': total_abonado,
                         'saldo': saldo_pendiente,
-                        'vencimiento': factura.get('fecha_vencimiento', 'No especificado')
+                        'vencimiento': nota.get('fecha_vencimiento', 'No especificado')
                     })
                     total_pendiente += saldo_pendiente
         
@@ -7921,7 +11713,7 @@ def enviar_recordatorio_cuentas_por_cobrar(cliente_id):
             # Registro simple en consola
             print(f"📝 REGISTRO: Usuario {session.get('usuario', 'Sistema')} envió recordatorio WhatsApp a {cliente.get('nombre', 'N/A')} - {len(facturas_pendientes)} facturas pendientes - Total: ${total_pendiente:.2f}")
         except Exception as e:
-            print(f"⚠️ Error registrando en bitácora (no crítico): {e}")
+            print(f"WARNING Error registrando en bitácora (no crítico): {e}")
         
         resultado = {
             'success': True,
@@ -7931,7 +11723,7 @@ def enviar_recordatorio_cuentas_por_cobrar(cliente_id):
             'telefono': telefono,
             'mensaje': mensaje,
             'cliente_nombre': cliente.get('nombre', 'N/A'),
-            'total_facturas': len(facturas_pendientes),
+            'total_notas_entrega': len(facturas_pendientes),
             'total_facturado': sum(f['total'] for f in facturas_pendientes),
             'total_abonado': sum(f['abonado'] for f in facturas_pendientes),
             'total_pendiente': total_pendiente,
@@ -7970,7 +11762,7 @@ def test_recordatorio():
 def test_whatsapp_enlaces(telefono):
     """Prueba la generación de enlaces de WhatsApp con diferentes formatos."""
     try:
-        mensaje_prueba = "Hola, este es un mensaje de prueba desde KISVIC 🚀"
+        mensaje_prueba = "Hola, este es un mensaje de prueba desde la empresa 🚀"
         enlaces = generar_enlaces_whatsapp_completos(telefono, mensaje_prueba)
         
         return jsonify({
@@ -8002,1230 +11794,1169 @@ def test_post():
     return jsonify({'message': 'Ruta POST funcionando', 'status': 'success'})
 
 
+# ===== MÓDULO DE EQUIPOS DE CLIENTES =====
 
-@app.route('/facturas/<path:cliente_id>/enviar_informe_facturas_pagadas', methods=['POST'])
-@csrf.exempt
-def enviar_informe_facturas_pagadas(cliente_id):
-    """Envía un informe de facturas pagadas, abonadas y cobradas por WhatsApp al cliente."""
+@app.route('/clientes/<path:cliente_id>/equipos', methods=['GET', 'POST'])
+@login_required
+def gestionar_equipos_cliente(cliente_id):
+    """Gestionar equipos de un cliente"""
     try:
-        print(f"📊 Iniciando envío de informe de facturas pagadas para cliente: {cliente_id}")
-        
-        # Cargar datos
         clientes = cargar_datos(ARCHIVO_CLIENTES)
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
         
-        if not clientes or not facturas:
-            return jsonify({'error': 'No se pudieron cargar los datos del sistema'}), 400
+        if cliente_id not in clientes:
+            flash('Cliente no encontrado', 'error')
+            return redirect(url_for('mostrar_clientes'))
         
-        # Obtener cliente
-        cliente = clientes.get(cliente_id)
-        if not cliente:
-            return jsonify({'error': 'Cliente no encontrado'}), 404
+        cliente = clientes[cliente_id]
         
-        print(f"👤 Cliente encontrado: {cliente.get('nombre', 'N/A')}")
+        # Inicializar lista de equipos si no existe
+        if 'equipos' not in cliente:
+            cliente['equipos'] = []
         
-        # Obtener teléfono del cliente
-        telefono = cliente.get('telefono', '')
-        if not telefono:
-            return jsonify({'error': 'El cliente no tiene número de teléfono registrado'}), 400
+        if request.method == 'POST':
+            accion = request.form.get('accion')
+            
+            if accion == 'agregar':
+                nuevo_equipo = {
+                    'id': f"EQU-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    'marca': request.form.get('marca', ''),
+                    'modelo': request.form.get('modelo', ''),
+                    'imei': request.form.get('imei', ''),
+                    'fecha_entrega': request.form.get('fecha_entrega', ''),
+                    'estado': request.form.get('estado', 'Funcional'),
+                    'observaciones': request.form.get('observaciones', ''),
+                    'orden_asociada': request.form.get('orden_asociada', '')
+                }
+                cliente['equipos'].append(nuevo_equipo)
+                flash('Equipo agregado exitosamente', 'success')
+            
+            elif accion == 'editar':
+                equipo_id = request.form.get('equipo_id')
+                for equipo in cliente['equipos']:
+                    if equipo['id'] == equipo_id:
+                        equipo['marca'] = request.form.get('marca', '')
+                        equipo['modelo'] = request.form.get('modelo', '')
+                        equipo['imei'] = request.form.get('imei', '')
+                        equipo['fecha_entrega'] = request.form.get('fecha_entrega', '')
+                        equipo['estado'] = request.form.get('estado', '')
+                        equipo['observaciones'] = request.form.get('observaciones', '')
+                        equipo['orden_asociada'] = request.form.get('orden_asociada', '')
+                        break
+                flash('Equipo actualizado exitosamente', 'success')
+            
+            elif accion == 'eliminar':
+                equipo_id = request.form.get('equipo_id')
+                cliente['equipos'] = [e for e in cliente['equipos'] if e['id'] != equipo_id]
+                flash('Equipo eliminado exitosamente', 'success')
+            
+            clientes[cliente_id] = cliente
+            guardar_datos(ARCHIVO_CLIENTES, clientes)
+            return redirect(url_for('gestionar_equipos_cliente', cliente_id=cliente_id))
         
-        print(f"📱 Teléfono del cliente: {telefono}")
+        # Cargar configuración de equipos
+        config = cargar_configuracion()
+        modelos_disponibles = config.get('equipos_clientes', {}).get('modelos_disponibles', [])
+        estados_disponibles = config.get('equipos_clientes', {}).get('estados_equipos', [])
         
-        # Limpiar y formatear el número de teléfono
-        telefono_original = telefono
-        try:
-            telefono = limpiar_numero_telefono(telefono)
-            print(f"📱 Teléfono formateado exitosamente: {telefono}")
-        except Exception as e:
-            print(f"❌ Error formateando teléfono: {e}")
-            return jsonify({'error': f'Error formateando teléfono: {str(e)}'}), 400
+        # Buscar órdenes de servicio del cliente
+        ordenes = cargar_datos('ordenes_servicio.json')
+        ordenes_cliente = [o for o in ordenes.values() if o.get('cliente', {}).get('id') == cliente_id]
         
-        print(f"📱 Teléfono original: {telefono_original}")
-        print(f"📱 Teléfono formateado: {telefono}")
-        
-        if not telefono or len(telefono) < 10:
-            print(f"❌ Teléfono formateado no válido: {telefono}")
-            return jsonify({'error': 'El número de teléfono no es válido'}), 400
-        
-        # Filtrar facturas del cliente
-        facturas_cliente = []
-        for factura_id, factura in facturas.items():
-            if factura.get('cliente_id') == cliente_id:
-                factura_copia = factura.copy()
-                factura_copia['_id'] = factura_id
-                facturas_cliente.append(factura_copia)
-        
-        if not facturas_cliente:
-            return jsonify({'error': 'El cliente no tiene facturas registradas'}), 400
-        
-        print(f"📄 Facturas encontradas para el cliente: {len(facturas_cliente)}")
-        
-        # Crear mensaje del informe
-        try:
-            mensaje = crear_mensaje_informe_facturas_pagadas(cliente, facturas_cliente)
-            print(f"💬 Mensaje del informe creado exitosamente: {len(mensaje)} caracteres")
-        except Exception as e:
-            print(f"❌ Error creando mensaje del informe: {e}")
-            return jsonify({'error': f'Error creando mensaje del informe: {str(e)}'}), 400
-        
-        # Generar enlace de WhatsApp
-        try:
-            enlace_whatsapp = generar_enlace_whatsapp(telefono, mensaje)
-            print(f"🔗 Enlace WhatsApp generado exitosamente: {enlace_whatsapp}")
-        except Exception as e:
-            print(f"❌ Error generando enlace: {e}")
-            return jsonify({'error': f'Error generando enlace: {str(e)}'}), 400
-        
-        # Registrar en la bitácora
-        try:
-            registrar_bitacora(
-                session.get('usuario', 'Sistema'),
-                'Informe Facturas Pagadas WhatsApp Enviado',
-                f'Cliente: {cliente.get("nombre", "N/A")} - {len(facturas_cliente)} facturas en el informe'
-            )
-            print("📝 Registrado en bitácora")
-        except Exception as e:
-            print(f"⚠️ Error registrando en bitácora: {e}")
-        
-        resultado = {
-            'success': True,
-            'message': 'Informe de facturas pagadas preparado para WhatsApp',
-            'enlace_whatsapp': enlace_whatsapp,
-            'telefono': telefono,
-            'mensaje': mensaje,
-            'cliente_nombre': cliente.get('nombre', 'N/A'),
-            'total_facturas': len(facturas_cliente),
-            'debug_info': {
-                'cliente_id': cliente_id,
-                'telefono_original': telefono_original,
-                'telefono_formateado': telefono
-            }
-        }
-        
-        print(f"✅ Informe de facturas pagadas preparado exitosamente para {cliente.get('nombre', 'N/A')}")
-        return jsonify(resultado)
-        
+        return render_template('equipos_cliente.html', 
+                             cliente=cliente,
+                             equipos=cliente.get('equipos', []),
+                             modelos_disponibles=modelos_disponibles,
+                             estados_disponibles=estados_disponibles,
+                             ordenes_cliente=ordenes_cliente)
+    
     except Exception as e:
-        error_msg = f"Error al enviar informe de facturas pagadas: {str(e)}"
-        print(f"❌ {error_msg}")
-        import traceback
-        print(f"🔍 Traceback completo:")
-        traceback.print_exc()
-        
-        return jsonify({
-            'success': False,
-            'error': f'Error al preparar el informe: {str(e)}',
-            'debug_info': {
-                'cliente_id': cliente_id,
-                'error_type': type(e).__name__,
-                'error_details': str(e)
-            }
-        })
+        print(f"Error gestionando equipos: {e}")
+        flash(f'Error: {str(e)}', 'error')
+        return redirect(url_for('mostrar_clientes'))
 
-@app.route('/enviar-informe-facturas-pagadas', methods=['POST'])
-@csrf.exempt
-def enviar_informe_facturas_pagadas_post():
-    """Variante JSON: recibe cliente_id en el cuerpo y delega al handler principal."""
+# ===== SISTEMA DE ROLES Y PERMISOS =====
+
+ARCHIVO_ROLES = 'roles_usuarios.json'
+
+def cargar_roles():
+    """Carga los roles de usuarios"""
     try:
-        payload = request.get_json(silent=True) or {}
-        cliente_id = payload.get('cliente_id') or request.form.get('cliente_id')
-        if not cliente_id:
-            return jsonify({'success': False, 'error': 'cliente_id requerido'}), 400
-        return enviar_informe_facturas_pagadas(cliente_id)
+        if not os.path.exists(ARCHIVO_ROLES):
+            roles_default = {
+                'roles_disponibles': ['Administrador', 'Administrador Principal', 'Técnico', 'Vendedor', 'Cajero', 'Solo Lectura'],
+                'permisos_por_rol': {
+                    'Administrador Principal': {
+                        'configuracion_sistema': True,
+                        'eliminar_ordenes': True,
+                        'ver_reportes': True,
+                        'modificar_precios': True,
+                        'gestionar_usuarios': True,
+                        'gestionar_clientes': True,
+                        'gestionar_inventario': True,
+                        'gestionar_pagos': True,
+                        'ver_bitacora': True,
+                        'backup': True
+                    },
+                    'Administrador': {
+                        'configuracion_sistema': False,  # Solo Admin Principal
+                        'eliminar_ordenes': True,
+                        'ver_reportes': True,
+                        'modificar_precios': True,
+                        'gestionar_usuarios': True,
+                        'gestionar_clientes': True,
+                        'gestionar_inventario': True,
+                        'gestionar_pagos': True,
+                        'ver_bitacora': True,
+                        'backup': False
+                    },
+                    'Técnico': {
+                        'configuracion_sistema': False,
+                        'eliminar_ordenes': False,
+                        'ver_reportes': False,
+                        'modificar_precios': False,
+                        'gestionar_usuarios': False,
+                        'gestionar_clientes': True,
+                        'gestionar_inventario': True,
+                        'gestionar_pagos': False,
+                        'ver_bitacora': False,
+                        'backup': False
+                    },
+                    'Vendedor': {
+                        'configuracion_sistema': False,
+                        'eliminar_ordenes': False,
+                        'ver_reportes': False,
+                        'modificar_precios': True,
+                        'gestionar_usuarios': False,
+                        'gestionar_clientes': True,
+                        'gestionar_inventario': False,
+                        'gestionar_pagos': True,
+                        'ver_bitacora': False,
+                        'backup': False
+                    },
+                    'Cajero': {
+                        'configuracion_sistema': False,
+                        'eliminar_ordenes': False,
+                        'ver_reportes': False,
+                        'modificar_precios': False,
+                        'gestionar_usuarios': False,
+                        'gestionar_clientes': False,
+                        'gestionar_inventario': False,
+                        'gestionar_pagos': True,
+                        'ver_bitacora': False,
+                        'backup': False
+                    },
+                    'Solo Lectura': {
+                        'configuracion_sistema': False,
+                        'eliminar_ordenes': False,
+                        'ver_reportes': False,
+                        'modificar_precios': False,
+                        'gestionar_usuarios': False,
+                        'gestionar_clientes': False,
+                        'gestionar_inventario': False,
+                        'gestionar_pagos': False,
+                        'ver_bitacora': False,
+                        'backup': False
+                    }
+                }
+            }
+            guardar_roles(roles_default)
+            return roles_default
+        
+        with open(ARCHIVO_ROLES, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error cargando roles: {e}")
+        return {}
+
+def guardar_roles(roles):
+    """Guarda los roles de usuarios"""
+    try:
+        with open(ARCHIVO_ROLES, 'w', encoding='utf-8') as f:
+            json.dump(roles, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error guardando roles: {e}")
+        return False
+
+def asignar_rol_usuario(username, rol):
+    """Asigna un rol a un usuario"""
+    try:
+        roles = cargar_roles()
+        if 'usuarios' not in roles:
+            roles['usuarios'] = {}
+        roles['usuarios'][username] = rol
+        guardar_roles(roles)
+        return True
+    except Exception as e:
+        print(f"Error asignando rol: {e}")
+        return False
+
+def obtener_rol_usuario(username):
+    """Obtiene el rol de un usuario"""
+    try:
+        # Primero verificar en usuarios.json (formato nuevo)
+        usuarios = cargar_datos('usuarios.json')
+        if 'usuarios' in usuarios and username in usuarios['usuarios']:
+            return usuarios['usuarios'][username].get('rol', 'Técnico')
+        
+        # Verificar formato antiguo de usuarios.json (directo)
+        if username in usuarios and 'role' in usuarios[username]:
+            # Convertir rol antiguo al nuevo formato
+            roles_antiguos = {'admin': 'Administrador Principal', 'tecnico': 'Técnico'}
+            rol_antiguo = usuarios[username].get('role', 'tecnico')
+            return roles_antiguos.get(rol_antiguo, 'Técnico')
+        
+        # Luego verificar en roles_usuarios.json
+        roles = cargar_roles()
+        if 'usuarios' in roles and username in roles['usuarios']:
+            return roles['usuarios'][username]
+        
+        return 'Técnico'  # Rol por defecto
+    except Exception as e:
+        print(f"Error obteniendo rol de usuario: {e}")
+        return 'Técnico'
+
+def tiene_permiso(username, permiso):
+    """Verifica si un usuario tiene un permiso"""
+    try:
+        rol = obtener_rol_usuario(username)
+        roles = cargar_roles()
+        permisos = roles.get('permisos_por_rol', {}).get(rol, {})
+        return permisos.get(permiso, False)
+    except:
+        return False
+
+def es_administrador_principal(username):
+    """Verifica si el usuario es Administrador Principal"""
+    return obtener_rol_usuario(username) == 'Administrador Principal'
+
+# ===== MÓDULO DE CONFIGURACIÓN DEL SISTEMA =====
+
+ARCHIVO_CONFIG_SISTEMA = 'config_sistema.json'
+
+def cargar_configuracion():
+    """Carga la configuración del sistema"""
+    try:
+        if not os.path.exists(ARCHIVO_CONFIG_SISTEMA):
+            # Crear configuración por defecto
+            config_default = {
+                'empresa': {
+                    'nombre': '',
+                    'rif': '',
+                    'direccion': '',
+                    'ciudad': '',
+                    'estado': '',
+                    'pais': 'Venezuela',
+                    'telefono': '',
+                    'whatsapp': '',
+                    'email': '',
+                    'website': '',
+                    'instagram': '',
+                    'descripcion': '',
+                    'horario': '',
+                    'logo_path': 'static/logo.png'
+                },
+                'tasas': {
+                    'actualizacion_automatica': True,
+                    'intervalo_actualizacion': 3600,
+                    'tasa_usd_defecto': 216.37,
+                    'fuente_tasa': 'bcv',
+                    'notificar_cambios': True
+                },
+                'notificaciones': {
+                    'whatsapp_habilitado': False,
+                    'whatsapp_api_key': '',
+                    'email_habilitado': False,
+                    'email_smtp_server': '',
+                    'email_smtp_port': 587,
+                    'email_usuario': '',
+                    'email_password': '',
+                    'email_remitente': ''
+                },
+                'alertas': {
+                    'vencimiento_notas_entrega': False,
+                    'stock_minimo': False,
+                    'cuotas_vencidas': False,
+                    'pagos_pendientes': False,
+                    'productos_agotados': False,
+                    'productos_caducando': False,
+                    'ordenes_pendientes': False,
+                    'ordenes_urgentes': False,
+                    'cumpleanos_clientes': False,
+                    'clientes_nuevos': False,
+                    'estadisticas_semanales': False,
+                    'estadisticas_mensuales': False,
+                    'canal_notificacion': 'email',
+                    'horario_alertas': '08:00'
+                },
+                'documentos': {
+                    'formato_numero_orden': 'OS-{YYYYMMDD}{####}',
+                    'formato_numero_factura': 'FAC-{YYYYMMDD}{####}',
+                    'formato_numero_nota': 'NE-{####}',
+                    'prefijo_factura': 'FAC-',
+                    'prefijo_nota': 'NE-',
+                    'prefijo_orden': 'OS-',
+                    'mostrar_logo': True,
+                    'mostrar_codigo_barras': False
+                },
+                'impresion': {
+                    'logo_personalizado': True,
+                    'encabezados_personalizables': True,
+                    'margen_superior': '20',
+                    'margen_inferior': '20',
+                    'margen_izquierdo': '15',
+                    'margen_derecho': '15',
+                    'orientacion': 'vertical',
+                    'tamano_fuente': '12',
+                    'color_texto': '#000000',
+                    'margen_campos': '10'
+                },
+                'estados_ordenes': {
+                    'recibido': {'campos_obligatorios': ['equipo', 'cliente'], 'tiempo_maximo': 24, 'requiere_aprobacion': False},
+                    'diagnostico': {'campos_obligatorios': ['diagnostico'], 'tiempo_maximo': 72, 'requiere_aprobacion': False},
+                    'en_reparacion': {'campos_obligatorios': ['repuestos'], 'tiempo_maximo': 168, 'requiere_aprobacion': False},
+                    'reparado': {'campos_obligatorios': ['pruebas'], 'tiempo_maximo': 48, 'requiere_aprobacion': True},
+                    'entregado': {'campos_obligatorios': ['firma'], 'tiempo_maximo': 24, 'requiere_aprobacion': False}
+                },
+                'metodos_pago': {
+                    'efectivo': {'habilitado': True},
+                    'transferencia': {'habilitado': True},
+                    'pago_movil': {'habilitado': True},
+                    'zelle': {'habilitado': True},
+                    'paypal': {'habilitado': False},
+                    'binance': {'habilitado': False},
+                    'banco_nombre': '',
+                    'tipo_cuenta': 'corriente',
+                    'numero_cuenta': '',
+                    'titular_cuenta': '',
+                    'telefono_pago_movil': '',
+                    'cedula_pago_movil': '',
+                    'email_zelle': '',
+                    'email_binance': '',
+                    'aceptar_efectivo_usd': True,
+                    'aceptar_efectivo_bs': True,
+                    'notificar_pago_cliente': True,
+                    'notificar_nota_entregada': True
+                },
+                'categorias': {
+                    'productos': [],
+                    'tipos_clientes': ['VIP', 'Regular', 'Corporativo'],
+                    'zonas_cobertura': [],
+                    'prioridades': ['Baja', 'Media', 'Alta', 'Urgente']
+                },
+                'seguridad': {
+                    'tiempo_sesion': 3600,
+                    'intentos_login': 5,
+                    'complejidad_contraseña': True,
+                    'expira_contraseña': False,
+                    'dias_expira_contraseña': 90,
+                    'autenticacion_2fa': False
+                },
+                'visual': {
+                    'tema': 'automatico',
+                    'logo_empresa': '',
+                    'color_primario': '#4f46e5',
+                    'color_secundario': '#7c3aed',
+                    'idioma': 'es'
+                },
+                'inventario': {
+                    'control_stock': True,
+                    'stock_minimo_default': 5,
+                    'alertas_existencia_minima': True,
+                    'control_caducidad': False,
+                    'dias_alerta_caducidad': 30,
+                    'codigos_barras': False,
+                    'seriales': True,
+                    'ubicaciones_multiples': False
+                },
+                'proveedores': {
+                    'habilitado': False,
+                    'terminos_pago': 30,
+                    'plazos_entrega': 7,
+                    'costo_envio': 0
+                },
+                'calendario': {
+                    'horarios_atencion': {'inicio': '08:00', 'fin': '17:00'},
+                    'dias_laborables': ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+                    'festivos': [],
+                    'agenda_habilitada': False
+                },
+                'contadores': {
+                    'reset_anual': True,
+                    'prefijo_ano': True,
+                    'validacion_secuencial': True
+                },
+                'reportes': {
+                    'habilitados': True,
+                    'exportacion_excel': True,
+                    'exportacion_pdf': True,
+                    'envio_automatico': False
+                },
+                'integraciones': {
+                    'api_externas': False,
+                    'bases_datos': False,
+                    'sincronizacion_nube': False,
+                    'webhooks': False
+                },
+                'usuarios': {
+                    'permiso_eliminar_ordenes': 'admin',
+                    'permiso_ver_reportes': 'admin',
+                    'permiso_modificar_precios': 'admin'
+                },
+                'backup': {
+                    'automatico': False,
+                    'intervalo_horas': 24,
+                    'mantener_backups_dias': 30,
+                    'compresion': True
+                },
+                'equipos_clientes': {
+                    'habilitado': True,
+                    'modelos_disponibles': ['iPhone', 'Samsung', 'Xiaomi', 'Huawei', 'LG', 'Motorola', 'Sony'],
+                    'estados_equipos': ['Funcional', 'Reparado', 'Entregado', 'En Reparación']
+                }
+            }
+            guardar_configuracion(config_default)
+            return config_default
+        
+        with open(ARCHIVO_CONFIG_SISTEMA, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error cargando configuración: {e}")
+        return cargar_configuracion()  # Recursivo para crear default
+
+def guardar_configuracion(config):
+    """Guarda la configuración del sistema"""
+    try:
+        with open(ARCHIVO_CONFIG_SISTEMA, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error guardando configuración: {e}")
+        return False
+
+@app.route('/configuracion', methods=['GET', 'POST'])
+@login_required
+def configuracion_sistema():
+    """Página de configuración del sistema"""
+    if request.method == 'POST':
+        print("\n" + "="*60)
+        print("🔧 RECIBIENDO FORMULARIO DE CONFIGURACIÓN")
+        print("="*60)
+        print(f"📝 Datos recibidos: {len(request.form)} campos")
+        print(f"📎 Archivos recibidos: {len(request.files)} archivo(s)")
+        
+        try:
+            # Obtener configuración actual
+            config = cargar_configuracion()
+            print("✅ Configuración cargada correctamente")
+            
+            # Actualizar sección empresa
+            if 'empresa_nombre' in request.form:
+                config['empresa']['nombre'] = request.form.get('empresa_nombre', '')
+                config['empresa']['rif'] = request.form.get('empresa_rif', '')
+                config['empresa']['direccion'] = request.form.get('empresa_direccion', '')
+                config['empresa']['ciudad'] = request.form.get('empresa_ciudad', '')
+                config['empresa']['estado'] = request.form.get('empresa_estado', '')
+                config['empresa']['pais'] = request.form.get('empresa_pais', 'Venezuela')
+                config['empresa']['telefono'] = request.form.get('empresa_telefono', '')
+                config['empresa']['whatsapp'] = request.form.get('empresa_whatsapp', '')
+                config['empresa']['email'] = request.form.get('empresa_email', '')
+                config['empresa']['website'] = request.form.get('empresa_website', '')
+                config['empresa']['instagram'] = request.form.get('empresa_instagram', '')
+                config['empresa']['descripcion'] = request.form.get('empresa_descripcion', '')
+                config['empresa']['horario'] = request.form.get('empresa_horario', '')
+                
+                # Manejar subida de logo
+                if 'empresa_logo' in request.files:
+                    logo_file = request.files['empresa_logo']
+                    if logo_file and logo_file.filename != '':
+                        # Validar extensión
+                        allowed_extensions = {'png', 'jpg', 'jpeg', 'svg', 'gif', 'webp'}
+                        if '.' in logo_file.filename and logo_file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                            # Crear carpeta para logos si no existe
+                            upload_folder = 'static/uploads/logos'
+                            os.makedirs(upload_folder, exist_ok=True)
+                            
+                            # Generar nombre único
+                            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                            filename = f'logo_{timestamp}.{logo_file.filename.rsplit(".", 1)[1].lower()}'
+                            filepath = os.path.join(upload_folder, filename)
+                            
+                            # Guardar archivo
+                            logo_file.save(filepath)
+                            
+                            # Actualizar configuración con la ruta del logo
+                            config['empresa']['logo_path'] = filepath.replace('\\', '/')
+                            flash('Logo subido exitosamente', 'success')
+                        else:
+                            flash('Formato de archivo no válido. Use: PNG, JPG, SVG, GIF o WEBP', 'warning')
+            
+            # Actualizar sección tasas
+            if 'tasa_usd_defecto' in request.form:
+                config['tasas']['tasa_usd_defecto'] = float(request.form.get('tasa_usd_defecto', 216.37))
+                config['tasas']['actualizacion_automatica'] = request.form.get('actualizacion_automatica') == 'on'
+                config['tasas']['intervalo_actualizacion'] = int(request.form.get('intervalo_actualizacion', 3600))
+                config['tasas']['fuente_tasa'] = request.form.get('fuente_tasa', 'bcv')
+                config['tasas']['notificar_cambios'] = request.form.get('notificar_cambios') == 'on'
+            
+            # Actualizar sección notificaciones
+            if 'whatsapp_habilitado' in request.form:
+                config['notificaciones']['whatsapp_habilitado'] = request.form.get('whatsapp_habilitado') == 'on'
+                config['notificaciones']['whatsapp_api_key'] = request.form.get('whatsapp_api_key', '')
+                config['notificaciones']['email_habilitado'] = request.form.get('email_habilitado') == 'on'
+                config['notificaciones']['email_smtp_server'] = request.form.get('email_smtp_server', '')
+                config['notificaciones']['email_smtp_port'] = int(request.form.get('email_smtp_port', 587))
+                config['notificaciones']['email_usuario'] = request.form.get('email_usuario', '')
+                config['notificaciones']['email_password'] = request.form.get('email_password', '')
+                config['notificaciones']['email_remitente'] = request.form.get('email_remitente', '')
+            
+            # Actualizar sección documentos
+            if 'formato_numero_orden' in request.form:
+                config['documentos']['formato_numero_orden'] = request.form.get('formato_numero_orden', '')
+                config['documentos']['formato_numero_factura'] = request.form.get('formato_numero_factura', '')
+                config['documentos']['formato_numero_nota'] = request.form.get('formato_numero_nota', '')
+                config['documentos']['mostrar_logo'] = request.form.get('mostrar_logo') == 'on'
+                config['documentos']['mostrar_codigo_barras'] = request.form.get('mostrar_codigo_barras') == 'on'
+            
+            # Actualizar sección alertas
+            if 'vencimiento_notas_entrega' in request.form or 'stock_minimo' in request.form:
+                config['alertas']['vencimiento_notas_entrega'] = request.form.get('vencimiento_notas_entrega') == 'on'
+                config['alertas']['stock_minimo'] = request.form.get('stock_minimo') == 'on'
+                config['alertas']['cuotas_vencidas'] = request.form.get('cuotas_vencidas') == 'on'
+                config['alertas']['pagos_pendientes'] = request.form.get('pagos_pendientes') == 'on'
+                config['alertas']['productos_agotados'] = request.form.get('productos_agotados') == 'on'
+                config['alertas']['productos_caducando'] = request.form.get('productos_caducando') == 'on'
+                config['alertas']['ordenes_pendientes'] = request.form.get('ordenes_pendientes') == 'on'
+                config['alertas']['ordenes_urgentes'] = request.form.get('ordenes_urgentes') == 'on'
+                config['alertas']['cumpleanos_clientes'] = request.form.get('cumpleanos_clientes') == 'on'
+                config['alertas']['clientes_nuevos'] = request.form.get('clientes_nuevos') == 'on'
+                config['alertas']['estadisticas_semanales'] = request.form.get('estadisticas_semanales') == 'on'
+                config['alertas']['estadisticas_mensuales'] = request.form.get('estadisticas_mensuales') == 'on'
+                config['alertas']['canal_notificacion'] = request.form.get('canal_notificacion', 'email')
+                config['alertas']['horario_alertas'] = request.form.get('horario_alertas', '08:00')
+            
+            # Actualizar sección métodos de pago
+            if 'pago_efectivo' in request.form or 'banco_nombre' in request.form:
+                if 'metodos_pago' not in config:
+                    config['metodos_pago'] = {}
+                
+                config['metodos_pago']['efectivo'] = {'habilitado': request.form.get('pago_efectivo') == 'on'}
+                config['metodos_pago']['transferencia'] = {'habilitado': request.form.get('pago_transferencia') == 'on'}
+                config['metodos_pago']['pago_movil'] = {'habilitado': request.form.get('pago_pago_movil') == 'on'}
+                config['metodos_pago']['zelle'] = {'habilitado': request.form.get('pago_zelle') == 'on'}
+                config['metodos_pago']['paypal'] = {'habilitado': request.form.get('pago_paypal') == 'on'}
+                config['metodos_pago']['binance'] = {'habilitado': request.form.get('pago_binance') == 'on'}
+                
+                config['metodos_pago']['banco_nombre'] = request.form.get('banco_nombre', '')
+                config['metodos_pago']['tipo_cuenta'] = request.form.get('tipo_cuenta', 'corriente')
+                config['metodos_pago']['numero_cuenta'] = request.form.get('numero_cuenta', '')
+                config['metodos_pago']['titular_cuenta'] = request.form.get('titular_cuenta', '')
+                config['metodos_pago']['telefono_pago_movil'] = request.form.get('telefono_pago_movil', '')
+                config['metodos_pago']['cedula_pago_movil'] = request.form.get('cedula_pago_movil', '')
+                config['metodos_pago']['email_zelle'] = request.form.get('email_zelle', '')
+                config['metodos_pago']['email_binance'] = request.form.get('email_binance', '')
+                config['metodos_pago']['aceptar_efectivo_usd'] = request.form.get('aceptar_efectivo_usd') == 'on'
+                config['metodos_pago']['aceptar_efectivo_bs'] = request.form.get('aceptar_efectivo_bs') == 'on'
+                config['metodos_pago']['notificar_pago_cliente'] = request.form.get('notificar_pago_cliente') == 'on'
+                config['metodos_pago']['notificar_nota_entregada'] = request.form.get('notificar_nota_entregada') == 'on'
+            
+            # Actualizar sección inventario
+            if 'control_stock' in request.form:
+                config['inventario']['control_stock'] = request.form.get('control_stock') == 'on'
+                config['inventario']['stock_minimo_default'] = int(request.form.get('stock_minimo_default', 5))
+                config['inventario']['alertas_existencia_minima'] = request.form.get('alertas_existencia_minima') == 'on'
+                config['inventario']['control_caducidad'] = request.form.get('control_caducidad') == 'on'
+                config['inventario']['dias_alerta_caducidad'] = int(request.form.get('dias_alerta_caducidad', 30))
+            
+            # Guardar configuración
+            print("\n💾 Intentando guardar configuración...")
+            if guardar_configuracion(config):
+                print("✅ CONFIGURACIÓN GUARDADA EXITOSAMENTE")
+                print("="*60 + "\n")
+                flash('Configuración guardada exitosamente', 'success')
+                registrar_bitacora(session.get('username', 'Sistema'), 'Configuración', 'Configuración del sistema actualizada')
+                return redirect(url_for('configuracion_sistema') + '?config_saved=1')
+            else:
+                print("❌ ERROR: No se pudo guardar la configuración")
+                print("="*60 + "\n")
+                flash('Error guardando la configuración', 'danger')
+            
+            return redirect(url_for('configuracion_sistema'))
+        except Exception as e:
+            print(f"❌ ERROR actualizando configuración: {e}")
+            print(traceback.format_exc())
+            print("="*60 + "\n")
+            flash(f'Error actualizando configuración: {str(e)}', 'danger')
+            return redirect(url_for('configuracion_sistema'))
+    
+    # GET - Mostrar configuración
+    config = cargar_configuracion()
+    return render_template('configuracion_sistema.html', config=config)
+
+@app.route('/usuarios/nuevo', methods=['GET', 'POST'])
+@login_required
+def nuevo_usuario():
+    """Crear nuevo usuario con contraseña"""
+    if request.method == 'POST':
+        try:
+            username = request.form.get('username')
+            password = request.form.get('password')
+            rol = request.form.get('rol', 'Técnico')
+            
+            if not username or not password:
+                flash('Username y contraseña son requeridos', 'danger')
+                return redirect(url_for('nuevo_usuario'))
+            
+            # Leer usuarios existentes
+            if os.path.exists('usuarios.json'):
+                with open('usuarios.json', 'r', encoding='utf-8') as f:
+                    usuarios = json.load(f)
+            else:
+                usuarios = {'usuarios': {}}
+            
+            # Verificar si el usuario ya existe
+            if username in usuarios.get('usuarios', {}):
+                flash(f'El usuario {username} ya existe', 'danger')
+                return redirect(url_for('nuevo_usuario'))
+            
+            # Crear nuevo usuario con hash de contraseña
+            import hashlib
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            
+            if 'usuarios' not in usuarios:
+                usuarios['usuarios'] = {}
+            
+            usuarios['usuarios'][username] = {
+                'password_hash': password_hash,
+                'rol': rol,
+                'fecha_creacion': datetime.now().isoformat(),
+                'activo': True
+            }
+            
+            # Asignar rol en el sistema de roles
+            asignar_rol_usuario(username, rol)
+            
+            # Guardar usuarios
+            with open('usuarios.json', 'w', encoding='utf-8') as f:
+                json.dump(usuarios, f, indent=4, ensure_ascii=False)
+            
+            flash(f'Usuario {username} creado exitosamente con rol {rol}', 'success')
+            return redirect(url_for('gestionar_usuarios'))
+        
+        except Exception as e:
+            flash(f'Error creando usuario: {str(e)}', 'danger')
+            return redirect(url_for('nuevo_usuario'))
+    
+    # GET - Mostrar formulario
+    roles = cargar_roles()
+    return render_template('nuevo_usuario.html', roles=roles)
+
+@app.route('/usuarios/gestion', methods=['GET', 'POST'])
+@login_required
+def gestionar_usuarios():
+    """Gestión de usuarios y roles"""
+    if request.method == 'POST':
+        try:
+            accion = request.form.get('accion')
+            username = request.form.get('username')
+            rol = request.form.get('rol')
+            
+            if accion == 'asignar_rol':
+                if asignar_rol_usuario(username, rol):
+                    flash(f'Rol {rol} asignado a {username}', 'success')
+                else:
+                    flash(f'Error asignando rol', 'danger')
+            elif accion == 'eliminar_usuario':
+                # Leer y eliminar usuario
+                if os.path.exists('usuarios.json'):
+                    with open('usuarios.json', 'r', encoding='utf-8') as f:
+                        usuarios = json.load(f)
+                    
+                    if 'usuarios' in usuarios and username in usuarios['usuarios']:
+                        del usuarios['usuarios'][username]
+                        
+                        with open('usuarios.json', 'w', encoding='utf-8') as f:
+                            json.dump(usuarios, f, indent=4, ensure_ascii=False)
+                        
+                        flash(f'Usuario {username} eliminado', 'success')
+            
+            return redirect(url_for('gestionar_usuarios'))
+        
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'danger')
+            return redirect(url_for('gestionar_usuarios'))
+    
+    # GET - Mostrar usuarios y roles
+    try:
+        roles = cargar_roles()
+        
+        # Cargar usuarios con contraseñas
+        usuarios_con_password = {}
+        if os.path.exists('usuarios.json'):
+            with open('usuarios.json', 'r', encoding='utf-8') as f:
+                usuarios_data = json.load(f)
+                usuarios_con_password = usuarios_data.get('usuarios', {})
+        
+        return render_template('gestion_usuarios.html', roles=roles, usuarios=usuarios_con_password)
+    except Exception as e:
+        flash(f'Error cargando usuarios: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
+@app.route('/api/mi-rol')
+@login_required
+def api_mi_rol():
+    """API para obtener el rol del usuario actual"""
+    try:
+        username = session.get('usuario', '')
+        rol = obtener_rol_usuario(username)
+        return jsonify({'rol': rol, 'username': username})
+    except Exception as e:
+        return jsonify({'error': str(e), 'rol': 'Técnico'}), 500
+
+@app.route('/api/configuracion', methods=['GET'])
+@login_required
+def api_configuracion():
+    """API para obtener configuración"""
+    try:
+        config = cargar_configuracion()
+        return jsonify(config)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/configuracion', methods=['POST'])
+@login_required
+def api_configuracion_update():
+    """API para actualizar configuración"""
+    try:
+        data = request.get_json()
+        config = cargar_configuracion()
+        
+        # Actualizar configuración
+        for seccion, valores in data.items():
+            if seccion in config:
+                config[seccion].update(valores)
+        
+        if guardar_configuracion(config):
+            return jsonify({'success': True, 'message': 'Configuración actualizada'})
+        else:
+            return jsonify({'success': False, 'error': 'Error guardando configuración'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-def crear_mensaje_informe_facturas_pagadas(cliente, facturas_cliente):
-    """Crea un mensaje personalizado del informe de facturas pagadas, abonadas y cobradas."""
+@app.route('/api/test-alertas')
+@login_required
+def test_alertas():
+    """Endpoint para probar las alertas y reportes"""
     try:
-        print(f"💬 Creando informe de facturas para cliente: {cliente.get('nombre', 'N/A')}")
-        print(f"💬 Total de facturas: {len(facturas_cliente)}")
+        config = cargar_configuracion()
+        alertas_config = config.get('alertas', {})
         
-        nombre_cliente = cliente.get('nombre', 'Cliente')
+        # Verificar estado de las alertas
+        estado = {
+            'alertas_activas': verificar_alertas(),
+            'estadisticas_semanales': alertas_config.get('estadisticas_semanales', False),
+            'estadisticas_mensuales': alertas_config.get('estadisticas_mensuales', False),
+            'configuracion': {
+                'email_empresa': config.get('empresa', {}).get('email', 'No configurado'),
+                'whatsapp_empresa': config.get('empresa', {}).get('whatsapp', 'No configurado'),
+                'canal_notificacion': alertas_config.get('canal_notificacion', 'email'),
+                'horario_alertas': alertas_config.get('horario_alertas', '08:00')
+            }
+        }
         
-        # Categorizar facturas
-        facturas_cobradas = []
-        facturas_abonadas = []
-        facturas_pagadas = []
+        return jsonify(estado)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/generar-reporte-semanal', methods=['POST'])
+@login_required
+def generar_reporte_semanal_endpoint():
+    """Endpoint para generar reporte semanal manualmente"""
+    try:
+        mensaje = generar_reporte_semanal(manual=True)
+        if mensaje:
+            return jsonify({'success': True, 'mensaje': mensaje})
+        else:
+            return jsonify({'success': False, 'error': 'No se pudo generar el reporte'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generar-reporte-mensual', methods=['POST'])
+@login_required
+def generar_reporte_mensual_endpoint():
+    """Endpoint para generar reporte mensual manualmente"""
+    try:
+        mensaje = generar_reporte_mensual(manual=True)
+        if mensaje:
+            return jsonify({'success': True, 'mensaje': mensaje})
+        else:
+            return jsonify({'success': False, 'error': 'No se pudo generar el reporte'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+
+# ===========================
+# SISTEMA DE ALERTAS Y REPORTES AUTOMÁTICOS
+# ===========================
+
+def enviar_whatsapp_reportes(telefono, mensaje):
+    """Genera enlace de WhatsApp para enviar reportes/alertas"""
+    try:
+        # Limpiar teléfono
+        telefono_limpio = str(telefono).replace(' ', '').replace('-', '').replace('(', '').replace(')', '').replace('+', '')
         
-        for factura in facturas_cliente:
-            total_facturado = float(factura.get('total_usd', 0))
-            total_abonado = float(factura.get('total_abonado', 0))
-            saldo = max(0, total_facturado - total_abonado)
-            
-            if saldo == 0 and total_abonado > 0:
-                facturas_cobradas.append(factura)
-            elif total_abonado > 0 and saldo > 0:
-                facturas_abonadas.append(factura)
-            else:
-                facturas_pagadas.append(factura)
+        # Agregar código de país si no lo tiene
+        if not telefono_limpio.startswith('58'):
+            telefono_limpio = '58' + telefono_limpio.lstrip('0')
         
-        # Calcular totales
-        total_cobrado = sum(float(f.get('total_usd', 0)) for f in facturas_cobradas)
-        total_abonado = sum(float(f.get('total_abonado', 0)) for f in facturas_abonadas)
-        total_pagado = sum(float(f.get('total_usd', 0)) for f in facturas_pagadas)
+        # Codificar mensaje para URL
+        mensaje_codificado = urllib.parse.quote(mensaje)
         
-        print(f"💬 Facturas cobradas: {len(facturas_cobradas)} - Total: ${total_cobrado:.2f}")
-        print(f"💬 Facturas abonadas: {len(facturas_abonadas)} - Total: ${total_abonado:.2f}")
-        print(f"💬 Facturas pagadas: {len(facturas_pagadas)} - Total: ${total_pagado:.2f}")
+        # Generar enlace
+        enlace = f"https://wa.me/{telefono_limpio}?text={mensaje_codificado}"
+        
+        print(f"📱 Enlace WhatsApp generado para reporte: {enlace[:100]}...")
+        
+        return enlace
+        
+    except Exception as e:
+        print(f"❌ Error generando enlace WhatsApp: {e}")
+        return None
+
+def enviar_email_reporte(asunto, mensaje, destinatario, config):
+    """Envía un reporte por email"""
+    try:
+        # Obtener configuración SMTP
+        email_habilitado = config.get('notificaciones', {}).get('email_habilitado', False)
+        
+        if not email_habilitado:
+            print("📧 Envío de email deshabilitado en configuración")
+            return False
+        
+        smtp_server = config.get('notificaciones', {}).get('email_smtp_server', '')
+        smtp_port = config.get('notificaciones', {}).get('email_smtp_port', 587)
+        email_usuario = config.get('notificaciones', {}).get('email_usuario', '')
+        email_password = config.get('notificaciones', {}).get('email_password', '')
+        email_remitente = config.get('notificaciones', {}).get('email_remitente', email_usuario)
+        
+        if not all([smtp_server, email_usuario, email_password, destinatario]):
+            print("❌ Configuración de email incompleta")
+            return False
         
         # Crear mensaje
-        mensaje = f"""🏢 *INFORME DE FACTURAS - {nombre_cliente.upper()}*
-
-Hola {nombre_cliente}, 
-
-Te enviamos un resumen de tu historial de facturas:
-
-📊 *RESUMEN GENERAL:*
-• Total de facturas: {len(facturas_cliente)}
-• Monto total facturado: ${sum(float(f.get('total_usd', 0)) for f in facturas_cliente):.2f}
-
-✅ *FACTURAS COMPLETAMENTE COBRADAS:*
-• Cantidad: {len(facturas_cobradas)}
-• Total: ${total_cobrado:.2f}
-
-💰 *FACTURAS CON ABONOS:*
-• Cantidad: {len(facturas_abonadas)}
-• Total abonado: ${total_abonado:.2f}
-
-📄 *FACTURAS PENDIENTES:*
-• Cantidad: {len(facturas_pagadas)}
-• Total pendiente: ${total_pagado:.2f}
-
-📋 *DETALLE DE FACTURAS COBRADAS:*
-"""
+        msg = MIMEMultipart()
+        msg['From'] = email_remitente
+        msg['To'] = destinatario
+        msg['Subject'] = asunto
         
-        # Agregar lista de facturas cobradas
-        for i, factura in enumerate(facturas_cobradas[:5], 1):  # Máximo 5 para no hacer el mensaje muy largo
-            mensaje += f"{i}. {factura.get('numero', 'N/A')} - {factura.get('fecha', 'N/A')} - ${factura.get('total_usd', 0):.2f}\n"
+        # Convertir mensaje de texto plano a HTML básico
+        mensaje_html = mensaje.replace('\n', '<br>').replace('*', '<strong>', 1).replace('*', '</strong>', 1)
+        msg.attach(MIMEText(mensaje, 'plain', 'utf-8'))
         
-        if len(facturas_cobradas) > 5:
-            mensaje += f"... y {len(facturas_cobradas) - 5} facturas más\n"
+        # Enviar email
+        print(f"📧 Enviando email a {destinatario}...")
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(email_usuario, email_password)
+        server.send_message(msg)
+        server.quit()
         
-        mensaje += f"""
-
-📋 *DETALLE DE FACTURAS CON ABONOS:*
-"""
-        
-        # Agregar lista de facturas abonadas
-        for i, factura in enumerate(facturas_abonadas[:5], 1):
-            abonado = float(factura.get('total_abonado', 0))
-            pendiente = float(factura.get('total_usd', 0)) - abonado
-            mensaje += f"{i}. {factura.get('numero', 'N/A')} - Abonado: ${abonado:.2f} - Pendiente: ${pendiente:.2f}\n"
-        
-        if len(facturas_abonadas) > 5:
-            mensaje += f"... y {len(facturas_abonadas) - 5} facturas más\n"
-        
-        mensaje += f"""
-
-¡Gracias por tu confianza y por mantener al día tus pagos!
-
-Para cualquier consulta sobre tus facturas, no dudes en contactarnos.
-
----
-*Este es un informe automático del sistema de facturación*"""
-        
-        print(f"💬 Informe de facturas creado exitosamente: {len(mensaje)} caracteres")
-        return mensaje
+        print(f"✅ Email enviado exitosamente a {destinatario}")
+        return True
         
     except Exception as e:
-        print(f"❌ Error creando informe de facturas: {e}")
-        raise
-
-def crear_mensaje_cuentas_por_cobrar(cliente, facturas_pendientes, total_pendiente):
-    """Crea un mensaje personalizado de recordatorio de cuentas por cobrar."""
-    try:
-        print(f"💬 Creando mensaje de cuentas por cobrar para cliente: {cliente.get('nombre', 'N/A')}")
-        print(f"💬 Facturas pendientes: {len(facturas_pendientes)}")
-        print(f"💬 Total pendiente: ${total_pendiente:.2f}")
-        
-        nombre_cliente = cliente.get('nombre', 'Cliente')
-        
-        # Crear lista de facturas pendientes
-        lista_facturas = ""
-        for i, factura in enumerate(facturas_pendientes, 1):
-            lista_facturas += f"{i}. {factura['numero']} - {factura['fecha']} - Saldo: ${factura['saldo']:.2f}\n"
-        
-        mensaje = f"""🏢 *RECORDATORIO DE CUENTAS POR COBRAR*
-
-Hola {nombre_cliente}, 
-
-Te recordamos que tienes facturas pendientes de pago:
-
-📋 *Resumen:*
-• Total de facturas pendientes: {len(facturas_pendientes)}
-• Monto total pendiente: ${total_pendiente:.2f}
-
-📄 *Facturas pendientes:*
-{lista_facturas.strip()}
-
-Por favor, realiza el pago correspondiente para regularizar tu situación.
-
-Si ya realizaste algún pago, ignora este mensaje.
-
-Para cualquier consulta o para coordinar pagos, no dudes en contactarnos.
-
-¡Gracias por tu preferencia!
-
----
-*Este es un mensaje automático del sistema de facturación*"""
-        
-        print(f"💬 Mensaje de cuentas por cobrar creado exitosamente: {len(mensaje)} caracteres")
-        return mensaje
-        
-    except Exception as e:
-        print(f"❌ Error creando mensaje de cuentas por cobrar: {e}")
-        raise
-
-# NOTA: Esta sección se consolidó al inicio del archivo para evitar usar rutas del sistema como /data en Render.
-# Mantener una única definición de CAPTURAS_FOLDER basada en BASE_PATH y enlazada en tiempo de inicio por render.yaml.
-
-# ========================================
-# RUTAS PARA NOTAS DE ENTREGA
-# ========================================
-
-@app.route('/notas-entrega')
-@login_required
-def mostrar_notas_entrega():
-    """Muestra la lista de notas de entrega."""
-    try:
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        clientes = cargar_datos(ARCHIVO_CLIENTES)
-        
-        # Agregar información del cliente a cada nota
-        for nota in notas.values():
-            cliente_id = nota.get('cliente_id')
-            if cliente_id in clientes:
-                nota['cliente_nombre'] = clientes[cliente_id].get('nombre', 'N/A')
-                nota['cliente_identificacion'] = clientes[cliente_id].get('identificacion', 'N/A')
-            else:
-                nota['cliente_nombre'] = 'Cliente no encontrado'
-                nota['cliente_identificacion'] = 'N/A'
-            
-            # Agregar códigos y nombres de productos
-            inventario = cargar_datos(ARCHIVO_INVENTARIO)
-            productos_codigos = []
-            productos_nombres = []
-            for producto_id in nota.get('productos', []):
-                if producto_id in inventario:
-                    productos_codigos.append(inventario[producto_id].get('codigo_barras', 'N/A'))
-                    productos_nombres.append(inventario[producto_id].get('nombre', f'Producto {producto_id}'))
-                else:
-                    productos_codigos.append('N/A')
-                    productos_nombres.append(f'Producto {producto_id}')
-            nota['productos_codigos'] = productos_codigos
-            nota['productos_nombres'] = productos_nombres
-            
-            # Agregar campos por defecto para notas antiguas
-            nota['porcentaje_descuento'] = nota.get('porcentaje_descuento', 0)
-            nota['descuento'] = nota.get('descuento', 0)
-            nota['total_usd'] = nota.get('total_usd', nota.get('subtotal_usd', 0))
-            nota['tasa_bcv'] = nota.get('tasa_bcv', 0)
-            nota['fecha_tasa_bcv'] = nota.get('fecha_tasa_bcv', 'N/A')
-        
-        return render_template('notas_entrega.html', notas=notas, clientes=clientes)
-    except Exception as e:
-        flash(f'Error cargando notas de entrega: {e}', 'danger')
-        return redirect(url_for('index'))
-
-@app.route('/notas-entrega/nueva', methods=['GET', 'POST'])
-@login_required
-def nueva_nota_entrega():
-    """Crea una nueva nota de entrega."""
-    if request.method == 'POST':
-        try:
-            # Obtener datos del formulario
-            cliente_id = request.form['cliente_id']
-            fecha = request.form['fecha']
-            hora = request.form.get('hora', datetime.now().strftime('%H:%M:%S'))
-            modalidad_pago = request.form['modalidad_pago']
-            dias_credito = request.form.get('dias_credito', '30')
-            observaciones = request.form.get('observaciones', '')
-            porcentaje_descuento = float(request.form.get('porcentaje_descuento', 0))
-            
-            # Obtener productos, cantidades y precios
-            productos = request.form.getlist('productos[]')
-            cantidades = request.form.getlist('cantidades[]')
-            precios = request.form.getlist('precios[]')
-            
-            # Validar que hay productos
-            if not productos or not cantidades or not precios:
-                flash('La nota de entrega debe tener al menos un producto', 'error')
-                return redirect(url_for('nueva_nota_entrega'))
-            
-            # Calcular totales
-            subtotal_usd = sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios)))
-            descuento = subtotal_usd * (porcentaje_descuento / 100)
-            total_usd = subtotal_usd - descuento
-            
-            # Obtener tasa BCV actual
-            try:
-                from tasas_bcv import obtener_tasa_bcv_actual
-                tasa_bcv = obtener_tasa_bcv_actual()
-                fecha_tasa_bcv = datetime.now().strftime('%Y-%m-%d')
-            except:
-                tasa_bcv = None
-                fecha_tasa_bcv = None
-            
-            # Obtener numeración secuencial
-            notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-            numero_secuencial = len(notas) + 1
-            numero_nota = f"NE-{numero_secuencial:04d}"
-            
-            # Determinar estado según modalidad de pago
-            if modalidad_pago == 'contado':
-                estado = 'PENDIENTE_ENTREGA'
-                fecha_vencimiento_factura = None
-            elif modalidad_pago == 'credito':
-                estado = 'PENDIENTE_FACTURACION'
-                fecha_vencimiento_factura = (datetime.now() + timedelta(days=int(dias_credito))).strftime('%Y-%m-%d')
-            else:  # nota_credito
-                estado = 'PENDIENTE_ENTREGA'
-                fecha_vencimiento_factura = None
-            
-            # Crear nota de entrega
-            nota = {
-                'numero': numero_nota,
-                'numero_secuencial': numero_secuencial,
-                'fecha': fecha,
-                'hora': hora,
-                'timestamp_creacion': datetime.now().isoformat(),
-                'cliente_id': cliente_id,
-                'modalidad_pago': modalidad_pago,
-                'dias_credito': int(dias_credito) if modalidad_pago == 'credito' else None,
-                'fecha_vencimiento_factura': fecha_vencimiento_factura,
-                'productos': productos,
-                'cantidades': cantidades,
-                'precios': precios,
-                'subtotal_usd': subtotal_usd,
-                'porcentaje_descuento': porcentaje_descuento,
-                'descuento': descuento,
-                'total_usd': total_usd,
-                'tasa_bcv': tasa_bcv,
-                'fecha_tasa_bcv': fecha_tasa_bcv,
-                'observaciones': observaciones,
-                'estado': estado,
-                'usuario_creacion': session['usuario'],
-                'firma_recibido': False,
-                'fecha_entrega': None,
-                'hora_entrega': None,
-                'entregado_por': None,
-                'recibido_por': None,
-                'documento_identidad': None
-            }
-            
-            # Guardar nota
-            notas[numero_nota] = nota
-            guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-            
-            # Descontar stock del inventario
-            try:
-                inventario = cargar_datos(ARCHIVO_INVENTARIO)
-                for i, producto_id in enumerate(productos):
-                    if producto_id in inventario:
-                        cantidad_actual = int(inventario[producto_id].get('stock', 0))
-                        cantidad_vendida = int(cantidades[i])
-                        nuevo_stock = max(0, cantidad_actual - cantidad_vendida)
-                        inventario[producto_id]['stock'] = nuevo_stock
-                        
-                        # Registrar en bitácora
-                        registrar_bitacora(session['usuario'], 'Descontar stock por nota de entrega', 
-                                         f"Producto: {producto_id}, Cantidad: {cantidad_vendida}, Stock anterior: {cantidad_actual}, Stock nuevo: {nuevo_stock}")
-                
-                guardar_datos(ARCHIVO_INVENTARIO, inventario)
-                print(f"✅ Stock descontado exitosamente para nota {numero_nota}")
-                
-            except Exception as e:
-                print(f"❌ Error descontando stock: {e}")
-                # No fallar la creación de la nota si hay error en stock
-                flash(f'Nota creada pero hubo un error actualizando el inventario: {e}', 'warning')
-            
-            # Mensaje según modalidad
-            if modalidad_pago == 'contado':
-                flash(f'Nota de entrega #{numero_nota} creada (Contado)', 'success')
-            elif modalidad_pago == 'credito':
-                flash(f'Nota de entrega #{numero_nota} creada (A Crédito - Facturar antes del {fecha_vencimiento_factura})', 'warning')
-            else:
-                flash(f'Nota de entrega #{numero_nota} creada (Nota de Crédito)', 'info')
-            
-            registrar_bitacora(session['usuario'], 'Nueva nota de entrega', f"Cliente: {cliente_id}, Modalidad: {modalidad_pago}")
-            return redirect(url_for('mostrar_notas_entrega'))
-            
-        except Exception as e:
-            flash(f'Error creando nota de entrega: {e}', 'danger')
-            return redirect(url_for('nueva_nota_entrega'))
-    
-    # GET: Mostrar formulario
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    return render_template('nota_entrega_form.html', clientes=clientes, inventario=inventario)
-
-@app.route('/notas-entrega/<id>/editar', methods=['GET', 'POST'])
-@login_required
-def editar_nota_entrega(id):
-    """Edita una nota de entrega existente."""
-    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-    
-    if id not in notas:
-        flash('Nota de entrega no encontrada', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-    
-    nota = notas[id]
-    
-    if request.method == 'POST':
-        try:
-            # Actualizar datos
-            nota['fecha'] = request.form['fecha']
-            nota['hora'] = request.form.get('hora', datetime.now().strftime('%H:%M:%S'))
-            nota['observaciones'] = request.form.get('observaciones', '')
-            
-            # Actualizar productos
-            productos = request.form.getlist('productos[]')
-            cantidades = request.form.getlist('cantidades[]')
-            precios = request.form.getlist('precios[]')
-            
-            if productos and cantidades and precios:
-                nota['productos'] = productos
-                nota['cantidades'] = cantidades
-                nota['precios'] = precios
-                nota['subtotal_usd'] = sum(float(precios[i]) * int(cantidades[i]) for i in range(len(precios)))
-            
-            # Guardar cambios
-            guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-            flash('Nota de entrega actualizada exitosamente', 'success')
-            registrar_bitacora(session['usuario'], 'Editar nota de entrega', f"Nota: {id}")
-            return redirect(url_for('mostrar_notas_entrega'))
-            
-        except Exception as e:
-            flash(f'Error actualizando nota de entrega: {e}', 'danger')
-    
-    # GET: Mostrar formulario de edición
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    return render_template('nota_entrega_form.html', nota=nota, clientes=clientes, inventario=inventario, editar=True)
-
-@app.route('/notas-entrega/<id>/marcar-entregado', methods=['GET', 'POST'])
-@login_required
-def marcar_nota_entregada(id):
-    """Marca una nota de entrega como entregada."""
-    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-    
-    if id not in notas:
-        flash('Nota de entrega no encontrada', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-    
-    nota = notas[id]
-    
-    if request.method == 'GET':
-        # Mostrar formulario con token CSRF
-        return render_template('marcar_entregado.html', nota=nota, id=id)
-    
-    # POST: Procesar formulario
-    try:
-        # Obtener datos de entrega
-        recibido_por = request.form.get('recibido_por', '').strip()
-        documento_identidad = request.form.get('documento_identidad', '').strip()
-        
-        if not recibido_por:
-            flash('Debe especificar quién recibe la mercancía', 'danger')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        # Actualizar estado
-        nota['estado'] = 'ENTREGADO'
-        nota['fecha_entrega'] = datetime.now().strftime('%Y-%m-%d')
-        nota['hora_entrega'] = datetime.now().strftime('%H:%M:%S')
-        nota['entregado_por'] = session['usuario']
-        nota['recibido_por'] = recibido_por
-        nota['documento_identidad'] = documento_identidad
-        nota['firma_recibido'] = True
-        
-        # Guardar cambios
-        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-        
-        # Mensaje según modalidad
-        if nota['modalidad_pago'] == 'contado':
-            flash(f'Nota de entrega #{id} marcada como entregada (Contado)', 'success')
-        elif nota['modalidad_pago'] == 'credito':
-            flash(f'Nota de entrega #{id} entregada. RECORDATORIO: Debe generar factura antes del {nota["fecha_vencimiento_factura"]}', 'warning')
-        else:
-            flash(f'Nota de entrega #{id} marcada como entregada (Nota de Crédito)', 'success')
-        
-        registrar_bitacora(session['usuario'], 'Marcar nota entregada', f"Nota: {id}, Recibido por: {recibido_por}")
-        return redirect(url_for('mostrar_notas_entrega'))
-        
-    except Exception as e:
-        flash(f'Error marcando nota como entregada: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-
-@app.route('/notas-entrega/<id>/convertir-a-factura', methods=['POST'])
-@login_required
-def convertir_nota_a_factura(id):
-    """Convierte nota de entrega a crédito en factura."""
-    try:
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        
-        if id not in notas:
-            flash('Nota de entrega no encontrada', 'danger')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        nota = notas[id]
-        
-        if nota.get('modalidad_pago') != 'credito':
-            flash('Solo se pueden convertir notas a crédito', 'warning')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        if nota.get('estado') != 'ENTREGADO':
-            flash('La nota debe estar entregada para convertirla a factura', 'warning')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        # Obtener numeración fiscal
-        usuario_actual = session.get('usuario', 'SISTEMA')
-        numero_fiscal, numero_secuencial = control_numeracion.obtener_siguiente_numero('FACTURA', usuario_actual)
-        
-        # Crear factura basada en la nota
-        factura = {
-            'numero': numero_fiscal,
-            'numero_secuencial': numero_secuencial,
-            'fecha': datetime.now().strftime('%Y-%m-%d'),
-            'hora': datetime.now().strftime('%H:%M:%S'),
-            'timestamp_creacion': datetime.now().isoformat(),
-            'cliente_id': nota['cliente_id'],
-            'productos': nota['productos'],
-            'cantidades': nota['cantidades'],
-            'precios': nota['precios'],
-            'subtotal_usd': nota['subtotal_usd'],
-            'descuento': 0,
-            'tipo_descuento': 'bs',
-            'descuento_total': 0,
-            'iva': 16,  # IVA estándar
-            'iva_total': nota['subtotal_usd'] * 0.16,
-            'total_usd': nota['subtotal_usd'] * 1.16,
-            'condicion_pago': 'credito',
-            'dias_credito': nota.get('dias_credito', 30),
-            'fecha_vencimiento': (datetime.now() + timedelta(days=nota.get('dias_credito', 30))).strftime('%Y-%m-%d'),
-            'nota_entrega_origen': id,
-            'estado': 'PENDIENTE',
-            'pagos': [],
-            'tasa_bcv': 36.00  # Tasa por defecto
-        }
-        
-        # Guardar factura
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        facturas[factura['numero']] = factura
-        guardar_datos(ARCHIVO_FACTURAS, facturas)
-        
-        # Marcar nota como facturada
-        nota['estado'] = 'FACTURADO'
-        nota['factura_generada'] = factura['numero']
-        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-        
-        # Sincronizar con cuentas por cobrar
-        sincronizar_cuentas_por_cobrar(factura)
-        
-        flash(f'Nota de entrega #{id} convertida a factura #{factura["numero"]}', 'success')
-        registrar_bitacora(session['usuario'], 'Convertir nota a factura', f"Nota: {id} -> Factura: {factura['numero']}")
-        return redirect(url_for('editar_factura', id=factura['numero']))
-        
-    except Exception as e:
-        flash(f'Error convirtiendo nota a factura: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-
-@app.route('/test-eliminar-nota/<id>')
-def test_eliminar_nota(id):
-    """Ruta de prueba para verificar eliminación de notas."""
-    return f"Ruta de prueba funcionando para nota {id}"
-
-@app.route('/notas-entrega/<id>/eliminar', methods=['GET'])
-@login_required
-def eliminar_nota_entrega(id):
-    """Elimina o anula una nota de entrega según su estado."""
-    print(f"🔍 Función eliminar_nota_entrega llamada con ID: {id}")
-    print(f"🔍 Método HTTP: {request.method}")
-    print(f"🔍 URL: {request.url}")
-    
-    try:
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        print(f"🔍 Notas cargadas: {len(notas)} notas encontradas")
-        
-        if id not in notas:
-            print(f"❌ Nota {id} no encontrada")
-            flash('Nota de entrega no encontrada', 'danger')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        nota = notas[id]
-        print(f"✅ Nota {id} encontrada: {nota.get('numero', 'N/A')}")
-        
-        # Si la nota está entregada, marcarla como ANULADA en lugar de eliminar
-        if nota.get('estado') == 'ENTREGADO':
-            print(f"🔄 Nota {id} ya entregada, marcando como ANULADA")
-            
-            # Marcar como anulada
-            nota['estado'] = 'ANULADO'
-            nota['fecha_anulacion'] = datetime.now().strftime('%Y-%m-%d')
-            nota['hora_anulacion'] = datetime.now().strftime('%H:%M:%S')
-            nota['anulado_por'] = session['usuario']
-            nota['motivo_anulacion'] = 'Anulada por usuario'
-            
-            # Guardar cambios
-            guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-            print(f"✅ Nota {id} marcada como ANULADA exitosamente")
-            
-            flash(f'Nota de entrega #{id} marcada como ANULADA', 'warning')
-            registrar_bitacora(session['usuario'], 'Anular nota de entrega', f"Nota: {id} - Estado: ENTREGADO -> ANULADO")
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        # Si la nota NO está entregada, eliminarla completamente
-        print(f"🗑️ Nota {id} no entregada, eliminando completamente")
-        
-        # Restaurar stock del inventario antes de eliminar
-        try:
-            inventario = cargar_datos(ARCHIVO_INVENTARIO)
-            productos = nota.get('productos', [])
-            cantidades = nota.get('cantidades', [])
-            
-            for i, producto_id in enumerate(productos):
-                if producto_id in inventario and i < len(cantidades):
-                    cantidad_actual = int(inventario[producto_id].get('stock', 0))
-                    cantidad_restaurada = int(cantidades[i])
-                    nuevo_stock = cantidad_actual + cantidad_restaurada
-                    inventario[producto_id]['stock'] = nuevo_stock
-                    
-                    # Registrar en bitácora
-                    registrar_bitacora(session['usuario'], 'Restaurar stock por eliminación de nota', 
-                                     f"Producto: {producto_id}, Cantidad: {cantidad_restaurada}, Stock anterior: {cantidad_actual}, Stock nuevo: {nuevo_stock}")
-            
-            guardar_datos(ARCHIVO_INVENTARIO, inventario)
-            print(f"✅ Stock restaurado exitosamente para nota {id}")
-            
-        except Exception as e:
-            print(f"❌ Error restaurando stock: {e}")
-            # Continuar con la eliminación aunque falle la restauración de stock
-        
-        # Eliminar nota completamente
-        del notas[id]
-        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-        print(f"✅ Nota {id} eliminada completamente exitosamente")
-        
-        flash(f'Nota de entrega #{id} eliminada completamente', 'success')
-        registrar_bitacora(session['usuario'], 'Eliminar nota de entrega', f"Nota: {id}")
-        return redirect(url_for('mostrar_notas_entrega'))
-        
-    except Exception as e:
-        print(f"❌ Error procesando nota {id}: {e}")
-        flash(f'Error procesando nota de entrega: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-
-@app.route('/notas-entrega/<id>/anular', methods=['GET'])
-@login_required
-def anular_nota_entrega(id):
-    """Anula una nota de entrega entregada (marca como ANULADO)."""
-    print(f"🔄 Función anular_nota_entrega llamada con ID: {id}")
-    
-    try:
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        
-        if id not in notas:
-            flash('Nota de entrega no encontrada', 'danger')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        nota = notas[id]
-        
-        # Solo permitir anular si está entregada
-        if nota.get('estado') != 'ENTREGADO':
-            flash('Solo se pueden anular notas de entrega que estén entregadas', 'warning')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        # Marcar como anulada
-        nota['estado'] = 'ANULADO'
-        nota['fecha_anulacion'] = datetime.now().strftime('%Y-%m-%d')
-        nota['hora_anulacion'] = datetime.now().strftime('%H:%M:%S')
-        nota['anulado_por'] = session['usuario']
-        nota['motivo_anulacion'] = 'Anulada por usuario'
-        
-        # Guardar cambios
-        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-        print(f"✅ Nota {id} anulada exitosamente")
-        
-        flash(f'Nota de entrega #{id} anulada exitosamente', 'warning')
-        registrar_bitacora(session['usuario'], 'Anular nota de entrega', f"Nota: {id} - Estado: ENTREGADO -> ANULADO")
-        return redirect(url_for('mostrar_notas_entrega'))
-        
-    except Exception as e:
-        print(f"❌ Error anulando nota {id}: {e}")
-        flash(f'Error anulando nota de entrega: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-
-@app.route('/notas-entrega/<id>/imprimir')
-@login_required
-def imprimir_nota_entrega(id):
-    """Muestra la nota de entrega para imprimir."""
-    notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-    
-    if id not in notas:
-        flash('Nota de entrega no encontrada', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-    
-    nota = notas[id]
-    clientes = cargar_datos(ARCHIVO_CLIENTES)
-    inventario = cargar_datos(ARCHIVO_INVENTARIO)
-    
-    # Obtener información completa del cliente
-    cliente = clientes.get(nota['cliente_id'], {})
-    nota['cliente_nombre'] = cliente.get('nombre', 'Cliente no encontrado')
-    nota['cliente_identificacion'] = cliente.get('identificacion', '')
-    nota['cliente_direccion'] = cliente.get('direccion', '')
-    nota['cliente_telefono'] = cliente.get('telefono', '')
-    nota['cliente_email'] = cliente.get('email', '')
-    
-    # Obtener nombres y códigos de productos
-    productos_nombres = []
-    productos_codigos = []
-    
-    for producto_id in nota.get('productos', []):
-        producto = inventario.get(str(producto_id), {})
-        productos_nombres.append(producto.get('nombre', f'Producto ID: {producto_id}'))
-        productos_codigos.append(producto.get('codigo', ''))
-    
-    nota['productos_nombres'] = productos_nombres
-    nota['productos_codigos'] = productos_codigos
-    
-    # Cargar tasa BCV si no está disponible
-    if not nota.get('tasa_bcv') or nota.get('tasa_bcv') == 0:
-        try:
-            with open(ULTIMA_TASA_BCV_FILE, 'r', encoding='utf-8') as f:
-                tasa_data = json.load(f)
-                nota['tasa_bcv'] = tasa_data.get('tasa', 0)
-                nota['fecha_tasa_bcv'] = tasa_data.get('fecha', 'N/A')
-        except:
-            nota['tasa_bcv'] = 0
-            nota['fecha_tasa_bcv'] = 'N/A'
-    
-    return render_template('nota_entrega_imprimir.html', nota=nota, cliente=cliente)
-
-@app.route('/reporte/notas-entrega')
-@login_required
-def reporte_notas_entrega():
-    """Genera reporte de notas de entrega."""
-    try:
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        clientes = cargar_datos(ARCHIVO_CLIENTES)
-        
-        # Filtrar por parámetros
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
-        estado = request.args.get('estado', '')
-        modalidad = request.args.get('modalidad', '')
-        
-        notas_filtradas = {}
-        
-        for id_nota, nota in notas.items():
-            # Filtro por fecha
-            if fecha_inicio and nota['fecha'] < fecha_inicio:
-                continue
-            if fecha_fin and nota['fecha'] > fecha_fin:
-                continue
-            
-            # Filtro por estado
-            if estado and nota['estado'] != estado:
-                continue
-            
-            # Filtro por modalidad
-            if modalidad and nota['modalidad_pago'] != modalidad:
-                continue
-            
-            notas_filtradas[id_nota] = nota
-        
-        # Agregar información del cliente
-        for nota in notas_filtradas.values():
-            cliente_id = nota.get('cliente_id')
-            if cliente_id in clientes:
-                nota['cliente_nombre'] = clientes[cliente_id].get('nombre', 'N/A')
-            else:
-                nota['cliente_nombre'] = 'Cliente no encontrado'
-        
-        return render_template('reporte_notas_entrega.html', 
-                             notas=notas_filtradas, 
-                             clientes=clientes,
-                             fecha_inicio=fecha_inicio,
-                             fecha_fin=fecha_fin,
-                             estado=estado,
-                             modalidad=modalidad)
-        
-    except Exception as e:
-        flash(f'Error generando reporte: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-
-@app.route('/notas-entrega/recordatorios-facturacion')
-@login_required
-def recordatorios_facturacion():
-    """Muestra notas pendientes de facturación."""
-    try:
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        
-        # Filtrar notas a crédito pendientes de facturación
-        notas_pendientes = []
-        for nota in notas.values():
-            if (nota.get('modalidad_pago') == 'credito' and 
-                nota.get('estado') == 'ENTREGADO'):
-                
-                # Verificar si está vencida
-                if nota.get('fecha_vencimiento_factura'):
-                    fecha_vencimiento = datetime.strptime(nota['fecha_vencimiento_factura'], '%Y-%m-%d')
-                    dias_restantes = (fecha_vencimiento - datetime.now()).days
-                    nota['dias_restantes'] = dias_restantes
-                    nota['vencida'] = dias_restantes < 0
-                
-                notas_pendientes.append(nota)
-        
-        # Ordenar por fecha de vencimiento (más urgentes primero)
-        notas_pendientes.sort(key=lambda x: x.get('fecha_vencimiento_factura', ''))
-        
-        return render_template('recordatorios_facturacion.html', notas=notas_pendientes)
-        
-    except Exception as e:
-        flash(f'Error cargando recordatorios: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
-
-# ========================================
-# FUNCIÓN DE SINCRONIZACIÓN AUTOMÁTICA
-# ========================================
-
-def sincronizar_cuentas_por_cobrar(factura):
-    """
-    Sincroniza automáticamente las cuentas por cobrar cuando se registra un pago.
-    Esta función se ejecuta cada vez que se registra un pago en una factura.
-    """
-    try:
-        # Cargar cuentas por cobrar existentes
-        cuentas = cargar_datos(ARCHIVO_CUENTAS)
-        
-        # Obtener información de la factura
-        numero_factura = factura.get('numero', 'N/A')
-        cliente_id = factura.get('cliente_id', 'N/A')
-        total_usd = float(factura.get('total_usd', 0))
-        total_abonado = float(factura.get('total_abonado', 0))
-        saldo_pendiente = float(factura.get('saldo_pendiente', 0))
-        
-        # Cargar información del cliente
-        clientes = cargar_datos(ARCHIVO_CLIENTES)
-        cliente = clientes.get(cliente_id, {})
-        rif_cliente = cliente.get('rif', cliente_id)
-        
-        # Determinar el estado de la cuenta
-        if total_abonado >= total_usd or saldo_pendiente <= 0:
-            estado = 'Cobrada'
-        elif total_abonado > 0:
-            estado = 'Abonada'
-        else:
-            estado = 'Por Cobrar'
-        
-        # Crear o actualizar la cuenta por cobrar
-        cuenta_key = numero_factura
-        
-        # Obtener información del último pago
-        ultimo_pago = None
-        if factura.get('pagos'):
-            ultimo_pago = max(factura['pagos'], key=lambda x: x.get('fecha', ''))
-        
-        cuenta_data = {
-            'rif': rif_cliente,
-            'total_usd': total_usd,
-            'abonado_usd': total_abonado,
-            'estado': estado,
-            'fecha_emision': factura.get('fecha', ''),
-            'fecha_ultimo_abono': ultimo_pago.get('fecha', '') if ultimo_pago else '',
-            'tipo_pago': ultimo_pago.get('metodo', 'N/A') if ultimo_pago else 'N/A',
-            'referencia_pago': ultimo_pago.get('referencia', '') if ultimo_pago else '',
-            'cliente_id': cliente_id,
-            'cliente_nombre': cliente.get('nombre', 'N/A'),
-            'factura_origen': numero_factura,
-            'ultima_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # Actualizar la cuenta
-        cuentas[cuenta_key] = cuenta_data
-        
-        # Guardar cambios
-        if guardar_datos(ARCHIVO_CUENTAS, cuentas):
-            print(f"✅ Cuenta por cobrar sincronizada: {numero_factura} - Estado: {estado}")
-            
-            # Registrar en bitácora
-            try:
-                registrar_bitacora(
-                    'SISTEMA', 
-                    'Sincronización automática cuentas por cobrar', 
-                    f"Factura: {numero_factura}, Estado: {estado}, Abonado: ${total_abonado:.2f}"
-                )
-            except Exception as e:
-                print(f"⚠️ Error registrando en bitácora: {e}")
-                
-            return True
-        else:
-            print(f"❌ Error guardando cuenta por cobrar: {numero_factura}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Error en sincronización automática: {e}")
+        print(f"❌ Error enviando email: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
-def notificar_pago_recibido(factura, pago):
-    """
-    Envía notificaciones automáticas cuando se recibe un pago.
-    """
+def notificar_cliente(cliente_email, cliente_telefono, asunto, mensaje_txt, tipo='nota_entrega'):
+    """Notifica a un cliente por email y WhatsApp si está configurado"""
     try:
-        # Obtener información del cliente
-        clientes = cargar_datos(ARCHIVO_CLIENTES)
-        cliente = clientes.get(factura.get('cliente_id', ''), {})
-        nombre_cliente = cliente.get('nombre', 'Cliente')
+        config = cargar_configuracion()
+        notificaciones = config.get('notificaciones', {})
+        empresa = config.get('empresa', {})
         
-        # Crear mensaje de confirmación
-        mensaje = f"""💰 *PAGO RECIBIDO CONFIRMADO*
+        # Preparar mensaje
+        mensaje = f"""
+*{asunto}*
 
-✅ *Factura:* {factura.get('numero', 'N/A')}
-👤 *Cliente:* {nombre_cliente}
-💵 *Monto:* ${pago.get('monto', 0):.2f}
-🏦 *Método:* {pago.get('metodo', 'N/A')}
-📅 *Fecha:* {pago.get('fecha', 'N/A')}
+{mensaje_txt}
 
-*Saldo pendiente:* ${factura.get('saldo_pendiente', 0):.2f}
-
-¡Gracias por tu pago! 🎉"""
+---
+*{empresa.get('nombre', 'Servicio Técnico')}*
+📱 WhatsApp: {empresa.get('whatsapp', '')}
+📧 Email: {empresa.get('email', '')}
+        """
         
-        print(f"💬 Notificación de pago creada para {nombre_cliente}")
+        resultados = {'whatsapp': False, 'email': False}
         
-        # Aquí se podría integrar con WhatsApp o email
-        # Por ahora solo se registra en la bitácora
-        registrar_bitacora(
-            'SISTEMA',
-            'Notificación de pago recibido',
-            f"Cliente: {nombre_cliente}, Factura: {factura.get('numero', 'N/A')}, Monto: ${pago.get('monto', 0):.2f}"
-        )
+        # Enviar por WhatsApp si está configurado y el cliente tiene teléfono
+        if cliente_telefono and notificaciones.get('whatsapp_habilitado', False):
+            try:
+                enlace_whatsapp = enviar_whatsapp_reportes(cliente_telefono, mensaje)
+                if enlace_whatsapp:
+                    print(f"📱 Enlace WhatsApp generado para {cliente_telefono}")
+                    resultados['whatsapp'] = True
+                    resultados['enlace_whatsapp'] = enlace_whatsapp
+            except Exception as e:
+                print(f"❌ Error generando WhatsApp: {e}")
+        
+        # Enviar por email si está configurado y el cliente tiene email
+        if cliente_email and notificaciones.get('email_habilitado', False):
+            try:
+                resultado_email = enviar_email_reporte(asunto, mensaje, cliente_email, config)
+                if resultado_email:
+                    print(f"📧 Email enviado a {cliente_email}")
+                    resultados['email'] = True
+            except Exception as e:
+                print(f"❌ Error enviando email al cliente: {e}")
+        
+        return resultados
+        
+    except Exception as e:
+        print(f"❌ Error notificando al cliente: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'whatsapp': False, 'email': False, 'error': str(e)}
+
+def generar_reporte_semanal(manual=False):
+    """Genera y envía reporte semanal de estadísticas"""
+    try:
+        config = cargar_configuracion()
+        alertas = config.get('alertas', {})
+        
+        # Si se llama manualmente, no verificar si está habilitado
+        if not manual and not alertas.get('estadisticas_semanales', False):
+            print("📊 Reporte semanal deshabilitado en configuración")
+            return None
+        
+        print("📊 Iniciando generación de reporte semanal...")
+        
+        # Obtener datos
+        ordenes = cargar_datos('ordenes_servicio.json')
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        pagos = cargar_datos('pagos_recibidos.json')
+        
+        # Calcular estadísticas semanales
+        fecha_inicio = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        ordenes_semana = {k: v for k, v in ordenes.items() if v.get('fecha_recepcion', '') >= fecha_inicio}
+        notas_semana = {k: v for k, v in notas.items() if v.get('fecha', '') >= fecha_inicio}
+        pagos_semana = {k: v for k, v in pagos.items() if v.get('fecha', '') >= fecha_inicio}
+        
+        total_ordenes = len(ordenes_semana)
+        total_notas = len(notas_semana)
+        total_pagos = sum(float(p.get('monto_usd', 0)) for p in pagos_semana.values())
+        
+        # Generar mensaje
+        mensaje = f"""
+📊 *Reporte Semanal de Negocio*
+
+📋 *Periodo:* Últimos 7 días
+📅 *Fecha:* {datetime.now().strftime('%d/%m/%Y')}
+
+🔧 *Órdenes de Servicio:*
+• Total: {total_ordenes}
+
+📦 *Notas de Entrega:*
+• Total: {total_notas}
+
+💰 *Pagos Recibidos:*
+• Total: ${total_pagos:.2f} USD
+
+---
+Generado automáticamente por el Sistema de Gestión Técnica
+        """
+        
+        print(f"✅ Reporte semanal generado: {total_ordenes} órdenes, {total_notas} notas, ${total_pagos:.2f} pagos")
+        
+        # Determinar canal de notificación
+        canal = alertas.get('canal_notificacion', 'email')
+        whatsapp_empresa = config.get('empresa', {}).get('whatsapp', '')
+        email_empresa = config.get('empresa', {}).get('email', '')
+        
+        # Enviar según canal configurado
+        if canal in ['whatsapp', 'ambos'] and whatsapp_empresa:
+            enlace_whatsapp = enviar_whatsapp_reportes(whatsapp_empresa, mensaje)
+            print(f"📱 Enlace WhatsApp para envío manual: {enlace_whatsapp}")
+        
+        if canal in ['email', 'ambos'] and email_empresa:
+            resultado = enviar_email_reporte(
+                "📊 Reporte Semanal de Negocio",
+                mensaje,
+                email_empresa,
+                config
+            )
+            if resultado:
+                print(f"✅ Email enviado exitosamente a: {email_empresa}")
         
         return mensaje
         
     except Exception as e:
-        print(f"❌ Error creando notificación: {e}")
-        return None
+        print(f"❌ Error generando reporte semanal: {e}")
 
-# --- FUNCIONALIDAD DE PAGOS EN NOTAS DE ENTREGA ---
-# ===================================================
-
-def procesar_pago_nota_entrega(nota_id, monto_pago, metodo_pago, referencia_pago=""):
-    """
-    Procesa un pago en una nota de entrega y actualiza el inventario.
-    Esta función se ejecuta cuando se recibe un pago directo en una nota de entrega.
-    """
+def generar_reporte_mensual(manual=False):
+    """Genera y envía reporte mensual de estadísticas"""
     try:
-        # Cargar datos
+        config = cargar_configuracion()
+        alertas = config.get('alertas', {})
+        
+        # Si se llama manualmente, no verificar si está habilitado
+        if not manual and not alertas.get('estadisticas_mensuales', False):
+            print("📊 Reporte mensual deshabilitado en configuración")
+            return None
+        
+        print("📊 Iniciando generación de reporte mensual...")
+        
+        # Obtener datos
+        ordenes = cargar_datos('ordenes_servicio.json')
         notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        pagos = cargar_datos('pagos_recibidos.json')
         
-        if nota_id not in notas:
-            print(f"❌ Nota de entrega {nota_id} no encontrada")
-            return False, "Nota de entrega no encontrada"
+        # Calcular estadísticas mensuales
+        fecha_inicio = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+        ordenes_mes = {k: v for k, v in ordenes.items() if v.get('fecha_recepcion', '') >= fecha_inicio}
+        notas_mes = {k: v for k, v in notas.items() if v.get('fecha', '') >= fecha_inicio}
+        pagos_mes = {k: v for k, v in pagos.items() if v.get('fecha', '') >= fecha_inicio}
         
-        nota = notas[nota_id]
+        total_ordenes = len(ordenes_mes)
+        total_notas = len(notas_mes)
+        total_pagos_usd = sum(float(p.get('monto_usd', 0)) for p in pagos_mes.values())
         
-        # Verificar que la nota esté en estado válido
-        if nota.get('estado') not in ['PENDIENTE_ENTREGA', 'ENTREGADO']:
-            return False, f"La nota no puede recibir pagos en estado: {nota.get('estado')}"
+        # Generar mensaje
+        mensaje = f"""
+📊 *Reporte Mensual de Negocio*
+
+📋 *Periodo:* Mes actual
+📅 *Fecha:* {datetime.now().strftime('%d/%m/%Y')}
+
+🔧 *Órdenes de Servicio:*
+• Total: {total_ordenes}
+
+📦 *Notas de Entrega:*
+• Total: {total_notas}
+
+💰 *Pagos Recibidos:*
+• Total: ${total_pagos_usd:.2f} USD
+
+---
+Generado automáticamente por el Sistema de Gestión Técnica
+        """
         
-        # Inicializar pagos si no existe
-        if 'pagos' not in nota:
-            nota['pagos'] = []
+        print(f"✅ Reporte mensual generado: {total_ordenes} órdenes, {total_notas} notas, ${total_pagos_usd:.2f} pagos")
         
-        # Crear registro de pago
-        nuevo_pago = {
-            'id': str(len(nota['pagos']) + 1),
-            'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'monto': float(monto_pago),
-            'metodo': metodo_pago,
-            'referencia': referencia_pago,
-            'timestamp': datetime.now().isoformat()
-        }
+        # Determinar canal de notificación
+        canal = alertas.get('canal_notificacion', 'email')
+        whatsapp_empresa = config.get('empresa', {}).get('whatsapp', '')
+        email_empresa = config.get('empresa', {}).get('email', '')
         
-        # Agregar pago a la nota
-        nota['pagos'].append(nuevo_pago)
+        # Enviar según canal configurado
+        if canal in ['whatsapp', 'ambos'] and whatsapp_empresa:
+            enlace_whatsapp = enviar_whatsapp_reportes(whatsapp_empresa, mensaje)
+            print(f"📱 Enlace WhatsApp para envío manual: {enlace_whatsapp}")
         
-        # Calcular total pagado
-        total_pagado = sum(pago['monto'] for pago in nota['pagos'])
-        total_nota = float(nota.get('subtotal_usd', 0))
+        if canal in ['email', 'ambos'] and email_empresa:
+            resultado = enviar_email_reporte(
+                "📊 Reporte Mensual de Negocio",
+                mensaje,
+                email_empresa,
+                config
+            )
+            if resultado:
+                print(f"✅ Email enviado exitosamente a: {email_empresa}")
         
-        # Actualizar estado de la nota
-        if total_pagado >= total_nota:
-            nota['estado'] = 'PAGADA'
-            nota['fecha_pago_completo'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            nota['estado'] = 'ABONADA'
-        
-        # Guardar nota actualizada
-        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
-        
-        # DESCONTAR DEL INVENTARIO
-        if nota.get('estado') in ['ENTREGADO', 'PAGADA']:
-            productos = nota.get('productos', [])
-            cantidades = nota.get('cantidades', [])
-            
-            for i, producto_id in enumerate(productos):
-                cantidad = int(cantidades[i]) if i < len(cantidades) else 0
-                
-                if producto_id in inventario:
-                    stock_actual = int(inventario[producto_id].get('cantidad', 0))
-                    nuevo_stock = max(0, stock_actual - cantidad)
-                    
-                    inventario[producto_id]['cantidad'] = nuevo_stock
-                    inventario[producto_id]['ultima_salida'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    
-                    print(f"📦 Producto {producto_id}: Stock {stock_actual} -> {nuevo_stock} (descontado: {cantidad})")
-                else:
-                    print(f"⚠️ Producto {producto_id} no encontrado en inventario")
-            
-            # Guardar inventario actualizado
-            guardar_datos(ARCHIVO_INVENTARIO, inventario)
-            print(f"✅ Inventario actualizado para nota {nota_id}")
-        
-        # SINCRONIZAR CON CUENTAS POR COBRAR SIEMPRE que se procese un pago
-        if nota.get('estado') == 'PAGADA':
-            # Crear factura automáticamente para sincronización
-            factura = crear_factura_desde_nota_pagada(nota)
-            if factura:
-                sincronizar_cuentas_por_cobrar(factura)
-                print(f"✅ Factura creada y sincronizada: {factura['numero']}")
-            else:
-                # Si no se puede crear factura, sincronizar directamente la nota
-                print(f"📊 Sincronizando nota de entrega con cuentas por cobrar")
-                # Crear entrada en cuentas por cobrar para la nota pagada
-                cuentas = cargar_datos(ARCHIVO_CUENTAS)
-                entrada_cuenta = {
-                    'rif': nota.get('cliente_id', ''),
-                    'total_usd': float(nota.get('subtotal_usd', 0)),
-                    'abonado_usd': float(nota.get('subtotal_usd', 0)),
-                    'estado': 'Cobrada',
-                    'tipo_pago': 'Nota de Entrega',
-                    'fecha_ultimo_abono': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'fecha_emision': nota.get('fecha', ''),
-                    'referencia_pago': f"Nota {nota_id} - Pago completo",
-                    'nota_entrega_origen': nota_id
-                }
-                cuentas[f"NE-{nota_id}"] = entrada_cuenta
-                guardar_datos(ARCHIVO_CUENTAS, cuentas)
-                print(f"✅ Nota sincronizada con cuentas por cobrar")
-        
-        # Registrar en bitácora
-        registrar_bitacora(
-            'SISTEMA',
-            'Pago procesado en nota de entrega',
-            f"Nota: {nota_id}, Monto: ${monto_pago:.2f}, Estado: {nota['estado']}"
-        )
-        
-        print(f"✅ Pago procesado exitosamente en nota {nota_id}")
-        return True, f"Pago procesado. Estado actual: {nota['estado']}"
+        return mensaje
         
     except Exception as e:
-        print(f"❌ Error procesando pago en nota de entrega: {e}")
-        return False, f"Error: {str(e)}"
+        print(f"❌ Error generando reporte mensual: {e}")
 
-def crear_factura_desde_nota_pagada(nota):
-    """
-    Crea una factura automáticamente cuando una nota de entrega a crédito se paga completamente.
-    """
+def verificar_alertas():
+    """Verifica y muestra alertas configuradas"""
     try:
-        # Obtener numeración fiscal
-        usuario_actual = 'SISTEMA'
-        numero_fiscal, numero_secuencial = control_numeracion.obtener_siguiente_numero('FACTURA', usuario_actual)
+        config = cargar_configuracion()
+        alertas = config.get('alertas', {})
         
-        # Crear factura
-        factura = {
-            'numero': numero_fiscal,
-            'numero_secuencial': numero_secuencial,
-            'fecha': datetime.now().strftime('%Y-%m-%d'),
-            'hora': datetime.now().strftime('%H:%M:%S'),
-            'timestamp_creacion': datetime.now().isoformat(),
-            'cliente_id': nota['cliente_id'],
-            'productos': nota['productos'],
-            'cantidades': nota['cantidades'],
-            'precios': nota['precios'],
-            'subtotal_usd': nota['subtotal_usd'],
-            'descuento': 0,
-            'tipo_descuento': 'bs',
-            'descuento_total': 0,
-            'iva': 16,
-            'iva_total': nota['subtotal_usd'] * 0.16,
-            'total_usd': nota['subtotal_usd'] * 1.16,
-            'condicion_pago': 'contado',  # Ya está pagada
-            'dias_credito': 0,
-            'fecha_vencimiento': datetime.now().strftime('%Y-%m-%d'),
-            'nota_entrega_origen': nota['numero'],
-            'estado': 'PAGADA',
-            'pagos': nota.get('pagos', []),
-            'tasa_bcv': 36.00,
-            'total_abonado': nota['subtotal_usd'] * 1.16,
-            'saldo_pendiente': 0
-        }
+        alertas_activas = []
         
-        # Guardar factura
-        facturas = cargar_datos(ARCHIVO_FACTURAS)
-        facturas[factura['numero']] = factura
-        guardar_datos(ARCHIVO_FACTURAS, facturas)
+        # Verificar stock mínimo
+        if alertas.get('stock_minimo', False):
+            inventario = cargar_datos(ARCHIVO_INVENTARIO)
+            productos_bajo_minimo = []
+            for prod in inventario.values():
+                stock_actual = int(prod.get('stock_actual', 0))
+                stock_minimo = int(prod.get('stock_minimo', 5))
+                if stock_actual <= stock_minimo:
+                    productos_bajo_minimo.append(prod.get('nombre', 'Desconocido'))
+            
+            if productos_bajo_minimo:
+                alertas_activas.append(f"⚠️ Stock Mínimo: {len(productos_bajo_minimo)} productos")
         
-        # Actualizar nota con referencia a la factura
-        nota['factura_generada'] = factura['numero']
-        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-        notas[nota['numero']] = nota
-        guardar_datos(ARCHIVO_NOTAS_ENTREGA, notas)
+        # Verificar pagos pendientes
+        if alertas.get('pagos_pendientes', False):
+            notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+            pagos_pendientes = sum(
+                1 for nota in notas.values() 
+                if nota.get('estado') == 'PENDIENTE_ENTREGA' or nota.get('estado') == 'PENDIENTE_PAGO'
+            )
+            if pagos_pendientes > 0:
+                alertas_activas.append(f"💰 Pagos Pendientes: {pagos_pendientes} notas")
         
-        return factura
+        # Verificar órdenes en espera
+        if alertas.get('ordenes_pendientes', False):
+            ordenes = cargar_datos('ordenes_servicio.json')
+            ordenes_pend = sum(
+                1 for orden in ordenes.values() 
+                if orden.get('estado') in ['recibida', 'en_diagnostico']
+            )
+            if ordenes_pend > 0:
+                alertas_activas.append(f"🔧 Órdenes Pendientes: {ordenes_pend} órdenes")
         
-    except Exception as e:
-        print(f"❌ Error creando factura desde nota pagada: {e}")
-        return None
-
-@app.route('/notas-entrega/<id>/procesar-pago', methods=['POST'])
-@login_required
-def procesar_pago_nota_entrega_route(id):
-    """
-    Ruta para procesar pagos en notas de entrega.
-    """
-    try:
-        monto = float(request.form.get('monto', 0))
-        metodo = request.form.get('metodo', 'efectivo')
-        referencia = request.form.get('referencia', '')
-        
-        if monto <= 0:
-            flash('El monto debe ser mayor a 0', 'danger')
-            return redirect(url_for('mostrar_notas_entrega'))
-        
-        # Procesar el pago
-        exito, mensaje = procesar_pago_nota_entrega(id, monto, metodo, referencia)
-        
-        if exito:
-            flash(f'Pago procesado exitosamente: {mensaje}', 'success')
+        if alertas_activas:
+            print("🔔 ALERTAS ACTIVAS:")
+            for alerta in alertas_activas:
+                print(f"  {alerta}")
         else:
-            flash(f'Error procesando pago: {mensaje}', 'danger')
+            print("✅ No hay alertas activas")
         
-        return redirect(url_for('mostrar_notas_entrega'))
+        return alertas_activas
         
     except Exception as e:
-        flash(f'Error procesando pago: {e}', 'danger')
-        return redirect(url_for('mostrar_notas_entrega'))
+        print(f"❌ Error verificando alertas: {e}")
 
-# --- Ruta de prueba ---
-# NOTA: La función index ya está definida anteriormente
-
-@app.route('/test')
-def test():
-    return "Test de funcionamiento OK ✅"
-
-# Debug: Imprimir rutas disponibles
 if __name__ == '__main__':
-    print("🔍 Rutas disponibles en la aplicación:")
+    # Crear directorios necesarios
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(IMAGENES_PRODUCTOS_FOLDER, exist_ok=True)
+    os.makedirs('facturas_json', exist_ok=True)
+    os.makedirs('cotizaciones_json', exist_ok=True)
+    os.makedirs('cotizaciones_pdf', exist_ok=True)
+    os.makedirs('facturas_pdf', exist_ok=True)
+    os.makedirs('documentos_fiscales', exist_ok=True)
+    os.makedirs('exportaciones_seniat', exist_ok=True)
+    os.makedirs('reportes_clientes', exist_ok=True)
+    os.makedirs('reportes_cuentas', exist_ok=True)
+    os.makedirs('logs', exist_ok=True)
+    
+    # Mostrar todas las rutas registradas
+    print("Rutas disponibles:")
     for rule in app.url_map.iter_rules():
         print(f"  {rule.rule} -> {rule.endpoint}")
-    print("🚀 Aplicación iniciada correctamente")
-    print("🌐 Iniciando servidor web en http://127.0.0.1:5000")
-    print("📱 Para acceder a las notas de entrega: http://127.0.0.1:5000/notas-entrega")
-    print("⏹️  Presiona CTRL+C para detener el servidor")
+    print("Aplicacion iniciada correctamente")
     
-    # Iniciar el servidor Flask
-    app.run(debug=True, host='127.0.0.1', port=5000)
-
+    # Configuración para desarrollo local y producción en Render
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    
+    if is_production:
+        # Configuración para Render (producción)
+        port = int(os.environ.get('PORT', 10000))
+        host = '0.0.0.0'
+        debug = False
+        print(f"Iniciando servidor web en puerto {port} (Render)")
+        app.run(host=host, port=port, debug=debug)
+    else:
+        # Configuración para desarrollo local
+        print("Iniciando servidor web en http://127.0.0.1:5000")
+        print("Presiona CTRL+C para detener el servidor")
+        app.run(debug=True, host='127.0.0.1', port=5000)

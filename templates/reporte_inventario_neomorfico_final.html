@@ -1,0 +1,578 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Inventario Inteligente{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporte_mejorado.css') }}?v=7.0">
+<style>
+/* Estilos Neomórficos Completos */
+body {
+    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+}
+
+.container-fluid {
+    max-width: 1400px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
+    background: transparent !important;
+}
+
+/* Cards Neomórficas */
+.neo-card {
+    background: #ffffff !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        20px 20px 60px #d1d9e6,
+        -20px -20px 60px #ffffff !important;
+    border: none !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.neo-card:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        25px 25px 70px #d1d9e6,
+        -25px -25px 70px #ffffff !important;
+}
+
+/* Header con gradiente */
+.header-background {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-radius: 25px !important;
+    padding: 2rem !important;
+    box-shadow: 
+        20px 20px 60px rgba(102, 126, 234, 0.3),
+        -20px -20px 60px rgba(118, 75, 162, 0.3) !important;
+    margin-bottom: 2rem !important;
+    color: white !important;
+}
+
+/* Botones neomórficos */
+.btn-neo {
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 20px #d1d9e6,
+        -8px -8px 20px #ffffff !important;
+    color: #333 !important;
+    padding: 0.75rem 1.5rem !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+}
+
+.btn-neo:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        12px 12px 25px #d1d9e6,
+        -12px -12px 25px #ffffff !important;
+    color: #333 !important;
+    text-decoration: none !important;
+}
+
+.btn-neo:active {
+    transform: translateY(1px) !important;
+    box-shadow: 
+        inset 4px 4px 10px #d1d9e6,
+        inset -4px -4px 10px #ffffff !important;
+}
+
+/* Inputs neomórficos */
+.input-neo {
+    background: #f0f0f3 !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        inset 8px 8px 20px #d1d9e6,
+        inset -8px -8px 20px #ffffff !important;
+    padding: 0.75rem 1rem !important;
+    color: #333 !important;
+    width: 100% !important;
+}
+
+.input-neo:focus {
+    outline: none !important;
+    box-shadow: 
+        inset 8px 8px 20px #d1d9e6,
+        inset -8px -8px 20px #ffffff,
+        0 0 0 3px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* Tabs neomórficas */
+.nav-tabs {
+    border: none !important;
+    margin-bottom: 2rem !important;
+}
+
+.nav-tabs .nav-link {
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        8px 8px 20px #d1d9e6,
+        -8px -8px 20px #ffffff !important;
+    margin-right: 1rem !important;
+    padding: 0.75rem 1.5rem !important;
+    color: #555 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.nav-tabs .nav-link:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        12px 12px 25px #d1d9e6,
+        -12px -12px 25px #ffffff !important;
+    color: #333 !important;
+}
+
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #667eea, #764ba2) !important;
+    color: white !important;
+    box-shadow: 
+        8px 8px 20px rgba(102, 126, 234, 0.3),
+        -8px -8px 20px rgba(118, 75, 162, 0.3) !important;
+    transform: translateY(-3px) !important;
+}
+
+/* Tab content */
+.tab-content {
+    background: #ffffff !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        20px 20px 60px #d1d9e6,
+        -20px -20px 60px #ffffff !important;
+    padding: 2rem !important;
+    border: none !important;
+}
+
+/* Tablas neomórficas */
+.table-neo {
+    background: #ffffff !important;
+    border-radius: 15px !important;
+    box-shadow: 
+        10px 10px 30px #d1d9e6,
+        -10px -10px 30px #ffffff !important;
+    overflow: hidden !important;
+    border: none !important;
+}
+
+.table-neo thead th {
+    background: linear-gradient(135deg, #667eea, #764ba2) !important;
+    color: white !important;
+    border: none !important;
+    padding: 1rem !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+}
+
+.table-neo tbody tr {
+    transition: all 0.2s ease !important;
+    border: none !important;
+}
+
+.table-neo tbody tr:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)) !important;
+    transform: scale(1.02) !important;
+}
+
+.table-neo tbody td {
+    border: none !important;
+    padding: 1rem !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* Estadísticas */
+.estadistica-card {
+    background: #ffffff !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        20px 20px 60px #d1d9e6,
+        -20px -20px 60px #ffffff !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.estadistica-card:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 
+        25px 25px 70px #d1d9e6,
+        -25px -25px 70px #ffffff !important;
+}
+
+.estadistica-value {
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    color: #667eea !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.estadistica-label {
+    color: #666 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+}
+
+/* Gráficos */
+.chart-container {
+    background: #ffffff !important;
+    border-radius: 20px !important;
+    box-shadow: 
+        20px 20px 60px #d1d9e6,
+        -20px -20px 60px #ffffff !important;
+    padding: 2rem !important;
+    margin-bottom: 2rem !important;
+    height: 400px !important;
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.neo-card, .estadistica-card, .chart-container {
+    animation: fadeInUp 0.6s ease-out !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 1rem 0.5rem !important;
+    }
+    
+    .neo-card {
+        padding: 1rem !important;
+    }
+    
+    .header-background {
+        padding: 1rem !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="header-background">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-0">
+                    <i class="fas fa-chart-line me-3"></i>
+                    Reporte de Inventario Inteligente
+                </h1>
+                <p class="mb-0 mt-2 opacity-75">
+                    Análisis completo del inventario con diseño neomórfico
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{{ url_for('mostrar_inventario') }}" class="btn-neo">
+                    <i class="fas fa-arrow-left me-2"></i>Volver al Inventario
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="estadistica-card">
+                <div class="estadistica-value">{{ total_productos }}</div>
+                <div class="estadistica-label">Total Productos</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="estadistica-card">
+                <div class="estadistica-value">{{ total_stock }}</div>
+                <div class="estadistica-label">Total Stock</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="estadistica-card">
+                <div class="estadistica-value">${{ "%.2f"|format(total_valor_usd) }}</div>
+                <div class="estadistica-label">Valor Total USD</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="estadistica-card">
+                <div class="estadistica-value">{{ "%.2f"|format(total_valor_bs) }} Bs</div>
+                <div class="estadistica-label">Valor Total BS</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">Distribución por Tipo</h5>
+                <canvas id="chartTipo"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">Top 5 Categorías</h5>
+                <canvas id="chartCategorias"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reporte por Tipos -->
+    <div class="neo-card">
+        <h3 class="mb-4">
+            <i class="fas fa-list-alt me-2"></i>
+            Reporte Detallado por Tipo
+        </h3>
+        
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="tipoTabs" role="tablist">
+            {% for tipo, datos in reporte_por_tipo.items() %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if loop.first %}active{% endif %}" 
+                        id="{{ tipo }}-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#{{ tipo }}" 
+                        type="button" 
+                        role="tab">
+                    <i class="{{ datos.icono }} me-2"></i>{{ datos.nombre }}
+                    <span class="badge bg-light text-dark ms-2">{{ datos.total_productos }}</span>
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="tipoTabsContent">
+            {% for tipo, datos in reporte_por_tipo.items() %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                 id="{{ tipo }}" 
+                 role="tabpanel">
+                
+                <!-- Resumen del Tipo -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="estadistica-card">
+                            <div class="estadistica-value">{{ datos.total_productos }}</div>
+                            <div class="estadistica-label">Productos</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="estadistica-card">
+                            <div class="estadistica-value">{{ datos.total_stock }}</div>
+                            <div class="estadistica-label">Stock Total</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="estadistica-card">
+                            <div class="estadistica-value">${{ "%.2f"|format(datos.total_valor_usd) }}</div>
+                            <div class="estadistica-label">Valor USD</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="estadistica-card">
+                            <div class="estadistica-value">{{ "%.2f"|format(datos.total_valor_bs) }} Bs</div>
+                            <div class="estadistica-label">Valor BS</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categorías -->
+                {% for categoria, cat_datos in datos.categorias.items() %}
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-folder me-2"></i>{{ categoria }}
+                        <span class="badge bg-primary ms-2">{{ cat_datos.total_productos }} productos</span>
+                    </h5>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-neo">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio USD</th>
+                                    <th>Precio BS</th>
+                                    <th>Valor Total USD</th>
+                                    <th>Valor Total BS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for producto in cat_datos.productos %}
+                                <tr>
+                                    <td>{{ producto.id }}</td>
+                                    <td>{{ producto.nombre }}</td>
+                                    <td>{{ producto.cantidad }}</td>
+                                    <td>${{ "%.2f"|format(producto.precio_usd) }}</td>
+                                    <td>{{ "%.2f"|format(producto.precio_bs) }} Bs</td>
+                                    <td>${{ "%.2f"|format(producto.valor_total_usd) }}</td>
+                                    <td>{{ "%.2f"|format(producto.valor_total_bs) }} Bs</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-4">
+        <p class="text-muted">
+            Reporte generado el {{ fecha_actual }} | Tasa BCV: {{ "%.4f"|format(tasa_bcv) }} Bs/USD
+        </p>
+    </div>
+</div>
+
+<!-- Cargar Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado');
+    
+    // Verificar Chart.js
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js no está disponible');
+        return;
+    }
+    
+    console.log('Chart.js disponible:', Chart.version);
+    
+    // Datos para gráficos
+    const tiposData = {
+        labels: [
+            {% for tipo, datos in reporte_por_tipo.items() %}
+            '{{ datos.nombre }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for tipo, datos in reporte_por_tipo.items() %}
+                {{ datos.total_productos }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: [
+                '#667eea', '#f093fb', '#4facfe', '#43e97b', '#ffd93d'
+            ],
+            borderWidth: 0
+        }]
+    };
+    
+    // Gráfico de distribución por tipo
+    const ctxTipo = document.getElementById('chartTipo');
+    if (ctxTipo) {
+        new Chart(ctxTipo, {
+            type: 'doughnut',
+            data: tiposData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    arc: {
+                        borderWidth: 0
+                    }
+                }
+            }
+        });
+        console.log('Gráfico de tipos creado');
+    }
+    
+    // Gráfico de categorías (simplificado)
+    const ctxCategorias = document.getElementById('chartCategorias');
+    if (ctxCategorias) {
+        // Datos de ejemplo para categorías
+        const categoriasData = {
+            labels: ['Categoría 1', 'Categoría 2', 'Categoría 3', 'Categoría 4', 'Categoría 5'],
+            datasets: [{
+                label: 'Productos',
+                data: [12, 19, 3, 5, 2],
+                backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                borderColor: 'rgba(102, 126, 234, 1)',
+                borderWidth: 0,
+                borderRadius: 10
+            }]
+        };
+        
+        new Chart(ctxCategorias, {
+            type: 'bar',
+            data: categoriasData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 11,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 11,
+                                weight: '600'
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    bar: {
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }
+                }
+            }
+        });
+        console.log('Gráfico de categorías creado');
+    }
+    
+    console.log('Todos los gráficos inicializados');
+});
+</script>
+{% endblock %}

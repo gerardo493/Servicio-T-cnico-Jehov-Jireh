@@ -5,7 +5,7 @@ Un script de deploy **ultra-interactivo** y **específico** para tu sistema de r
 ## ✨ Características Principales
 
 ### 🎯 **Específico para tu Proyecto**
-- **Personalizado** para el Sistema de Recordatorios KISVIC
+- **Personalizado** para el Sistema de Recordatorios
 - **URLs específicas** de Render incluidas
 - **Configuración optimizada** para tu repositorio
 
@@ -223,7 +223,7 @@ Sistema de Recordatorios
 
 ### **URLs Incluidas:**
 - **Dashboard Render**: https://dashboard.render.com/web/srv-d2ckh46r433s73appvug
-- **Aplicación**: https://kisvic2025.onrender.com
+- **Aplicación**: https://tu-app.onrender.com
 
 ## 🔄 Actualizaciones y Mantenimiento
 

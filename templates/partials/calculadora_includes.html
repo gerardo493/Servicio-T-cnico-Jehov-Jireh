@@ -1,0 +1,366 @@
+<!-- Calculadora Universal - Incluye -->
+<div class="calculadora-universal" id="calculadora-universal" style="display: none;">
+    <div class="calculadora-overlay" onclick="cerrarCalculadora()"></div>
+    <div class="calculadora-container">
+        <div class="calculadora-header">
+            <h3>Calculadora Universal</h3>
+            <button class="btn-cerrar" onclick="cerrarCalculadora()">&times;</button>
+        </div>
+        <div class="calculadora-body">
+            <div class="calculadora-pantalla">
+                <input type="text" id="pantalla-calculadora" readonly>
+            </div>
+            <div class="calculadora-teclado">
+                <button class="btn-calc btn-clear" onclick="limpiarCalculadora()">C</button>
+                <button class="btn-calc btn-operator" onclick="agregarOperador('/')">/</button>
+                <button class="btn-calc btn-operator" onclick="agregarOperador('*')">×</button>
+                <button class="btn-calc btn-delete" onclick="borrarUltimo()">⌫</button>
+                
+                <button class="btn-calc btn-number" onclick="agregarNumero('7')">7</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('8')">8</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('9')">9</button>
+                <button class="btn-calc btn-operator" onclick="agregarOperador('-')">-</button>
+                
+                <button class="btn-calc btn-number" onclick="agregarNumero('4')">4</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('5')">5</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('6')">6</button>
+                <button class="btn-calc btn-operator" onclick="agregarOperador('+')">+</button>
+                
+                <button class="btn-calc btn-number" onclick="agregarNumero('1')">1</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('2')">2</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('3')">3</button>
+                <button class="btn-calc btn-equals" onclick="calcularResultado()" rowspan="2">=</button>
+                
+                <button class="btn-calc btn-number btn-zero" onclick="agregarNumero('0')">0</button>
+                <button class="btn-calc btn-number" onclick="agregarNumero('.')">.</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.calculadora-universal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+}
+
+.calculadora-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+}
+
+.calculadora-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #f0f0f3;
+    border-radius: 25px;
+    box-shadow: 
+        20px 20px 40px #d1d9e6,
+        -20px -20px 40px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    width: 350px;
+    max-width: 90vw;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.calculadora-container:hover {
+    box-shadow: 
+        25px 25px 50px #d1d9e6,
+        -25px -25px 50px #ffffff,
+        inset 3px 3px 6px rgba(255, 255, 255, 0.8),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.15);
+    transform: translate(-50%, -50%) translateY(-2px);
+}
+
+.calculadora-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+    background: linear-gradient(135deg, #e8e8e8 0%, #d1d1d1 100%);
+    border-radius: 25px 25px 0 0;
+    box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1);
+    color: #2d3748;
+    position: relative;
+    overflow: hidden;
+}
+
+.calculadora-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 86, 179, 0.1) 100%);
+    z-index: 0;
+}
+
+.calculadora-header h3 {
+    margin: 0;
+    color: #2d3748;
+    font-size: 20px;
+    font-weight: 800;
+    position: relative;
+    z-index: 1;
+    text-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.1),
+        0 0 20px rgba(0, 123, 255, 0.3);
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.btn-cerrar {
+    background: #f0f0f3;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #4a5568;
+    padding: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        6px 6px 12px #d1d9e6,
+        -6px -6px 12px #ffffff;
+    position: relative;
+    z-index: 1;
+}
+
+.btn-cerrar:hover {
+    transform: scale(1.1);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-cerrar:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: scale(0.95);
+}
+
+.calculadora-pantalla {
+    padding: 25px;
+    background: #f0f0f3;
+}
+
+#pantalla-calculadora {
+    width: 100%;
+    height: 60px;
+    border: none;
+    border-radius: 15px;
+    font-size: 24px;
+    font-weight: 700;
+    text-align: right;
+    padding: 0 20px;
+    background: #f0f0f3;
+    color: #2d3748;
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#pantalla-calculadora:focus {
+    outline: none;
+    box-shadow: 
+        inset 6px 6px 12px #d1d9e6,
+        inset -6px -6px 12px #ffffff,
+        0 0 0 3px rgba(0, 123, 255, 0.2);
+    background: #ffffff;
+}
+
+.calculadora-teclado {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    padding: 25px;
+    background: #f0f0f3;
+    border-radius: 0 0 25px 25px;
+}
+
+.btn-calc {
+    height: 60px;
+    border: none;
+    border-radius: 15px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        6px 6px 12px #d1d9e6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-calc:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        8px 8px 16px #d1d9e6,
+        -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.btn-calc:active {
+    box-shadow: 
+        inset 4px 4px 8px #d1d9e6,
+        inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.btn-number {
+    background: #f0f0f3;
+}
+
+.btn-operator {
+    background: #f0f0f3;
+    color: #007bff;
+    text-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+}
+
+.btn-equals {
+    background: #f0f0f3;
+    color: #00ff88;
+    grid-row: span 2;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.btn-clear {
+    background: #f0f0f3;
+    color: #dc3545;
+    text-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+}
+
+.btn-delete {
+    background: #f0f0f3;
+    color: #ffc107;
+    text-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+.btn-zero {
+    grid-column: span 2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .calculadora-container {
+        width: 95vw;
+        margin: 10px;
+        border-radius: 20px;
+    }
+    
+    .calculadora-header {
+        padding: 15px 20px;
+        border-radius: 20px 20px 0 0;
+    }
+    
+    .calculadora-pantalla {
+        padding: 20px;
+    }
+    
+    .calculadora-teclado {
+        padding: 20px;
+        gap: 12px;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .btn-calc {
+        height: 50px;
+        font-size: 18px;
+    }
+    
+    #pantalla-calculadora {
+        height: 50px;
+        font-size: 20px;
+    }
+}
+</style>
+
+<script>
+let expresionCalculadora = '';
+let resultadoCalculadora = '';
+
+function abrirCalculadora() {
+    document.getElementById('calculadora-universal').style.display = 'block';
+    expresionCalculadora = '';
+    resultadoCalculadora = '';
+    actualizarPantalla();
+}
+
+function cerrarCalculadora() {
+    document.getElementById('calculadora-universal').style.display = 'none';
+}
+
+function agregarNumero(numero) {
+    expresionCalculadora += numero;
+    actualizarPantalla();
+}
+
+function agregarOperador(operador) {
+    if (expresionCalculadora && !isNaN(expresionCalculadora.slice(-1))) {
+        expresionCalculadora += operador;
+        actualizarPantalla();
+    }
+}
+
+function limpiarCalculadora() {
+    expresionCalculadora = '';
+    resultadoCalculadora = '';
+    actualizarPantalla();
+}
+
+function borrarUltimo() {
+    expresionCalculadora = expresionCalculadora.slice(0, -1);
+    actualizarPantalla();
+}
+
+function calcularResultado() {
+    try {
+        // Reemplazar × con * para evaluación
+        let expresion = expresionCalculadora.replace(/×/g, '*');
+        resultadoCalculadora = eval(expresion);
+        expresionCalculadora = resultadoCalculadora.toString();
+        actualizarPantalla();
+    } catch (error) {
+        expresionCalculadora = 'Error';
+        actualizarPantalla();
+    }
+}
+
+function actualizarPantalla() {
+    document.getElementById('pantalla-calculadora').value = expresionCalculadora || '0';
+}
+
+// Cerrar con Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        cerrarCalculadora();
+    }
+});
+</script>

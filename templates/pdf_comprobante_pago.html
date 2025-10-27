@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante de Pago - {{ pago.id[:8] }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', 'Roboto', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .page {
+            max-width: 8.5in;
+            min-height: 11in;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #000;
+            color: white;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .logo {
+            width: 90px;
+            height: 90px;
+            border: 3px solid white;
+            background: white;
+            color: #000;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 1;
+            margin-bottom: 20px;
+        }
+
+        .company-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .company-details {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .document-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin: 20px 0 10px 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .document-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #000;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            position: relative;
+            z-index: 1;
+        }
+
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .info-block {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .info-block:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .info-block h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #000;
+            padding-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: 700;
+        }
+
+        .monto-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            border-left: 4px solid #000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .monto-section h3 {
+            color: #000;
+            font-weight: 700;
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .montos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .monto-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid #000;
+        }
+
+        .monto-item h4 {
+            color: #000;
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .monto-item p {
+            color: #000;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .metodo-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            background: #f0f0f0;
+            color: #000;
+            border: 2px solid #000;
+        }
+
+        .metodo-efectivo {
+            background: #f0f0f0;
+            color: #000;
+        }
+
+        .metodo-transferencia {
+            background: #f0f0f0;
+            color: #000;
+        }
+
+        .metodo-pago-movil {
+            background: #f0f0f0;
+            color: #000;
+        }
+
+        .metodo-zelle {
+            background: #f0f0f0;
+            color: #000;
+        }
+
+        .metodo-divisas {
+            background: #f0f0f0;
+            color: #000;
+        }
+
+        .observaciones-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 25px 0;
+            border-left: 4px solid #000;
+        }
+
+        .observaciones-section h3 {
+            color: #000;
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .observaciones-section p {
+            color: #000;
+            margin: 0;
+            font-style: italic;
+        }
+
+        .sin-observaciones {
+            color: #9e9e9e;
+            font-style: italic;
+        }
+
+        .footer {
+            margin-top: 25px;
+            padding: 20px;
+            border-top: 3px solid #000;
+            font-size: 10px;
+            color: #333;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .qr-code {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #000;
+            font-size: 8px;
+            background: white;
+            color: #000;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 0 auto 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .signatures-section {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .signature-line {
+            border-bottom: 2px solid #000;
+            height: 40px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .signature-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #000;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        @media print {
+            body {
+                font-size: 11px;
+                padding: 8px;
+            }
+            
+            .page {
+                max-width: 8.5in;
+                width: 8.5in;
+                min-height: 11in;
+                margin: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .header {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            
+            .logo {
+                width: 70px;
+                height: 70px;
+                font-size: 10px;
+            }
+            
+            .company-name {
+                font-size: 18px;
+            }
+            
+            .company-details {
+                font-size: 11px;
+            }
+            
+            .document-title {
+                font-size: 24px;
+            }
+            
+            .document-number {
+                font-size: 16px;
+                padding: 10px 14px;
+            }
+            
+            .info-section {
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .info-block {
+                padding: 15px;
+            }
+            
+            .info-block h3 {
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+            
+            .info-item {
+                font-size: 11px;
+                padding: 6px 0;
+            }
+            
+            .monto-section {
+                padding: 20px;
+                margin: 20px 0;
+            }
+            
+            .monto-section h3 {
+                font-size: 16px;
+                margin-bottom: 15px;
+            }
+            
+            .montos-grid {
+                gap: 15px;
+            }
+            
+            .monto-item {
+                padding: 15px;
+            }
+            
+            .monto-item h4 {
+                font-size: 12px;
+                margin-bottom: 8px;
+            }
+            
+            .monto-item p {
+                font-size: 16px;
+            }
+            
+            .observaciones-section {
+                padding: 15px;
+                margin: 20px 0;
+            }
+            
+            .observaciones-section h3 {
+                font-size: 14px;
+                margin-bottom: 8px;
+            }
+            
+            .signatures-section {
+                margin-top: 25px;
+                gap: 25px;
+                padding: 15px;
+            }
+            
+            .signature-line {
+                height: 35px;
+                margin-bottom: 8px;
+            }
+            
+            .signature-label {
+                font-size: 9px;
+            }
+            
+            .footer {
+                margin-top: 20px;
+                padding: 15px;
+                font-size: 9px;
+            }
+            
+            .qr-code {
+                width: 40px;
+                height: 40px;
+                font-size: 7px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='logo.png') }}" 
+                     alt="Logo {{ empresa.nombre or 'Servicio Técnico Jehová Jireh' }}" 
+                     style="width: 100%; height: 100%; object-fit: contain;"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; flex-direction: column; font-size: 10px; text-align: center;">
+                    <div style="font-weight: bold; margin-bottom: 2px;">{{ (empresa.nombre or 'STJJ')[:4] }}</div>
+                    <div style="font-size: 8px;">LOGO</div>
+                </div>
+            </div>
+            <div class="company-name">{{ empresa.nombre or 'Servicio Técnico Jehová Jireh' }}</div>
+            <div class="company-details">
+                <div>RIF: {{ empresa.rif or 'J-000000000' }}</div>
+                <div>Teléfono: {{ empresa.telefono or '0000-0000000' }}</div>
+                <div>Dirección: {{ empresa.direccion or 'Dirección de la empresa' }}</div>
+            </div>
+            <div class="document-title">COMPROBANTE DE PAGO</div>
+            <div class="document-number">ID: {{ pago.id[:8] }}...</div>
+        </div>
+
+        <!-- Información del Pago -->
+        <div class="info-section">
+            <div class="info-block">
+                <h3><i class="fas fa-user"></i> Información del Cliente</h3>
+                <div class="info-item">
+                    <span class="info-label">Cliente:</span>
+                    <span class="info-value">{{ pago.cliente }}</span>
+                </div>
+                {% if pago.numero_nota %}
+                <div class="info-item">
+                    <span class="info-label">Nota Asociada:</span>
+                    <span class="info-value">NE-{{ pago.numero_nota }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">Fecha:</span>
+                    <span class="info-value">{{ pago.fecha }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Hora:</span>
+                    <span class="info-value">{{ pago.hora }}</span>
+                </div>
+            </div>
+
+            <div class="info-block">
+                <h3><i class="fas fa-money-bill-wave"></i> Información del Pago</h3>
+                <div class="info-item">
+                    <span class="info-label">Método:</span>
+                    <span class="info-value" style="color: #000 !important; font-weight: 700 !important; background: #f0f0f0 !important; padding: 8px 16px; border-radius: 20px; border: 2px solid #000; display: inline-block;">{{ pago.metodo_pago }}</span>
+                </div>
+                {% if pago.numero_referencia %}
+                <div class="info-item">
+                    <span class="info-label">Referencia:</span>
+                    <span class="info-value">{{ pago.numero_referencia }}</span>
+                </div>
+                {% endif %}
+                {% if pago.banco %}
+                <div class="info-item">
+                    <span class="info-label">Banco:</span>
+                    <span class="info-value">{{ pago.banco }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">Tasa BCV:</span>
+                    <span class="info-value">{{ pago.tasa_bcv|money }} Bs/USD</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Montos Destacados -->
+        <div class="monto-section">
+            <h3><i class="fas fa-calculator"></i> Montos del Pago</h3>
+            <div class="montos-grid">
+                <div class="monto-item">
+                    <h4><i class="fas fa-dollar-sign"></i> Monto en USD</h4>
+                    <p>${{ pago.monto_usd|money }}</p>
+                </div>
+                <div class="monto-item">
+                    <h4><i class="fas fa-coins"></i> Monto en Bs</h4>
+                    <p>Bs {{ pago.monto_bs|money }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Observaciones -->
+        {% if pago.observaciones %}
+        <div class="observaciones-section">
+            <h3><i class="fas fa-comment"></i> Observaciones</h3>
+            <p>{{ pago.observaciones }}</p>
+        </div>
+        {% else %}
+        <div class="observaciones-section">
+            <h3><i class="fas fa-comment"></i> Observaciones</h3>
+            <p class="sin-observaciones">Sin observaciones adicionales</p>
+        </div>
+        {% endif %}
+
+        <!-- Firmas -->
+        <div class="signatures-section">
+            <div>
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Cliente</div>
+            </div>
+            <div>
+                <div class="signature-line"></div>
+                <div class="signature-label">Firma del Receptor</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="qr-code">
+                QR
+            </div>
+            <p style="font-size: 8px; color: #000; font-weight: 700; margin-top: 5px;">Escanee para verificar</p>
+            <p><strong>Documento generado por el Sistema de Gestión Comercial – Servicio Técnico Jehová Jireh</strong></p>
+            <p>Generado el {{ moment().strftime('%d/%m/%Y a las %H:%M:%S') }}</p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-print cuando se carga la página
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
+
+

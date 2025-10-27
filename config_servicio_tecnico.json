@@ -1,0 +1,107 @@
+{
+  "estados_servicio": {
+    "en_espera_revision": {
+      "nombre": "En Espera de Revisión",
+      "descripcion": "El equipo ha sido recibido pero aún no ha sido diagnosticado",
+      "color": "#ffc107",
+      "icono": "fas fa-clock",
+      "siguiente_estado": "en_diagnostico"
+    },
+    "en_diagnostico": {
+      "nombre": "En Diagnóstico",
+      "descripcion": "El técnico está evaluando el problema",
+      "color": "#17a2b8",
+      "icono": "fas fa-search",
+      "siguiente_estado": "presupuesto_enviado"
+    },
+    "presupuesto_enviado": {
+      "nombre": "Presupuesto Enviado",
+      "descripcion": "Se le ha enviado al cliente la cotización",
+      "color": "#6f42c1",
+      "icono": "fas fa-file-invoice",
+      "siguiente_estado": "aprobado_por_cliente"
+    },
+    "aprobado_por_cliente": {
+      "nombre": "Aprobado por el Cliente",
+      "descripcion": "El cliente ha aceptado el presupuesto",
+      "color": "#28a745",
+      "icono": "fas fa-check-circle",
+      "siguiente_estado": "en_reparacion"
+    },
+    "en_reparacion": {
+      "nombre": "En Reparación",
+      "descripcion": "El técnico está trabajando en el equipo",
+      "color": "#fd7e14",
+      "icono": "fas fa-tools",
+      "siguiente_estado": "reparado"
+    },
+    "reparado": {
+      "nombre": "Reparado",
+      "descripcion": "El equipo está listo para ser entregado",
+      "color": "#20c997",
+      "icono": "fas fa-check-double",
+      "siguiente_estado": "entregado"
+    },
+    "entregado": {
+      "nombre": "Entregado",
+      "descripcion": "El cliente ha retirado el equipo",
+      "color": "#6c757d",
+      "icono": "fas fa-handshake",
+      "siguiente_estado": null
+    },
+    "cancelado": {
+      "nombre": "Cancelado",
+      "descripcion": "El cliente no aceptó el presupuesto o decidió no continuar",
+      "color": "#dc3545",
+      "icono": "fas fa-times-circle",
+      "siguiente_estado": null
+    }
+  },
+  "tipos_problema": [
+    "Pantalla rota",
+    "No enciende",
+    "Problemas de carga",
+    "Problemas de audio",
+    "Problemas de conectividad",
+    "Problemas de cámara",
+    "Problemas de botones",
+    "Problemas de batería",
+    "Problemas de software",
+    "Otros"
+  ],
+  "marcas_equipos": [
+    "Apple",
+    "Samsung",
+    "Huawei",
+    "Xiaomi",
+    "OnePlus",
+    "Google",
+    "LG",
+    "Motorola",
+    "Sony",
+    "Otras"
+  ],
+  "precios": {
+    "diagnostico": 10.00,
+    "piezas": 0.00,
+    "mano_obra": 25.00
+  },
+  "configuracion_notificaciones": {
+    "sms_habilitado": true,
+    "email_habilitado": true,
+    "whatsapp_habilitado": true,
+    "plantillas": {
+      "equipo_recibido": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {cliente}! 👋\n\n📱 Tu equipo *{marca} {modelo}* ha sido recibido exitosamente en nuestro taller.\n\n📋 *Número de Orden:* {numero_orden}\n\n⏰ *Próximos pasos:*\n• 🔍 Nuestro técnico revisará tu equipo\n• 📞 Te contactaremos con el diagnóstico\n• 💰 Te enviaremos el presupuesto detallado\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Gracias por confiar en nosotros! 🙏",
+      
+      "diagnostico_completo": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {cliente}! 👋\n\n✅ El diagnóstico de tu equipo *{marca} {modelo}* está completo.\n\n📋 *Número de Orden:* {numero_orden}\n\n📧 *Revisa tu correo* para obtener:\n• 🔍 Diagnóstico detallado del problema\n• 💰 Presupuesto de reparación\n• ⏰ Tiempo estimado de entrega\n\n📞 *¿Tienes dudas?* Contáctanos:\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Esperamos tu respuesta! 🙏",
+      
+      "reparacion_completa": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {cliente}! 👋\n\n🎉 ¡Excelentes noticias! Tu equipo *{marca} {modelo}* está listo para recoger.\n\n📋 *Número de Orden:* {numero_orden}\n\n✅ *Tu equipo ha sido reparado exitosamente*\n\n⏰ *Horarios de entrega:*\n• 📅 Lunes a Viernes: 8:00 AM - 6:00 PM\n• 📅 Sábados: 8:00 AM - 2:00 PM\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Te esperamos! 🙏",
+      
+      "presupuesto_enviado": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {cliente}! 👋\n\n📋 *Número de Orden:* {numero_orden}\n\n💰 *PRESUPUESTO ENVIADO* 💰\n\n📧 *Revisa tu correo* para ver:\n• 💵 Costo detallado de la reparación\n• ⏰ Tiempo estimado de trabajo\n• 🛡️ Garantía incluida\n\n⏰ *Tienes 48 horas* para aprobar el presupuesto\n\n📞 *¿Tienes dudas?* Contáctanos:\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Esperamos tu respuesta! 🙏",
+      
+      "reparacion_iniciada": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {cliente}! 👋\n\n🔨 Hemos iniciado la reparación de tu equipo *{marca} {modelo}*\n\n📋 *Número de Orden:* {numero_orden}\n\n⏰ *Tiempo estimado:* 3-5 días hábiles\n\n📞 *Te mantendremos informado* del progreso\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Gracias por tu paciencia! 🙏",
+      
+      "costo_estimado": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola {cliente}! 👋\n\n📋 *Número de Orden:* {numero_orden}\n\n💰 *COSTO ESTIMADO* 💰\n• 💵 Reparación: ${costo_usd} USD\n• 💱 Equivalente: Bs {costo_bs}\n• ⏰ Tiempo: {tiempo_estimado} días\n\n📱 Tu equipo *{marca} {modelo}* será reparado con:\n• 🛠️ Repuestos originales\n• 🛡️ Garantía de 90 días\n• ✅ Certificado de reparación\n\n📞 *¿Aprobar el presupuesto?* Contáctanos:\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Esperamos tu respuesta! 🙏"
+    }
+  }
+}

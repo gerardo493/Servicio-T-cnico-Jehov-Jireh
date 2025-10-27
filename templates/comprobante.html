@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante de Retiro de Equipo</title>
+    <style>
+        @page {
+            margin: 20px;
+            size: A4;
+        }
+        
+        body {
+            font-family: 'DejaVu Sans', sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            margin: 0 0 10px 0;
+            font-weight: bold;
+        }
+        
+        .header h2 {
+            font-size: 16px;
+            margin: 0 0 5px 0;
+            font-weight: normal;
+        }
+        
+        .header p {
+            margin: 2px 0;
+            font-size: 11px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background-color: #f0f0f0;
+            padding: 8px 12px;
+            font-weight: bold;
+            font-size: 13px;
+            border-left: 4px solid #333;
+            margin-bottom: 10px;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        .data-table td {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        
+        .data-table .label {
+            background-color: #f8f8f8;
+            font-weight: bold;
+            width: 30%;
+        }
+        
+        .data-table .value {
+            width: 70%;
+        }
+        
+        .signature-section {
+            margin-top: 30px;
+            page-break-inside: avoid;
+        }
+        
+        .signature-box {
+            display: inline-block;
+            width: 45%;
+            margin: 10px 2.5%;
+            text-align: center;
+            border: 1px solid #333;
+            padding: 20px 10px;
+            min-height: 80px;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #333;
+            margin: 20px 0 5px 0;
+            height: 40px;
+        }
+        
+        .signature-label {
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .terms {
+            margin-top: 30px;
+            font-size: 11px;
+            line-height: 1.3;
+            text-align: justify;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+        
+        .terms h3 {
+            font-size: 12px;
+            margin: 15px 0 8px 0;
+            font-weight: bold;
+        }
+        
+        .terms p {
+            margin: 8px 0;
+        }
+        
+        .highlight {
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .qr-code img {
+            max-width: 100px;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Encabezado -->
+    <div class="header">
+        <h1>🔧 SERVICIO TÉCNICO JEHOVÁ JIREH 🔧</h1>
+        <h2>COMPROBANTE DE RETIRO DE EQUIPO</h2>
+        <p><strong>Dirección:</strong> Av. Principal, Local 15, Centro Comercial Plaza, Caracas</p>
+        <p><strong>Teléfono:</strong> 0424-123-4567 | <strong>Email:</strong> info@jehovajireh.com</p>
+        <p><strong>Número de Orden:</strong> {{ data.numero_orden }} | <strong>Fecha:</strong> {{ data.fecha_retiro }}</p>
+    </div>
+
+    <!-- 1. Datos del Cliente -->
+    <div class="section">
+        <div class="section-title">1️⃣ DATOS DEL CLIENTE</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Nombre Completo:</td>
+                <td class="value">{{ data.cliente.nombre }}</td>
+            </tr>
+            <tr>
+                <td class="label">Cédula/RIF:</td>
+                <td class="value">{{ data.cliente.cedula_rif }}</td>
+            </tr>
+            <tr>
+                <td class="label">Teléfono:</td>
+                <td class="value">{{ data.cliente.telefono }}</td>
+            </tr>
+            <tr>
+                <td class="label">Correo Electrónico:</td>
+                <td class="value">{{ data.cliente.email or 'No registrado' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 2. Datos del Equipo -->
+    <div class="section">
+        <div class="section-title">2️⃣ DATOS DEL EQUIPO</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Marca:</td>
+                <td class="value">{{ data.equipo.marca }}</td>
+            </tr>
+            <tr>
+                <td class="label">Modelo:</td>
+                <td class="value">{{ data.equipo.modelo }}</td>
+            </tr>
+            <tr>
+                <td class="label">Color:</td>
+                <td class="value">{{ data.equipo.color }}</td>
+            </tr>
+            <tr>
+                <td class="label">IMEI 1:</td>
+                <td class="value">{{ data.equipo.imei_1 }}</td>
+            </tr>
+            <tr>
+                <td class="label">IMEI 2:</td>
+                <td class="value">{{ data.equipo.imei_2 or 'No aplica' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Accesorios Entregados:</td>
+                <td class="value">{{ data.equipo.accesorios or 'Ninguno' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Estado del Equipo:</td>
+                <td class="value">{{ data.equipo.estado_retiro or 'Funcionando correctamente' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 3. Detalles del Servicio -->
+    <div class="section">
+        <div class="section-title">3️⃣ DETALLES DEL SERVICIO</div>
+        <table class="data-table">
+            <tr>
+                <td class="label">Servicio Realizado:</td>
+                <td class="value">{{ data.servicio.descripcion or 'Reparación general' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Observaciones:</td>
+                <td class="value">{{ data.servicio.observaciones or 'Sin observaciones' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Técnico Responsable:</td>
+                <td class="value">{{ data.servicio.tecnico or 'No asignado' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Garantía del Servicio:</td>
+                <td class="value">{{ data.servicio.garantia or '90 días' }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 4. Firmas -->
+    <div class="signature-section">
+        <div class="section-title">4️⃣ FIRMAS</div>
+        <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-label">Firma del Cliente</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-label">Firma del Técnico</div>
+        </div>
+    </div>
+
+    <!-- 5. Nota Final -->
+    <div class="section">
+        <div class="section-title">5️⃣ NOTA FINAL</div>
+        <p style="text-align: justify; font-style: italic; background-color: #f9f9f9; padding: 10px; border-left: 4px solid #333;">
+            <strong>Al firmar este comprobante, el cliente declara haber recibido el equipo en conformidad y en las condiciones descritas.</strong>
+        </p>
+    </div>
+
+    <!-- 6. Términos y Condiciones -->
+    <div class="terms">
+        <div class="section-title">6️⃣ TÉRMINOS Y CONDICIONES</div>
+        
+        <p>Con la firma de este documento el cliente da fe de que el equipo móvil y electrodoméstico es de su propiedad y conoce su procedencia.</p>
+        
+        <p><span class="highlight">Servicio Técnico Jehová Jireh</span> NO se hace responsable por daños ocultos en equipos celulares, electrodomésticos o de computación mojados, golpeados, apagados con fallas de software que no dan imagen ni función táctil que no permitan su verificación al entrar para ser reparados.</p>
+        
+        <p>Las garantías de las reparaciones y accesorios comenzarán a aplicarse a partir de la fecha de entrega fijada en esta orden y <span class="highlight">Servicio Técnico Jehová Jireh</span> NO las asumirá si los equipos reparados y los accesorios han sido manipulados por terceros, mojados, golpeados, modificados y con evidente manejo inadecuado. NO se asumirán garantías sin la presentación de este documento.</p>
+        
+        <p>Las reparaciones de software y sistemas operativos pueden acarrear pérdida de información, liberación, bloqueos por cuenta Google y en algunos casos por daños ocultos pueden afectarse. <span class="highlight">Servicio Técnico Jehová Jireh</span> no se responsabiliza por esas fallas y el cliente asume este riesgo.</p>
+        
+        <p><span class="highlight">Servicio Técnico Jehová Jireh</span> no asumirá garantías de cambio de puerto de carga, pantallas y micas táctiles después de ser entregadas y verificadas por el cliente en nuestras instalaciones.</p>
+        
+        <p>En caso de hurtos a nuestras instalaciones <span class="highlight">NO nos hacemos responsables</span> de los equipos dejados en el mismo.</p>
+        
+        <p style="font-weight: bold; text-align: center; margin-top: 20px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7;">
+            Después del tiempo acordado de entrega transcurridos 15 días <span class="highlight">Servicio Técnico Jehová Jireh NO se hace responsable.</span>
+        </p>
+    </div>
+
+    <!-- QR Code -->
+    <div class="qr-code">
+        <p><strong>Código QR de Verificación:</strong></p>
+        <div id="qrcode"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Este documento fue generado automáticamente el {{ data.fecha_generacion }}</p>
+        <p>Servicio Técnico Jehová Jireh - Todos los derechos reservados</p>
+    </div>
+
+    <script>
+        // Generar QR Code con información de la orden
+        function generateQRCode() {
+            const qrData = `Orden: ${data.numero_orden}\nCliente: ${data.cliente.nombre}\nFecha: ${data.fecha_retiro}\nEquipo: ${data.equipo.marca} ${data.equipo.modelo}`;
+            
+            // Crear elemento canvas para el QR
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 100;
+            canvas.height = 100;
+            
+            // Dibujar un QR simple (en producción usar una librería real)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(10, 10, 80, 80);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(15, 15, 70, 70);
+            
+            // Agregar texto
+            ctx.fillStyle = '#000';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('QR Code', 50, 50);
+            
+            document.getElementById('qrcode').appendChild(canvas);
+        }
+        
+        // Generar QR al cargar la página
+        document.addEventListener('DOMContentLoaded', generateQRCode);
+    </script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .equipos-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card {
+        background: #f0f0f3;
+        border-radius: 25px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+    }
+
+    .neo-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+    }
+
+    .equipo-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+    }
+
+    .equipo-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 8px 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .btn-action {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+    .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .btn-secondary { background: linear-gradient(135deg, #6b7280, #4b5563); color: white; }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+    }
+
+    .modal {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        max-width: 600px;
+        margin: 5% auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+    .form-input { width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 10px; }
+</style>
+
+<div class="equipos-container">
+    <div class="container">
+        <div class="neo-header">
+            <h1><i class="fas fa-mobile-alt me-3"></i>Equipos de {{ cliente.nombre }}</h1>
+            <p class="mb-0">{{ equipos|length }} equipo(s) registrado(s)</p>
+        </div>
+
+        <div class="text-end mb-4">
+            <button class="btn-action btn-primary" onclick="mostrarModalAgregar()">
+                <i class="fas fa-plus me-2"></i>Agregar Equipo
+            </button>
+            <a href="/clientes/{{ cliente.id }}" class="btn-action btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Cliente
+            </a>
+        </div>
+
+        {% if equipos %}
+        <div class="row">
+            {% for equipo in equipos %}
+            <div class="col-md-6 mb-3">
+                <div class="equipo-card">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4><i class="fas fa-mobile-alt me-2"></i>{{ equipo.marca }} {{ equipo.modelo }}</h4>
+                            <p class="text-muted mb-0">{{ equipo.estado }}</p>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm" onclick="mostrarMenuAcciones({{ loop.index0 }})">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">IMEI:</small>
+                            <p class="mb-0">{{ equipo.imei or 'N/A' }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Fecha Entrega:</small>
+                            <p class="mb-0">{{ equipo.fecha_entrega or 'N/A' }}</p>
+                        </div>
+                    </div>
+                    {% if equipo.observaciones %}
+                    <div class="mt-3">
+                        <small class="text-muted">Observaciones:</small>
+                        <p class="mb-0">{{ equipo.observaciones }}</p>
+                    </div>
+                    {% endif %}
+                    <div class="mt-3 d-none acciones-equipo" id="acciones-{{ loop.index0 }}">
+                        <button class="btn-action btn-success btn-sm me-2" onclick="editarEquipo({{ loop.index0 }})">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn-action btn-danger btn-sm" onclick="eliminarEquipo('{{ equipo.id }}')">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="neo-card text-center py-5">
+            <i class="fas fa-mobile-alt fa-4x text-muted mb-3"></i>
+            <h4>No hay equipos registrados</h4>
+            <p class="text-muted">Agrega el primer equipo de este cliente</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Agregar/Editar Equipo -->
+<div class="modal-overlay" id="modalEquipo">
+    <div class="modal">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 id="modalTitulo">Agregar Equipo</h3>
+            <button onclick="cerrarModal()" class="btn btn-sm">&times;</button>
+        </div>
+        <form method="POST" id="formEquipo">
+            <input type="hidden" name="accion" id="accionEquipo" value="agregar">
+            <input type="hidden" name="equipo_id" id="equipoIdEdit">
+            
+            <div class="form-group">
+                <label class="form-label">Marca *</label>
+                <select name="marca" class="form-input" required id="marcaSelect">
+                    <option value="">Seleccionar...</option>
+                    {% for modelo in modelos_disponibles %}
+                    <option value="{{ modelo }}">{{ modelo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Modelo *</label>
+                <input type="text" name="modelo" class="form-input" required id="modeloInput">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">IMEI</label>
+                <input type="text" name="imei" class="form-input" id="imeiInput">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Fecha Entrega</label>
+                <input type="date" name="fecha_entrega" class="form-input" id="fechaInput">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-input" id="estadoSelect">
+                    {% for estado in estados_disponibles %}
+                    <option value="{{ estado }}">{{ estado }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Orden Asociada</label>
+                <select name="orden_asociada" class="form-input" id="ordenSelect">
+                    <option value="">Ninguna</option>
+                    {% for orden in ordenes_cliente %}
+                    <option value="{{ orden.id }}">{{ orden.numero_orden }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Observaciones</label>
+                <textarea name="observaciones" class="form-input" rows="3" id="observacionesInput"></textarea>
+            </div>
+
+            <div class="text-end">
+                <button type="button" class="btn-action btn-secondary me-2" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn-action btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let equipoEditando = null;
+
+function mostrarModalAgregar() {
+    document.getElementById('modalTitulo').textContent = 'Agregar Equipo';
+    document.getElementById('accionEquipo').value = 'agregar';
+    document.getElementById('formEquipo').reset();
+    document.getElementById('modalEquipo').style.display = 'block';
+}
+
+function editarEquipo(index) {
+    const equipos = {{ equipos|tojson|safe }};
+    equipoEditando = equipos[index];
+    
+    document.getElementById('modalTitulo').textContent = 'Editar Equipo';
+    document.getElementById('accionEquipo').value = 'editar';
+    document.getElementById('equipoIdEdit').value = equipoEditando.id;
+    
+    document.getElementById('marcaSelect').value = equipoEditando.marca;
+    document.getElementById('modeloInput').value = equipoEditando.modelo;
+    document.getElementById('imeiInput').value = equipoEditando.imei || '';
+    document.getElementById('fechaInput').value = equipoEditando.fecha_entrega || '';
+    document.getElementById('estadoSelect').value = equipoEditando.estado;
+    document.getElementById('ordenSelect').value = equipoEditando.orden_asociada || '';
+    document.getElementById('observacionesInput').value = equipoEditando.observaciones || '';
+    
+    document.getElementById('modalEquipo').style.display = 'block';
+}
+
+function eliminarEquipo(id) {
+    if (confirm('¿Está seguro de eliminar este equipo?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="accion" value="eliminar">
+            <input type="hidden" name="equipo_id" value="${id}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function cerrarModal() {
+    document.getElementById('modalEquipo').style.display = 'none';
+}
+
+function mostrarMenuAcciones(index) {
+    const acciones = document.getElementById(`acciones-${index}`);
+    document.querySelectorAll('.acciones-equipo').forEach(a => a.classList.add('d-none'));
+    if (!acciones.classList.contains('d-none')) {
+        acciones.classList.add('d-none');
+    } else {
+        acciones.classList.remove('d-none');
+    }
+}
+
+window.onclick = function(event) {
+    if (event.target.id === 'modalEquipo') {
+        cerrarModal();
+    }
+}
+</script>
+{% endblock %}
+

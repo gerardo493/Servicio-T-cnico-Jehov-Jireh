@@ -1,0 +1,847 @@
+{% extends "base.html" %}
+
+{% block title %}Entrega del Equipo - {{ orden.numero_orden }}{% endblock %}
+
+{% block content %}
+<style>
+/* Neomorfismo - Estilos modernos */
+.neo-container {
+    background: #e0e5ec;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.neo-card {
+    background: #e0e5ec;
+    border-radius: 20px;
+    box-shadow: 
+        9px 9px 16px #a3b1c6,
+        -9px -9px 16px #ffffff;
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.neo-card:hover {
+    box-shadow: 
+        12px 12px 20px #a3b1c6,
+        -12px -12px 20px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neo-card-inset {
+    background: #e0e5ec;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    border: none;
+}
+
+.neo-button {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        6px 6px 12px #a3b1c6,
+        -6px -6px 12px #ffffff;
+    color: #4a5568;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 12px 24px;
+}
+
+.neo-button:hover {
+    box-shadow: 
+        8px 8px 16px #a3b1c6,
+        -8px -8px 16px #ffffff;
+    transform: translateY(-2px);
+    color: #2d3748;
+}
+
+.neo-button:active {
+    box-shadow: 
+        4px 4px 8px #a3b1c6,
+        -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.neo-button-primary {
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #00cc6a,
+        -6px -6px 12px #00ff88;
+}
+
+.neo-button-success {
+    background: linear-gradient(145deg, #4ade80, #22c55e);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #22c55e,
+        -6px -6px 12px #4ade80;
+}
+
+.neo-button-warning {
+    background: linear-gradient(145deg, #fbbf24, #f59e0b);
+    color: white;
+    box-shadow: 
+        6px 6px 12px #f59e0b,
+        -6px -6px 12px #fbbf24;
+}
+
+.neo-input {
+    background: #e0e5ec;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 
+        inset 6px 6px 12px #a3b1c6,
+        inset -6px -6px 12px #ffffff;
+    padding: 12px 16px;
+    color: #4a5568;
+    transition: all 0.3s ease;
+}
+
+.neo-input:focus {
+    outline: none;
+    box-shadow: 
+        inset 8px 8px 16px #a3b1c6,
+        inset -8px -8px 16px #ffffff;
+    color: #2d3748;
+}
+
+.neo-title {
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-bottom: 0;
+}
+
+.neo-subtitle {
+    color: #4a5568;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+.neo-icon {
+    color: #00ff88;
+    font-size: 1.2rem;
+}
+
+/* Canvas para firma */
+#firmaCanvas {
+    border: 2px solid #d1d5db;
+    border-radius: 15px;
+    background: white;
+    cursor: crosshair;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(145deg, #00ff88, #00cc6a);
+    border-radius: 2px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 30px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 15px;
+    height: 15px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 
+        3px 3px 6px #00cc6a,
+        -3px -3px 6px #00ff88;
+}
+
+.timeline-item.completed::before {
+    background: #22c55e;
+}
+
+.timeline-item.current::before {
+    background: #f59e0b;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Badges de estado */
+.badge-entregado {
+    background: linear-gradient(145deg, #22c55e, #16a34a);
+    color: white;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+/* Campo de solo lectura */
+.neo-input[readonly] {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.neo-input[readonly]:focus {
+    box-shadow: none;
+    border-color: #dee2e6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .neo-container {
+        padding: 10px;
+    }
+    
+    .neo-card {
+        margin-bottom: 15px;
+    }
+}
+</style>
+
+<div class="neo-container">
+    <div class="container-fluid">
+        <!-- Header con información general -->
+        <div class="neo-card">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="neo-title mb-2">
+                            <i class="fas fa-shipping-fast neo-icon me-2"></i>
+                            Entrega del Equipo
+                        </h2>
+                        <p class="text-muted mb-0">Orden: <strong>{{ orden.numero_orden }}</strong> | Cliente: <strong>{{ orden.cliente.nombre }}</strong></p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="/servicio-tecnico/orden/{{ orden.id }}" class="btn neo-button">
+                                <i class="fas fa-eye me-2"></i>Ver Orden
+                            </a>
+                            <a href="/servicio-tecnico" class="btn neo-button">
+                                <i class="fas fa-arrow-left me-2"></i>Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Formulario de Entrega -->
+            <div class="col-md-8">
+                <form method="POST" id="formEntrega">
+                    <div class="neo-card">
+                        <div class="card-body p-4">
+                            <h5 class="neo-title mb-4">
+                                <i class="fas fa-clipboard-check neo-icon me-2"></i>Datos de la Entrega
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="fecha_entrega" class="neo-subtitle">Fecha y Hora de Entrega:</label>
+                                        <input type="datetime-local" id="fecha_entrega" name="fecha_entrega" class="neo-input" 
+                                               value="{{ orden.entrega.fecha_entrega if orden.entrega else '' }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="nombre_retira" class="neo-subtitle">Nombre de Quien Retira:</label>
+                                        <input type="text" id="nombre_retira" name="nombre_retira" class="neo-input" 
+                                               value="{{ orden.entrega.nombre_retira if orden.entrega else orden.cliente.nombre }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="cedula_retira" class="neo-subtitle">Cédula/RIF:</label>
+                                        <input type="text" id="cedula_retira" name="cedula_retira" class="neo-input" 
+                                               value="{{ orden.entrega.cedula_retira if orden.entrega else orden.cliente.cedula_rif }}" required>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="telefono_retira" class="neo-subtitle">Teléfono:</label>
+                                        <input type="tel" id="telefono_retira" name="telefono_retira" class="neo-input" 
+                                               value="{{ orden.entrega.telefono_retira if orden.entrega else orden.cliente.telefono }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="tipo_pago" class="neo-subtitle">Método de Pago:</label>
+                                        <select id="tipo_pago" name="tipo_pago" class="neo-input" required>
+                                            <option value="">Seleccionar...</option>
+                                            {% for metodo in metodos_pago %}
+                                            <option value="{{ metodo.lower() }}" {% if orden.entrega and orden.entrega.tipo_pago == metodo.lower() %}selected{% endif %}>{{ metodo }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="monto_pagado" class="neo-subtitle">Monto Pagado:</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" id="monto_pagado" name="monto_pagado" class="neo-input" 
+                                                   step="0.01" min="0" max="{{ orden.diagnostico.total_estimado if orden.diagnostico else 0 }}" 
+                                                   value="{{ orden.entrega.monto_pagado if orden.entrega else 0 }}" required>
+                                        </div>
+                                        <small class="text-muted">Máximo: ${{ "%.2f"|format(orden.diagnostico.total_estimado) if orden.diagnostico else '0.00' }}</small>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="monto_pendiente" class="neo-subtitle">Monto Pendiente:</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" id="monto_pendiente" name="monto_pendiente" class="neo-input" 
+                                                   step="0.01" min="0" value="{{ orden.entrega.monto_pendiente if orden.entrega else 0 }}" readonly>
+                                        </div>
+                                        <small class="text-muted">Se calcula automáticamente: Total - Monto Pagado</small>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="tecnico_entrega" class="neo-subtitle">Técnico Responsable:</label>
+                                        <input type="text" id="tecnico_entrega" name="tecnico_entrega" class="neo-input" 
+                                               value="{{ orden.entrega.tecnico_entrega if orden.entrega else session.username or 'Técnico' }}" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="observaciones_entrega" class="neo-subtitle">Observaciones de la Entrega:</label>
+                                <textarea id="observaciones_entrega" name="observaciones_entrega" class="neo-input" rows="3" 
+                                          placeholder="Observaciones adicionales sobre la entrega...">{{ orden.entrega.observaciones_entrega if orden.entrega else '' }}</textarea>
+                            </div>
+                            
+                            <!-- Firma Digital -->
+                            <div class="mb-4">
+                                <label class="neo-subtitle">Firma Digital del Cliente:</label>
+                                <div class="neo-card-inset p-3">
+                                    <canvas id="firmaCanvas" width="600" height="200"></canvas>
+                                    <div class="mt-2">
+                                        <button type="button" class="btn neo-button btn-sm" onclick="limpiarFirma()">
+                                            <i class="fas fa-eraser me-1"></i>Limpiar Firma
+                                        </button>
+                                        <button type="button" class="btn neo-button btn-sm" onclick="guardarFirma()">
+                                            <i class="fas fa-save me-1"></i>Guardar Firma
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="firma_digital" name="firma_digital" value="{{ orden.entrega.firma_digital if orden.entrega else '' }}">
+                            </div>
+                            
+                            <div class="text-end">
+                                <button type="button" class="btn neo-button-warning me-2" onclick="generarNotaEntrega()">
+                                    <i class="fas fa-file-pdf me-2"></i>Generar Nota de Entrega
+                                </button>
+                                <button type="submit" class="btn neo-button-success">
+                                    <i class="fas fa-check me-2"></i>Confirmar Entrega
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Resumen y Historial -->
+            <div class="col-md-4">
+                <!-- Resumen de Costos -->
+                <div class="neo-card">
+                    <div class="card-body p-4">
+                        <h5 class="neo-title mb-4">
+                            <i class="fas fa-calculator neo-icon me-2"></i>Resumen de Costos
+                        </h5>
+                        
+                        <div class="info-item mb-2">
+                            <span class="neo-subtitle">Presupuesto Original:</span>
+                            <div class="info-value">${{ "%.2f"|format(orden.diagnostico.total_estimado) if orden.diagnostico else '0.00' }}</div>
+                        </div>
+                        
+                        {% if orden.reparacion %}
+                        <div class="info-item mb-2">
+                            <span class="neo-subtitle">Repuestos Utilizados:</span>
+                            <div class="info-value">
+                                ${{ "%.2f"|format(orden.reparacion.total_repuestos) if orden.reparacion.total_repuestos else (orden.reparacion.repuestos_usados | sum(attribute='subtotal') if orden.reparacion.repuestos_usados else 0) }}
+                                {% if not orden.reparacion.total_repuestos and orden.diagnostico.repuestos_seleccionados %}
+                                <button class="btn btn-sm btn-outline-primary ms-2" onclick="recalcularRepuestos()">
+                                    <i class="fas fa-sync-alt"></i> Recalcular
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="info-item mb-2">
+                            <span class="neo-subtitle">Costo Adicional:</span>
+                            <div class="info-value">${{ "%.2f"|format(orden.reparacion.costo_adicional) if orden.reparacion.costo_adicional else '0.00' }}</div>
+                        </div>
+                        
+                        <div class="info-item mb-2">
+                            <span class="neo-subtitle">Mano de Obra:</span>
+                            <div class="info-value">${{ "%.2f"|format((orden.diagnostico.total_estimado * 0.3) if orden.diagnostico and orden.diagnostico.total_estimado else 0) }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        <hr>
+                        
+                        <div class="info-item mb-2">
+                            <span class="neo-subtitle"><strong>Total Final:</strong></span>
+                            <div class="info-value"><strong id="total-final">$0.00</strong></div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="neo-subtitle">Estado del Pago:</span>
+                            <div class="info-value">
+                                <span class="badge badge-entregado" id="estado-pago">Pendiente</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Historial Completo -->
+                <div class="neo-card mt-3">
+                    <div class="card-body p-4">
+                        <h5 class="neo-title mb-4">
+                            <i class="fas fa-history neo-icon me-2"></i>Historial Completo
+                        </h5>
+                        
+                        <div class="timeline" id="historial-completo">
+                            <!-- Historial se cargará dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales
+let canvas, ctx;
+let isDrawing = false;
+let firmaGuardada = false;
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    inicializarCanvas();
+    cargarHistorialCompleto();
+    calcularTotalFinal();
+    actualizarEstadoPago();
+});
+
+// Inicializar canvas para firma
+function inicializarCanvas() {
+    canvas = document.getElementById('firmaCanvas');
+    ctx = canvas.getContext('2d');
+    
+    // Configurar canvas
+    ctx.strokeStyle = '#2d3748';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Eventos del mouse
+    canvas.addEventListener('mousedown', iniciarDibujo);
+    canvas.addEventListener('mousemove', dibujar);
+    canvas.addEventListener('mouseup', detenerDibujo);
+    canvas.addEventListener('mouseleave', detenerDibujo);
+    
+    // Eventos táctiles
+    canvas.addEventListener('touchstart', manejarTactil);
+    canvas.addEventListener('touchmove', manejarTactil);
+    canvas.addEventListener('touchend', detenerDibujo);
+}
+
+// Manejar eventos táctiles
+function manejarTactil(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
+}
+
+// Iniciar dibujo
+function iniciarDibujo(e) {
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+}
+
+// Dibujar
+function dibujar(e) {
+    if (!isDrawing) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    ctx.lineTo(x, y);
+    ctx.stroke();
+}
+
+// Detener dibujo
+function detenerDibujo() {
+    isDrawing = false;
+    ctx.beginPath();
+}
+
+// Limpiar firma
+function limpiarFirma() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    firmaGuardada = false;
+    document.getElementById('firma_digital').value = '';
+}
+
+// Guardar firma
+function guardarFirma() {
+    const dataURL = canvas.toDataURL();
+    document.getElementById('firma_digital').value = dataURL;
+    firmaGuardada = true;
+    mostrarNotificacion('Firma guardada correctamente', 'success');
+}
+
+// Recalcular repuestos utilizados
+function recalcularRepuestos() {
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/recalcular-repuestos', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarNotificacion(data.message, 'success');
+            // Recargar la página para mostrar los datos actualizados
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            mostrarNotificacion('Error: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al recalcular repuestos', 'danger');
+    });
+}
+
+// Actualizar límite máximo del monto pagado
+function actualizarLimiteMontoPagado() {
+    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
+    const campoMontoPagado = document.getElementById('monto_pagado');
+    
+    campoMontoPagado.setAttribute('max', total);
+    
+    // Actualizar el texto de ayuda
+    const textoAyuda = campoMontoPagado.parentNode.nextElementSibling;
+    if (textoAyuda && textoAyuda.classList.contains('text-muted')) {
+        textoAyuda.textContent = `Máximo: $${total.toFixed(2)}`;
+    }
+}
+
+// Calcular total final
+function calcularTotalFinal() {
+    const presupuestoOriginal = {{ (orden.diagnostico.total_estimado if orden.diagnostico and orden.diagnostico.total_estimado else 0) | safe }};
+    const repuestos = {{ (orden.reparacion.total_repuestos if orden.reparacion and orden.reparacion.total_repuestos else 0) | safe }};
+    const adicional = {{ (orden.reparacion.costo_adicional if orden.reparacion and orden.reparacion.costo_adicional else 0) | safe }};
+    
+    // Lógica corregida: igual que en reparación
+    let totalFinal;
+    let manoObraBase = 0;
+    
+    if (repuestos > 0) {
+        // Caso 1: Hay repuestos utilizados
+        // Calcular mano de obra base (30% del presupuesto original como mano de obra)
+        manoObraBase = presupuestoOriginal * 0.3;
+        totalFinal = repuestos + adicional + manoObraBase;
+    } else {
+        // Caso 2: No hay repuestos utilizados, usar presupuesto original
+        manoObraBase = presupuestoOriginal; // Todo el presupuesto es mano de obra
+        totalFinal = presupuestoOriginal + adicional;
+    }
+    
+    document.getElementById('total-final').textContent = `$${totalFinal.toFixed(2)}`;
+    actualizarLimiteMontoPagado();
+}
+
+// Calcular monto pendiente automáticamente
+function calcularMontoPendiente() {
+    let montoPagado = parseFloat(document.getElementById('monto_pagado').value) || 0;
+    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
+    
+    // Validar que el monto pagado no sea mayor al total
+    if (montoPagado > total) {
+        mostrarNotificacion(`El monto pagado ($${montoPagado.toFixed(2)}) no puede ser mayor al total ($${total.toFixed(2)})`, 'warning');
+        document.getElementById('monto_pagado').value = total.toFixed(2);
+        montoPagado = total;
+    }
+    
+    const montoPendiente = Math.max(0, total - montoPagado);
+    document.getElementById('monto_pendiente').value = montoPendiente.toFixed(2);
+    
+    return montoPendiente;
+}
+
+// Actualizar estado del pago
+function actualizarEstadoPago() {
+    const montoPagado = parseFloat(document.getElementById('monto_pagado').value) || 0;
+    const montoPendiente = calcularMontoPendiente(); // Calcular automáticamente
+    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
+    
+    const estadoPago = document.getElementById('estado-pago');
+    
+    if (montoPendiente > 0) {
+        estadoPago.textContent = 'Parcial';
+        estadoPago.className = 'badge bg-warning';
+    } else if (montoPagado >= total) {
+        estadoPago.textContent = 'Completo';
+        estadoPago.className = 'badge badge-entregado';
+    } else {
+        estadoPago.textContent = 'Pendiente';
+        estadoPago.className = 'badge bg-danger';
+    }
+}
+
+// Cargar historial completo
+function cargarHistorialCompleto() {
+    const timeline = document.getElementById('historial-completo');
+    const eventos = [];
+    
+    // Eventos del historial de estados
+    {% if orden.historial_estados %}
+    {% for evento in orden.historial_estados %}
+    {% if evento.estado %}
+    eventos.push({
+        fecha: '{{ evento.fecha if evento.fecha else "" }}',
+        titulo: '{{ (evento.estado | replace("_", " ")) | title }}',
+        descripcion: '{{ evento.comentarios if evento.comentarios else "" }}',
+        usuario: '{{ evento.usuario if evento.usuario else "" }}',
+        tipo: 'completed'
+    });
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    
+    // Agregar eventos específicos
+    eventos.push({
+        fecha: '{{ orden.fecha_recepcion }}',
+        titulo: 'Orden Recibida',
+        descripcion: 'Orden de servicio creada y recibida',
+        usuario: 'Sistema',
+        tipo: 'completed'
+    });
+    
+    {% if orden.diagnostico %}
+    eventos.push({
+        fecha: '{{ orden.diagnostico.fecha_diagnostico if orden.diagnostico.fecha_diagnostico else orden.fecha_actualizacion }}',
+        titulo: 'Diagnóstico Completado',
+        descripcion: 'Diagnóstico técnico realizado y presupuesto aprobado',
+        usuario: '{{ orden.diagnostico.tecnico_diagnostico if orden.diagnostico.tecnico_diagnostico else "Técnico" }}',
+        tipo: 'completed'
+    });
+    {% endif %}
+    
+    {% if orden.reparacion %}
+    eventos.push({
+        fecha: '{{ orden.reparacion.fecha_actualizacion if orden.reparacion.fecha_actualizacion else orden.fecha_actualizacion }}',
+        titulo: 'Reparación Completada',
+        descripcion: 'Equipo reparado y listo para entrega',
+        usuario: '{{ orden.reparacion.tecnico_responsable if orden.reparacion.tecnico_responsable else "Técnico" }}',
+        tipo: 'completed'
+    });
+    {% endif %}
+    
+    // Ordenar eventos por fecha
+    eventos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    
+    // Renderizar timeline
+    timeline.innerHTML = '';
+    eventos.forEach(evento => {
+        const item = document.createElement('div');
+        item.className = `timeline-item ${evento.tipo}`;
+        item.innerHTML = `
+            <div class="neo-card-inset p-3">
+                <h6 class="mb-1">${evento.titulo}</h6>
+                <p class="text-muted mb-1">${evento.descripcion}</p>
+                <small class="text-muted">${evento.fecha} - ${evento.usuario}</small>
+            </div>
+        `;
+        timeline.appendChild(item);
+    });
+}
+
+// Generar nota de entrega
+function generarNotaEntrega() {
+    // Validar que la orden esté en estado apropiado
+    const estadoOrden = '{{ orden.get('estado') or 'desconocido' }}';
+    if (estadoOrden !== 'reparado' && estadoOrden !== 'entregado' && estadoOrden !== 'listo_entrega') {
+        mostrarNotificacion('La orden debe estar reparada, entregada o lista para entrega para generar la nota de entrega', 'warning');
+        return;
+    }
+    
+    // Confirmar generación
+    if (!confirm('¿Está seguro de generar la nota de entrega para esta orden?')) {
+        return;
+    }
+    
+    // Mostrar indicador de carga
+    const boton = event.target;
+    const textoOriginal = boton.innerHTML;
+    boton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
+    boton.disabled = true;
+    
+    // Enviar solicitud al backend
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/generar-factura', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            mostrarNotificacion(`Nota de entrega generada exitosamente: ${data.numero_nota}`, 'success');
+            
+            // Opcional: redirigir a la nota de entrega generada
+            setTimeout(() => {
+                window.open(`/notas-entrega/${data.numero_nota}/imprimir`, '_blank');
+            }, 1500);
+        } else {
+            mostrarNotificacion('Error: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al generar la nota de entrega', 'danger');
+    })
+    .finally(() => {
+        // Restaurar botón
+        boton.innerHTML = textoOriginal;
+        boton.disabled = false;
+    });
+}
+
+// Mostrar notificación
+function mostrarNotificacion(mensaje, tipo) {
+    const notificacion = document.createElement('div');
+    notificacion.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+    notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notificacion.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notificacion);
+    
+    setTimeout(() => {
+        if (notificacion.parentNode) {
+            notificacion.parentNode.removeChild(notificacion);
+        }
+    }, 5000);
+}
+
+// Event listeners
+document.getElementById('monto_pagado').addEventListener('input', function() {
+    const montoPagado = parseFloat(this.value) || 0;
+    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
+    
+    // Validación inmediata mientras el usuario escribe
+    if (montoPagado > total) {
+        this.value = total.toFixed(2);
+        mostrarNotificacion(`El monto pagado no puede ser mayor al total ($${total.toFixed(2)})`, 'warning');
+    }
+    
+    calcularMontoPendiente();
+    actualizarEstadoPago();
+});
+document.getElementById('monto_pendiente').addEventListener('input', actualizarEstadoPago);
+
+// Manejar envío del formulario
+document.getElementById('formEntrega').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Validar firma
+    if (!firmaGuardada) {
+        mostrarNotificacion('Debe guardar la firma digital antes de confirmar la entrega', 'warning');
+        return;
+    }
+    
+    // Validar monto pagado
+    const montoPagado = parseFloat(document.getElementById('monto_pagado').value) || 0;
+    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
+    
+    if (montoPagado > total) {
+        mostrarNotificacion(`El monto pagado ($${montoPagado.toFixed(2)}) no puede ser mayor al total ($${total.toFixed(2)})`, 'danger');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/entrega', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            mostrarNotificacion('Entrega registrada exitosamente', 'success');
+            setTimeout(() => {
+                window.location.href = '/servicio-tecnico';
+            }, 2000);
+        } else {
+            mostrarNotificacion('Error al registrar entrega: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error completo:', error);
+        mostrarNotificacion('Error al registrar entrega: ' + error.message, 'danger');
+    });
+});
+
+// Inicializar cálculos cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    calcularTotalFinal();
+    calcularMontoPendiente();
+    actualizarEstadoPago();
+    cargarHistorialCompleto();
+});
+</script>
+{% endblock %}

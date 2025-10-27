@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presupuesto - Orden {{ orden.id }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Layout Ultra Compacto - 1-2 páginas máximo */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 10px;
+            font-weight: 600;
+        }
+
+        .page {
+            max-width: 8.5in;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            min-height: 11in;
+            overflow: hidden;
+            padding: 15px;
+        }
+
+        /* Header Ultra Compacto */
+        .header {
+            background: white;
+            color: #333;
+            padding: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+            background: white;
+            color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .company-info {
+            flex: 1;
+        }
+
+        .company-name {
+            font-size: 14px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 3px;
+        }
+
+        .company-details {
+            font-size: 10px;
+            color: #000;
+            line-height: 1.2;
+            font-weight: 700;
+        }
+
+        .document-info {
+            text-align: right;
+        }
+
+        .document-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 3px;
+        }
+
+        .document-number {
+            font-size: 11px;
+            font-weight: 900;
+            color: #000;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border: 1px solid #333;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        /* Layout de 2 columnas para máximo aprovechamiento */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        /* Secciones de Información Compactas */
+        .info-section {
+            background: white;
+            border: 1px solid #333;
+            border-radius: 2px;
+            padding: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .info-section h3 {
+            font-size: 8px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            padding-bottom: 2px;
+            border-bottom: 0.5px solid #eee;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 800;
+            color: #000;
+            flex: 1;
+            font-size: 10px;
+        }
+
+        .info-value {
+            font-weight: 700;
+            color: #000;
+            text-align: right;
+            flex: 1;
+            font-size: 10px;
+        }
+
+        /* Secciones de Contenido Compactas */
+        .content-section {
+            margin-bottom: 4px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-left: 2px solid #333;
+            padding-left: 4px;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 2px;
+        }
+
+        .content-box {
+            background: white;
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 6px;
+        }
+
+        .content-box h4 {
+            font-size: 10px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 4px;
+            margin-top: 0;
+        }
+
+        .content-box p {
+            font-size: 10px;
+            line-height: 1.2;
+            color: #000;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        /* Tabla de Presupuesto Compacta */
+        .budget-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 10px;
+        }
+
+        .budget-table th {
+            background: #000;
+            color: white;
+            padding: 4px 6px;
+            text-align: left;
+            font-weight: 900;
+            font-size: 10px;
+        }
+
+        .budget-table td {
+            padding: 4px 6px;
+            border-bottom: 0.5px solid #ddd;
+            font-size: 10px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .budget-table .number {
+            text-align: right;
+        }
+
+        .budget-table tr:hover {
+            background: #f0f0f0;
+        }
+
+        /* Sección de Totales */
+        .total-section {
+            background: #f8f9fa;
+            border: 2px solid #000;
+            border-radius: 3px;
+            padding: 5px;
+            margin-top: 5px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 4px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .total-final {
+            font-size: 13px;
+            font-weight: 900;
+            color: #000;
+            border-top: 2px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+
+        /* Conversión de Moneda */
+        .currency-conversion {
+            margin-top: 5px;
+            padding-top: 4px;
+            border-top: 1px solid #333;
+        }
+
+        .conversion-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 5px;
+            background: #e9ecef;
+            padding: 5px 8px;
+            border: 1px solid #333;
+            border-radius: 2px;
+        }
+
+        .rate-info {
+            font-size: 8px;
+            color: #666;
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+
+        .rate-info p {
+            margin: 2px 0;
+        }
+
+        /* Cajas de Información */
+        .warranty-info {
+            background: #f8f9fa;
+            padding: 8px;
+            border-left: 4px solid #000;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #000;
+            font-size: 10px;
+        }
+
+        .contact-info {
+            background: #f8f9fa;
+            padding: 8px;
+            border-left: 4px solid #000;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #000;
+            font-size: 10px;
+        }
+
+        /* Botón de Imprimir */
+        .print-button {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .print-button:hover {
+            background: #333;
+        }
+
+        /* Responsive para impresión */
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .page {
+                box-shadow: none;
+                margin: 0;
+                padding: 10px;
+            }
+            
+            .print-button {
+                display: none;
+            }
+        }
+
+        /* Estilos para página completa */
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- Header con Logo y Empresa -->
+        <div class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+                    </div>
+                    <div class="company-info">
+                        <div class="company-name">SERVICIO TÉCNICO JEHOVÁ JIREH</div>
+                        <div class="company-details">
+                            RIF: J-000000000 | Tel: 0000-0000000<br>
+                            Dirección de la empresa
+                        </div>
+                    </div>
+                </div>
+                <div class="document-info">
+                    <div class="document-title">PRESUPUESTO DE REPARACIÓN</div>
+                    <div class="document-number">Orden #{{ orden.id }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido Principal en 2 Columnas -->
+        <div class="main-content">
+            <!-- Información de la Orden -->
+            <div class="info-section">
+                <h3>📋 Información de la Orden</h3>
+                <div class="info-row">
+                    <span class="info-label">Número:</span>
+                    <span class="info-value">{{ orden.id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Fecha:</span>
+                    <span class="info-value">{{ fecha_actual }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Estado:</span>
+                    <span class="info-value">{{ orden.estado }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Técnico:</span>
+                    <span class="info-value">{{ orden.tecnico_asignado or 'Por asignar' }}</span>
+                </div>
+            </div>
+
+            <!-- Información del Cliente -->
+            <div class="info-section">
+                <h3>👤 Información del Cliente</h3>
+                <div class="info-row">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-value">{{ orden.cliente.nombre }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Teléfono:</span>
+                    <span class="info-value">{{ orden.cliente.telefono }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ orden.cliente.email or 'No especificado' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información del Equipo -->
+        <div class="content-section">
+            <div class="section-title">📱 Equipo a Reparar</div>
+            <div class="content-box">
+                <div class="info-row">
+                    <span class="info-label">Tipo:</span>
+                    <span class="info-value">{{ orden.equipo.tipo }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Marca/Modelo:</span>
+                    <span class="info-value">{{ orden.equipo.marca }} {{ orden.equipo.modelo }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">IMEI:</span>
+                    <span class="info-value">{{ orden.equipo.imei or 'No especificado' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Número de Serie:</span>
+                    <span class="info-value">{{ orden.equipo.numero_serie or 'No especificado' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalle del Presupuesto -->
+        <div class="content-section">
+            <div class="section-title">💰 Detalle del Presupuesto</div>
+            
+            {% if orden.diagnostico %}
+            <table class="budget-table">
+                <thead>
+                    <tr>
+                        <th>Descripción</th>
+                        <th class="number">Cantidad</th>
+                        <th class="number">Precio Unit.</th>
+                        <th class="number">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if orden.diagnostico.detalle_repuestos %}
+                    <tr>
+                        <td><strong>Repuestos</strong></td>
+                        <td class="number">1</td>
+                        <td class="number">${{ "%.2f"|format(orden.diagnostico.costo_piezas or 0) }}</td>
+                        <td class="number">${{ "%.2f"|format(orden.diagnostico.costo_piezas or 0) }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if orden.diagnostico.costo_mano_obra %}
+                    <tr>
+                        <td><strong>Mano de Obra</strong></td>
+                        <td class="number">1</td>
+                        <td class="number">${{ "%.2f"|format(orden.diagnostico.costo_mano_obra) }}</td>
+                        <td class="number">${{ "%.2f"|format(orden.diagnostico.costo_mano_obra) }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            
+            {% if orden.diagnostico.detalle_repuestos %}
+            <div class="content-box">
+                <h4>Detalle de Repuestos:</h4>
+                <p>{{ orden.diagnostico.detalle_repuestos }}</p>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div class="warranty-info">
+                <p><strong>Presupuesto pendiente de generar</strong></p>
+                <p>El técnico debe completar el análisis de costos antes de generar este documento.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Totales -->
+        {% if orden.diagnostico %}
+        <div class="total-section">
+            <div class="total-row">
+                <span>Costo de Piezas:</span>
+                <span>${{ "%.2f"|format(orden.diagnostico.costo_piezas or 0) }}</span>
+            </div>
+            <div class="total-row">
+                <span>Mano de Obra:</span>
+                <span>${{ "%.2f"|format(orden.diagnostico.costo_mano_obra or 0) }}</span>
+            </div>
+            <div class="total-row total-final">
+                <span><strong>TOTAL A PAGAR:</strong></span>
+                <span><strong>${{ "%.2f"|format(orden.diagnostico.total_estimado or 0) }}</strong></span>
+            </div>
+            
+            <!-- Equivalente en Bolívares -->
+            <div class="currency-conversion">
+                <div class="conversion-row">
+                    <span><strong>Equivalente en Bolívares:</strong></span>
+                    <span><strong>Bs. {{ "%.2f"|format((orden.diagnostico.total_estimado or 0) * tasa_bcv) }}</strong></span>
+                </div>
+                <div class="rate-info">
+                    <p><em>* Calculado a la tasa BCV: Bs. {{ "%.2f"|format(tasa_bcv) }} por USD</em></p>
+                    <p><em>* El pago se realizará según la tasa oficial del BCV vigente al momento del pago</em></p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Información de Garantía -->
+        <div class="content-section">
+            <div class="section-title">🛡️ Información de Garantía</div>
+            <div class="warranty-info">
+                <p><strong>Garantía de Reparación:</strong> 90 días</p>
+                <p><strong>Cobertura:</strong> Defectos de fabricación y mano de obra</p>
+                <p><strong>Exclusiones:</strong> Daños por mal uso, agua, golpes o modificaciones no autorizadas</p>
+                <p><strong>Válida desde:</strong> Fecha de entrega del equipo reparado</p>
+            </div>
+        </div>
+
+        <!-- Condiciones del Presupuesto -->
+        <div class="content-section">
+            <div class="section-title">📋 Condiciones del Presupuesto</div>
+            <div class="contact-info">
+                <p><strong>•</strong> Este presupuesto tiene validez de 15 días</p>
+                <p><strong>•</strong> El trabajo se iniciará previa aprobación y pago del 50%</p>
+                <p><strong>•</strong> El saldo restante se cancela al momento de la entrega</p>
+                <p><strong>•</strong> Los repuestos se ordenan únicamente con aprobación del cliente</p>
+                <p><strong>•</strong> En caso de no aprobación, se cobra el costo de diagnóstico</p>
+            </div>
+        </div>
+
+        <!-- Botón de Imprimir -->
+        <button class="print-button" onclick="window.print()">
+            <i class="fas fa-print"></i> Imprimir / Guardar PDF
+        </button>
+    </div>
+</body>
+</html>

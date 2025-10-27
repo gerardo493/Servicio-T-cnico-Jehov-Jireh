@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chart.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f3;
+            padding: 2rem;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+            padding: 2rem;
+            margin: 2rem 0;
+            height: 400px;
+        }
+        .status {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 8px 8px 20px #d1d9e6, -8px -8px 20px #ffffff;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Chart.js Neomórfico</h1>
+    
+    <div class="status">
+        <h3>Estado de Chart.js:</h3>
+        <p id="chartStatus">Verificando...</p>
+    </div>
+    
+    <div class="chart-container">
+        <h3>Gráfico de Prueba</h3>
+        <canvas id="testChart"></canvas>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusEl = document.getElementById('chartStatus');
+            
+            if (typeof Chart !== 'undefined') {
+                statusEl.innerHTML = `✅ Chart.js cargado correctamente - Versión: ${Chart.version}`;
+                statusEl.style.color = 'green';
+                
+                // Crear gráfico de prueba
+                const ctx = document.getElementById('testChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Piezas', 'Accesorios', 'Herramientas', 'Consumibles', 'Otros'],
+                        datasets: [{
+                            data: [30, 25, 20, 15, 10],
+                            backgroundColor: [
+                                '#667eea',
+                                '#f093fb', 
+                                '#4facfe',
+                                '#43e97b',
+                                '#ffd93d'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    font: {
+                                        size: 12,
+                                        weight: '600'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('Gráfico de prueba creado exitosamente');
+            } else {
+                statusEl.innerHTML = '❌ Chart.js NO está disponible';
+                statusEl.style.color = 'red';
+                console.error('Chart.js no está disponible');
+            }
+        });
+    </script>
+</body>
+</html>
+
