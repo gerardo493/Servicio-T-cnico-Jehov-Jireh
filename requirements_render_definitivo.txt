@@ -33,6 +33,10 @@ cryptography==39.0.2
 lxml==4.9.1
 html5lib==1.1
 
+# Generación de códigos QR
+qrcode[pil]==7.4.2
+Pillow==10.0.0
+
 # IMPORTANTE: Estas versiones están súper probadas en Render
 # Flask 2.2.5 + Flask-WTF 1.0.1 = 100% Compatibles
 # lxml 4.9.1 + Python 3.10 = 100% Compatibles
