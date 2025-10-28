@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Proveedor{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .neo-card {
+        background: #f0f0f3;
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 
+            20px 20px 60px #d1d9e6,
+            -20px -20px 60px #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .neo-title {
+        color: #2d3748;
+        font-weight: 700;
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .neo-title i {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .form-section {
+        background: #f0f0f3;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 
+            inset 8px 8px 16px #d1d9e6,
+            inset -8px -8px 16px #ffffff;
+    }
+
+    .section-title {
+        color: #2d3748;
+        font-weight: 600;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .neo-input, .neo-select {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        color: #2d3748;
+        font-size: 0.9rem;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .neo-input:focus, .neo-select:focus {
+        outline: none;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff;
+    }
+
+    .form-group label {
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 
+            8px 8px 16px #d1d9e6,
+            -8px -8px 16px #ffffff;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+            12px 12px 24px #d1d9e6,
+            -12px -12px 24px #ffffff;
+    }
+</style>
+
+<div class="form-container">
+    <div class="container">
+        <form method="POST" action="/proveedores/nuevo">
+            <div class="neo-card">
+                <div class="neo-title">
+                    <i class="fas fa-truck"></i>
+                    {{ 'Editar Proveedor' if proveedor else 'Nuevo Proveedor' }}
+                </div>
+
+                {% if proveedor %}
+                    <input type="hidden" name="id" value="{{ proveedor.id }}">
+                {% endif %}
+
+                <!-- INFORMACIÓN BÁSICA -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Información Básica
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Nombre del Proveedor *</label>
+                                <input type="text" name="nombre" class="neo-input" 
+                                       value="{{ proveedor.nombre if proveedor else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Razón Social</label>
+                                <input type="text" name="razon_social" class="neo-input" 
+                                       value="{{ proveedor.razon_social if proveedor else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>RIF</label>
+                                <input type="text" name="rif" class="neo-input" 
+                                       value="{{ proveedor.rif if proveedor else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Categoría de Proveedor</label>
+                                <select name="categoria_proveedor" class="neo-select">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Electrónicos" {% if proveedor and proveedor.categoria_proveedor == 'Electrónicos' %}selected{% endif %}>Electrónicos</option>
+                                    <option value="Repuestos" {% if proveedor and proveedor.categoria_proveedor == 'Repuestos' %}selected{% endif %}>Repuestos</option>
+                                    <option value="Accesorios" {% if proveedor and proveedor.categoria_proveedor == 'Accesorios' %}selected{% endif %}>Accesorios</option>
+                                    <option value="Herramientas" {% if proveedor and proveedor.categoria_proveedor == 'Herramientas' %}selected{% endif %}>Herramientas</option>
+                                    <option value="Consumibles" {% if proveedor and proveedor.categoria_proveedor == 'Consumibles' %}selected{% endif %}>Consumibles</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTACTO -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-phone-alt"></i>
+                        Información de Contacto
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Teléfono *</label>
+                                <input type="tel" name="telefono" class="neo-input" 
+                                       value="{{ proveedor.telefono if proveedor else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" class="neo-input" 
+                                       value="{{ proveedor.email if proveedor else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contacto Principal</label>
+                        <input type="text" name="contacto_principal" class="neo-input" 
+                               value="{{ proveedor.contacto_principal if proveedor else '' }}">
+                    </div>
+                </div>
+
+                <!-- DIRECCIÓN -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Dirección
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" name="direccion" class="neo-input" 
+                               value="{{ proveedor.direccion if proveedor else '' }}">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Ciudad</label>
+                                <input type="text" name="ciudad" class="neo-input" 
+                                       value="{{ proveedor.ciudad if proveedor else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Estado</label>
+                                <input type="text" name="estado" class="neo-input" 
+                                       value="{{ proveedor.estado if proveedor else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>País</label>
+                                <input type="text" name="pais" class="neo-input" 
+                                       value="{{ proveedor.pais if proveedor else 'Venezuela' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TÉRMINOS Y ENTREGA -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-handshake"></i>
+                        Términos de Compra
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Términos de Pago (días)</label>
+                                <input type="number" name="terminos_pago" class="neo-input" 
+                                       value="{{ proveedor.terminos_pago if proveedor else '30' }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Tiempo de Entrega Promedio (días)</label>
+                                <input type="number" name="tiempo_entrega_promedio" class="neo-input" 
+                                       value="{{ proveedor.tiempo_entrega_promedio if proveedor else '7' }}" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Productos</label>
+                        <input type="text" name="tipo_productos" class="neo-input" 
+                               value="{{ proveedor.tipo_productos if proveedor else '' }}">
+                        <small style="color: #718096;">Ej: Pantallas, Baterías, Cargadores, etc.</small>
+                    </div>
+                </div>
+
+                <!-- NOTAS -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-sticky-note"></i>
+                        Notas Adicionales
+                    </div>
+                    
+                    <div class="form-group">
+                        <textarea name="notas" class="neo-input" rows="4" 
+                                  placeholder="Información adicional sobre el proveedor...">{{ proveedor.notas if proveedor else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- ESTADO -->
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-toggle-on"></i>
+                        Estado
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" name="activo" {% if not proveedor or proveedor.activo %}checked{% endif %}>
+                            Proveedor Activo
+                        </label>
+                    </div>
+                </div>
+
+                <!-- BOTONES -->
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-save"></i> Guardar Proveedor
+                    </button>
+                    <a href="/proveedores" class="btn btn-secondary" style="padding: 1rem 2rem; border-radius: 15px;">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

@@ -449,15 +449,41 @@
                     </div>
                     
                     <div class="alert alert-info mb-3" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
-                        <i class="fas fa-info-circle"></i> 
-                        <strong>Tasa Actual del Sistema:</strong> 
-                        <span id="tasaActual">Cargando...</span>
-                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="actualizarTasaManual()">
-                            <i class="fas fa-sync"></i> Actualizar Ahora
+                        <div class="row">
+                            <div class="col-md-6">
+                                <i class="fas fa-dollar-sign"></i> 
+                                <strong>Tasa USD Actual:</strong> 
+                                <span id="tasaUsdActual">{{ config.tasas.get('tasa_actual_usd', 253.90) }}</span>
+                                {% if config.tasas.get('ultima_actualizacion') %}
+                                <br><small class="text-muted">Última actualización: {{ config.tasas.get('ultima_actualizacion', '') }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <i class="fas fa-euro-sign"></i> 
+                                <strong>Tasa EUR Actual:</strong> 
+                                <span id="tasaEurActual">{{ config.tasas.get('tasa_actual_eur', 266.60) }}</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="actualizarTasaManual()">
+                            <i class="fas fa-sync"></i> Actualizar Tasas Ahora
                         </button>
                     </div>
                     
                     <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración de Tasas</h5>
+                    
+                    <!-- Moneda del Sistema -->
+                    <div class="neo-form-group mb-4">
+                        <label class="neo-label">
+                            <i class="fas fa-exchange-alt"></i> Moneda del Sistema
+                        </label>
+                        <select name="moneda_sistema" class="neo-input">
+                            <option value="USD" {% if config.tasas.get('moneda_sistema', 'USD') == 'USD' %}selected{% endif %}>USD (Dólares)</option>
+                            <option value="EUR" {% if config.tasas.get('moneda_sistema', 'USD') == 'EUR' %}selected{% endif %}>EUR (Euros)</option>
+                        </select>
+                        <small class="help-text">La moneda principal que usará el sistema para cálculos en documentos y pagos</small>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="neo-form-group">
@@ -471,6 +497,21 @@
                                 <small class="help-text">Se usa si falla la obtención automática desde BCV</small>
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-euro-sign"></i> Tasa EUR Manual
+                                    <span class="config-badge">Backup</span>
+                                </label>
+                                <input type="number" step="0.01" name="tasa_eur_defecto" class="neo-input" 
+                                       value="{{ config.tasas.get('tasa_eur_defecto', 235.00) }}" 
+                                       placeholder="235.00">
+                                <small class="help-text">Tasa EUR por defecto si falla la obtención automática</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="neo-form-group">
                                 <label class="neo-label">
@@ -489,14 +530,15 @@
                         </label>
                         <select name="fuente_tasa" class="neo-input" id="fuenteTasa">
                             <option value="bcv" {% if config.tasas.fuente_tasa == 'bcv' %}selected{% endif %}>
-                                BCV (Banco Central de Venezuela) - Recomendado
+                                BCV Oficial - https://www.bcv.org.ve/glosario/cambio-oficial
                             </option>
-                            <option value="manual" {% if config.tasas.fuente_tasa == 'manual' %}selected{% endif %}>
-                                Manual - Configuración personalizada
+                            <option value="monitor" {% if config.tasas.fuente_tasa == 'monitor' %}selected{% endif %}>
+                                Monitor Dólar - Tasa alternativa
                             </option>
                         </select>
                         <small class="help-text">
-                            BCV obtiene la tasa oficial del gobierno venezolano | Manual requiere configuración manual constante
+                            <strong>BCV Oficial:</strong> Obtiene tasas desde la página oficial del Banco Central de Venezuela.<br>
+                            <strong>Monitor Dólar:</strong> Fuente alternativa de tasas de cambio.
                         </small>
                     </div>
                     
@@ -854,20 +896,346 @@
             <!-- EQUIPOS CLIENTES -->
             <div id="tab-equipos" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-mobile-alt me-2"></i>Equipos Entregados por Cliente</h3>
-                    <div class="neo-checkbox">
-                        <input type="checkbox" name="equipos_habilitado" id="equipos_habilitado" {% if config.get('equipos_clientes', {}).get('habilitado', True) %}checked{% endif %}>
-                        <label for="equipos_habilitado">Habilitar Gestión de Equipos</label>
+                    <h3><i class="fas fa-mobile-alt me-2"></i>Gestión de Equipos por Cliente</h3>
+                    <p class="text-muted mb-4">Configure el seguimiento, estados y características de equipos de clientes</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Gestión de Equipos Completa:</strong> Configure seguimiento, estados, características y trazabilidad de equipos de clientes.
                     </div>
-                    <div class="neo-form-group">
+                    
+                    {% set equipos = config.get('equipos_clientes', {}) %}
+                    
+                    <!-- CONFIGURACIÓN GENERAL -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración General</h5>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_habilitado" id="equipos_habilitado" 
+                               {% if equipos.get('habilitado', True) %}checked{% endif %}>
+                        <label for="equipos_habilitado"><strong>Habilitar Gestión de Equipos</strong></label>
+                        <small class="help-text d-block">Activa el sistema completo de seguimiento de equipos</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_trazabilidad_completa" 
+                               {% if equipos.get('trazabilidad_completa', True) %}checked{% endif %}>
+                        <label><strong>Trazabilidad Completa</strong></label>
+                        <small class="help-text d-block">Registra todos los movimientos del equipo (reparaciones, cambios, etc.)</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_historial_detallado" 
+                               {% if equipos.get('historial_detallado', True) %}checked{% endif %}>
+                        <label><strong>Historial Detallado</strong></label>
+                        <small class="help-text d-block">Mantiene registro completo de todas las reparaciones</small>
+                    </div>
+                    
+                    <!-- TIPOS Y MARCAS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-tags section-icon"></i> Tipos y Marcas</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Marcas Permitidas (separadas por comas)</label>
+                        <input type="text" name="equipos_marcas_permitidas" class="neo-input" 
+                               value="{{ equipos.get('marcas_permitidas', [])|join(', ') }}" 
+                               placeholder="Apple, Samsung, Xiaomi, Huawei, Motorola, LG...">
+                        <small class="help-text">Marcas que puede gestionar el sistema</small>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
                         <label class="neo-label">Modelos Disponibles (separados por coma)</label>
-                        <input type="text" name="modelos_disponibles" class="neo-input" value="{{ config.get('equipos_clientes', {}).get('modelos_disponibles', [])|join(', ') }}" 
-                               placeholder="iPhone, Samsung, Xiaomi, Huawei...">
+                        <input type="text" name="modelos_disponibles" class="neo-input" 
+                               value="{{ equipos.get('modelos_disponibles', [])|join(', ') }}" 
+                               placeholder="iPhone, Galaxy, Redmi, Mate, Edge...">
+                        <small class="help-text">Modelos más comunes que se manejan</small>
                     </div>
-                    <div class="neo-form-group">
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_personalizar_modelos" 
+                               {% if equipos.get('personalizar_modelos', True) %}checked{% endif %}>
+                        <label><strong>Permitir Modelos Personalizados</strong></label>
+                        <small class="help-text d-block">Permite agregar modelos que no están en la lista</small>
+                    </div>
+                    
+                    <!-- ESTADOS DE EQUIPOS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-list-ul section-icon"></i> Estados de Equipos</h5>
+                    
+                    <div class="neo-form-group mb-3">
                         <label class="neo-label">Estados de Equipos (separados por coma)</label>
-                        <input type="text" name="estados_equipos" class="neo-input" value="{{ config.get('equipos_clientes', {}).get('estados_equipos', [])|join(', ') }}" 
-                               placeholder="Funcional, Reparado, Entregado...">
+                        <input type="text" name="estados_equipos" class="neo-input" 
+                               value="{{ equipos.get('estados_equipos', [])|join(', ') }}" 
+                               placeholder="En Reparación, Reparado, Entregado, Sin Arreglo, Esperando...">
+                        <small class="help-text">Estados posibles de un equipo en el sistema</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_notificar_cambio_estado" 
+                               {% if equipos.get('notificar_cambio_estado', True) %}checked{% endif %}>
+                        <label><strong>Notificar Cambios de Estado</strong></label>
+                        <small class="help-text d-block">Envía notificación al cliente cuando cambia el estado</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_auto_entregado" 
+                               {% if equipos.get('auto_cambiar_entregado', False) %}checked{% endif %}>
+                        <label><strong>Cambiar Estado a "Entregado" Automáticamente</strong></label>
+                        <small class="help-text d-block">Al facturar/crear nota de entrega, marca como entregado</small>
+                    </div>
+                    
+                    <!-- CONDICIÓN FÍSICA DEL EQUIPO -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-clipboard-check section-icon"></i> Condición Física del Equipo</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Condiciones Disponibles (separadas por coma)</label>
+                        <input type="text" name="equipos_condicion_fisica" class="neo-input" 
+                               value="{{ equipos.get('condicion_fisica_opciones', [])|join(', ') }}" 
+                               placeholder="Excelente, Bueno, Regular, Malo, Muy Malo, Dañado...">
+                        <small class="help-text">Opciones de condición física del equipo</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_fotos_condicion" 
+                               {% if equipos.get('fotos_condicion', True) %}checked{% endif %}>
+                        <label><strong>Permitir Fotos de Condición</strong></label>
+                        <small class="help-text d-block">Subir fotos del estado físico del equipo</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_descripcion_danos" 
+                               {% if equipos.get('descripcion_danos', True) %}checked{% endif %}>
+                        <label><strong>Descripción Detallada de Daños</strong></label>
+                        <small class="help-text d-block">Permite agregar descripción detallada de daños</small>
+                    </div>
+                    
+                    <!-- ACCESORIOS ENTREGADOS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-box section-icon"></i> Accesorios Entregados</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Tipos de Accesorios (separados por coma)</label>
+                        <input type="text" name="equipos_tipos_accesorios" class="neo-input" 
+                               value="{{ equipos.get('tipos_accesorios', [])|join(', ') }}" 
+                               placeholder="Cargador, Cable, Funda, Estuche, Auriculares, SIM Card...">
+                        <small class="help-text">Tipos de accesorios que pueden entregarse con el equipo</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_registrar_accesorios" 
+                               {% if equipos.get('registrar_accesorios_entregados', True) %}checked{% endif %}>
+                        <label><strong>Registrar Accesorios Entregados</strong></label>
+                        <small class="help-text d-block">Captura qué accesorios se entregan con el equipo</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_alertar_accesorios_faltantes" 
+                               {% if equipos.get('alertar_accesorios_faltantes', False) %}checked{% endif %}>
+                        <label><strong>Alertar Accesorios Faltantes</strong></label>
+                        <small class="help-text d-block">Notifica si faltan accesorios al recibir equipos</small>
+                    </div>
+                    
+                    <!-- CARACTERÍSTICAS TÉCNICAS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-microchip section-icon"></i> Características Técnicas</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_registrar_imei" 
+                               {% if equipos.get('registrar_imei', True) %}checked{% endif %}>
+                        <label><strong>Registrar IMEI</strong></label>
+                        <small class="help-text d-block">Captura el número IMEI del equipo</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_registrar_serial" 
+                               {% if equipos.get('registrar_serial', True) %}checked{% endif %}>
+                        <label><strong>Registrar Número de Serie</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_especificaciones" 
+                               {% if equipos.get('especificaciones_completas', False) %}checked{% endif %}>
+                        <label><strong>Especificaciones Completas</strong></label>
+                        <small class="help-text d-block">Almacenar: RAM, ROM, procesador, pantalla, etc.</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_codigo_barras" 
+                               {% if equipos.get('codigo_barras', False) %}checked{% endif %}>
+                        <label><strong>Código de Barras del Equipo</strong></label>
+                        <small class="help-text d-block">Genera y gestiona códigos de barras para cada equipo</small>
+                    </div>
+                    
+                    <!-- DATOS ADICIONALES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-info-circle section-icon"></i> Datos Adicionales del Equipo</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Color (separados por coma)</label>
+                        <input type="text" name="equipos_colores_disponibles" class="neo-input" 
+                               value="{{ equipos.get('colores_disponibles', [])|join(', ') }}" 
+                               placeholder="Negro, Blanco, Azul, Rojo, Dorado, Plateado...">
+                        <small class="help-text">Colores comunes de equipos</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="equipos_capacidad_almacenamiento" 
+                                       {% if equipos.get('registrar_capacidad_almacenamiento', False) %}checked{% endif %}>
+                                <label>Registrar Capacidad de Almacenamiento</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="equipos_version_sistema" 
+                                       {% if equipos.get('registrar_version_sistema', False) %}checked{% endif %}>
+                                <label>Registrar Versión de Sistema Operativo</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_numero_telefono" 
+                               {% if equipos.get('registrar_numero_telefono', False) %}checked{% endif %}>
+                        <label><strong>Registrar Número de Teléfono del Equipo</strong></label>
+                        <small class="help-text d-block">Captura el número de teléfono del dispositivo</small>
+                    </div>
+                    
+                    <!-- GARANTÍAS Y REPARACIONES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-shield-alt section-icon"></i> Garantías y Reparaciones</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Garantía Estándar (días)</label>
+                                <input type="number" name="equipos_garantia_estandar" class="neo-input" 
+                                       value="{{ equipos.get('garantia_estandar', 30) }}" min="0" max="365">
+                                <small class="help-text">Días de garantía por defecto</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Alerta de Garantía (días antes)</label>
+                                <input type="number" name="equipos_alerta_garantia" class="neo-input" 
+                                       value="{{ equipos.get('alerta_garantia', 7) }}" min="1" max="30">
+                                <small class="help-text">Días antes de vencer para alertar</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_validar_garantia" 
+                               {% if equipos.get('validar_garantia', True) %}checked{% endif %}>
+                        <label><strong>Validar Garantía al Crear Orden</strong></label>
+                        <small class="help-text d-block">Verifica que el equipo esté en garantía</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_reparaciones_multiples" 
+                               {% if equipos.get('reparaciones_multiples', True) %}checked{% endif %}>
+                        <label><strong>Historial de Reparaciones Múltiples</strong></label>
+                        <small class="help-text d-block">Permite registrar múltiples reparaciones por equipo</small>
+                    </div>
+                    
+                    <!-- INVENTARIO DE EQUIPOS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-warehouse section-icon"></i> Inventario de Equipos</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_inventario_en_lugar" 
+                               {% if equipos.get('inventario_en_lugar', False) %}checked{% endif %}>
+                        <label><strong>Control de Equipos en Lugar</strong></label>
+                        <small class="help-text d-block">Rastrea equipos en poder del negocio</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_alertar_equipos_largos" 
+                               {% if equipos.get('alertar_equipos_largos', True) %}checked{% endif %}>
+                        <label><strong>Alertar Equipos Mucho Tiempo</strong></label>
+                        <small class="help-text d-block">Notifica cuando un equipo lleva mucho tiempo sin entregar</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo Máximo sin Entregar (días)</label>
+                                <input type="number" name="equipos_tiempo_max_entrega" class="neo-input" 
+                                       value="{{ equipos.get('tiempo_max_entrega', 30) }}" min="7" max="180">
+                                <small class="help-text">Días antes de considerar "demasiado tiempo"</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Revisión Periódica (días)</label>
+                                <input type="number" name="equipos_revision_periodica" class="neo-input" 
+                                       value="{{ equipos.get('revision_periodica', 7) }}" min="1" max="30">
+                                <small class="help-text">Cada cuántos días revisar equipos pendientes</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- VALORACIÓN Y PRECIOS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-dollar-sign section-icon"></i> Valoración y Precios</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_valor_mercado" 
+                               {% if equipos.get('valor_mercado', False) %}checked{% endif %}>
+                        <label><strong>Registrar Valor de Mercado</strong></label>
+                        <small class="help-text d-block">Guarda el valor de mercado del equipo</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_valor_reparacion" 
+                               {% if equipos.get('valor_reparacion', True) %}checked{% endif %}>
+                        <label><strong>Registrar Valor de Reparación</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_comparar_precios" 
+                               {% if equipos.get('comparar_precios_reparacion', False) %}checked{% endif %}>
+                        <label><strong>Comparar Precios de Reparación</strong></label>
+                        <small class="help-text d-block">Alerta si el costo de reparación excede el valor del equipo</small>
+                    </div>
+                    
+                    <!-- SERVICIOS ADICIONALES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-tools section-icon"></i> Servicios Adicionales</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Servicios Disponibles (separados por coma)</label>
+                        <input type="text" name="equipos_servicios_disponibles" class="neo-input" 
+                               value="{{ equipos.get('servicios_disponibles', [])|join(', ') }}" 
+                               placeholder="Reparación de Pantalla, Cambio de Batería, Actualización de Software...">
+                        <small class="help-text">Servicios que se pueden realizar en equipos</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_costos_adicionales" 
+                               {% if equipos.get('registrar_costos_adicionales', True) %}checked{% endif %}>
+                        <label><strong>Registrar Costos Adicionales</strong></label>
+                        <small class="help-text d-block">Permite agregar costos extra como repuestos, envío, etc.</small>
+                    </div>
+                    
+                    <!-- ESTADÍSTICAS Y REPORTES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-chart-pie section-icon"></i> Estadísticas y Reportes</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_reportes_frecuencia" 
+                               {% if equipos.get('reportes_frecuencia_equipos', True) %}checked{% endif %}>
+                        <label><strong>Reportes de Frecuencia de Equipos</strong></label>
+                        <small class="help-text d-block">Identifica clientes con múltiples reparaciones</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_estadisticas_marcas" 
+                               {% if equipos.get('estadisticas_marcas', True) %}checked{% endif %}>
+                        <label><strong>Estadísticas por Marca</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="equipos_estadisticas_modelos" 
+                               {% if equipos.get('estadisticas_modelos', True) %}checked{% endif %}>
+                        <label><strong>Estadísticas por Modelo</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="equipos_reportes_reparaciones" 
+                               {% if equipos.get('reportes_reparaciones', True) %}checked{% endif %}>
+                        <label><strong>Reportes de Reparaciones</strong></label>
+                        <small class="help-text d-block">Genera reportes automáticos de equipos en reparación</small>
                     </div>
                 </div>
             </div>
@@ -899,14 +1267,174 @@
             <div id="tab-estados" class="config-tab-content">
                 <div class="neo-card-config">
                     <h3><i class="fas fa-tasks me-2"></i>Estados de Órdenes</h3>
-                    <p class="text-muted">Configuración de estados disponibles para órdenes de servicio</p>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Estados Habilitados</label>
-                        <div class="neo-checkbox"><input type="checkbox" checked disabled> Recibido</div>
-                        <div class="neo-checkbox"><input type="checkbox" checked disabled> En Diagnóstico</div>
-                        <div class="neo-checkbox"><input type="checkbox" checked disabled> En Reparación</div>
-                        <div class="neo-checkbox"><input type="checkbox" checked disabled> Reparado</div>
-                        <div class="neo-checkbox"><input type="checkbox" checked disabled> Entregado</div>
+                    <p class="text-muted">Configuración avanzada de estados para órdenes de servicio</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Configuración de Estados:</strong> Personalice cada estado con campos obligatorios, tiempos máximos, permisos y notificaciones.
+                    </div>
+                    
+                    {% set estados = config.get('estados_ordenes', {}) %}
+                    
+                    <!-- Configuración de En Espera/Recibido -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-clock text-warning"></i> En Espera de Revisión</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo Máximo (horas)</label>
+                                <input type="number" name="estado_recibido_tiempo_max" class="neo-input" 
+                                       value="{{ estados.get('recibido', {}).get('tiempo_maximo', 24) }}" min="1">
+                                <small class="help-text">Tiempo máximo antes de pasar a diagnóstico</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Campos Obligatorios</label>
+                                <input type="text" name="estado_recibido_campos" class="neo-input" 
+                                       value="{{ estados.get('recibido', {}).get('campos_obligatorios', 'equipo,cliente')|join(',') }}">
+                                <small class="help-text">Separados por comas (equipo, cliente, etc.)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="estado_recibido_notificar" 
+                                       {% if estados.get('recibido', {}).get('notificar_cliente', True) %}checked{% endif %}>
+                                <label>Notificar al Cliente</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuración de En Diagnóstico -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-search text-info"></i> En Diagnóstico</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo Máximo (horas)</label>
+                                <input type="number" name="estado_diagnostico_tiempo_max" class="neo-input" 
+                                       value="{{ estados.get('diagnostico', {}).get('tiempo_maximo', 72) }}" min="1">
+                                <small class="help-text">Tiempo máximo de diagnóstico</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Campos Obligatorios</label>
+                                <input type="text" name="estado_diagnostico_campos" class="neo-input" 
+                                       value="{{ estados.get('diagnostico', {}).get('campos_obligatorios', 'diagnostico')|join(',') }}">
+                                <small class="help-text">Separados por comas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="estado_diagnostico_notificar" 
+                                       {% if estados.get('diagnostico', {}).get('notificar_cliente', True) %}checked{% endif %}>
+                                <label>Notificar al Cliente</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuración de En Reparación -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-tools text-primary"></i> En Reparación</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo Máximo (horas)</label>
+                                <input type="number" name="estado_reparacion_tiempo_max" class="neo-input" 
+                                       value="{{ estados.get('en_reparacion', {}).get('tiempo_maximo', 168) }}" min="1">
+                                <small class="help-text">Tiempo máximo de reparación (7 días)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Solo Admin</label>
+                                <select name="estado_reparacion_requiere_admin" class="neo-input">
+                                    <option value="false">No</option>
+                                    <option value="true" {% if estados.get('en_reparacion', {}).get('requiere_admin', False) %}selected{% endif %}>Sí</option>
+                                </select>
+                                <small class="help-text">Solo administradores pueden cambiar este estado</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="estado_reparacion_comentario_obligatorio" 
+                                       {% if estados.get('en_reparacion', {}).get('comentario_obligatorio', False) %}checked{% endif %}>
+                                <label>Comentario Obligatorio</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuración de Reparado -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-check-double text-success"></i> Reparado</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo Máximo (horas)</label>
+                                <input type="number" name="estado_reparado_tiempo_max" class="neo-input" 
+                                       value="{{ estados.get('reparado', {}).get('tiempo_maximo', 48) }}" min="1">
+                                <small class="help-text">Tiempo máximo antes de entrega</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Requiere Aprobación</label>
+                                <select name="estado_reparado_requiere_aprobacion" class="neo-input">
+                                    <option value="false">No</option>
+                                    <option value="true" {% if estados.get('reparado', {}).get('requiere_aprobacion', True) %}selected{% endif %}>Sí</option>
+                                </select>
+                                <small class="help-text">Requiere confirmación de supervisor</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="estado_reparado_notificar" 
+                                       {% if estados.get('reparado', {}).get('notificar_cliente', True) %}checked{% endif %}>
+                                <label>Notificar al Cliente</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuración de Entregado -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-handshake text-secondary"></i> Entregado</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Solo Admin</label>
+                                <select name="estado_entregado_requiere_admin" class="neo-input">
+                                    <option value="false">No</option>
+                                    <option value="true" {% if estados.get('entregado', {}).get('requiere_admin', True) %}selected{% endif %}>Sí</option>
+                                </select>
+                                <small class="help-text">Solo administradores pueden marcar como entregado</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="estado_entregado_requiere_firma" 
+                                       {% if estados.get('entregado', {}).get('requiere_firma', True) %}checked{% endif %}>
+                                <label>Requiere Firma Digital</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="estado_entregado_notificar" 
+                                       {% if estados.get('entregado', {}).get('notificar_cliente', True) %}checked{% endif %}>
+                                <label>Notificar al Cliente</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Alertas y Notificaciones -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-bell section-icon"></i> Alertas por Estado</h5>
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertas_estados_vencidos" 
+                               {% if config.get('alertas', {}).get('estados_vencidos', True) %}checked{% endif %}>
+                        <label><strong>Alertar por Estados Vencidos</strong></label>
+                        <small class="help-text d-block">Enviar notificaciones cuando una orden exceda el tiempo máximo configurado</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertas_estados_pendientes" 
+                               {% if config.get('alertas', {}).get('estados_pendientes', True) %}checked{% endif %}>
+                        <label><strong>Recordatorio de Estados Pendientes</strong></label>
+                        <small class="help-text d-block">Recordar diariamente sobre órdenes en estados intermedios</small>
                     </div>
                 </div>
             </div>
@@ -1134,32 +1662,591 @@
             <div id="tab-categorias" class="config-tab-content">
                 <div class="neo-card-config">
                     <h3><i class="fas fa-tags me-2"></i>Categorías</h3>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Tipos de Clientes</label>
-                        <input type="text" class="neo-input" value="{{ config.get('categorias', {}).get('tipos_clientes', ['VIP', 'Regular', 'Corporativo'])|join(', ') }}">
+                    <p class="text-muted mb-4">Configure los tipos de clientes y prioridades del sistema con colores e iconos personalizados</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Sistema de Tags Mejorado:</strong> Arrastra para reordenar, haz clic para editar, personaliza colores e iconos.
                     </div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Prioridades</label>
-                        <input type="text" class="neo-input" value="{{ config.get('categorias', {}).get('prioridades', ['Baja', 'Media', 'Alta', 'Urgente'])|join(', ') }}">
+                    
+                    {% set categorias = config.get('categorias', {}) %}
+                    {% set tipos_clientes = categorias.get('tipos_clientes', []) %}
+                    {% set prioridades = categorias.get('prioridades', []) %}
+                    
+                    <!-- Tipos de Clientes -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-users section-icon"></i> Tipos de Clientes</h5>
+                    <div class="neo-form-group mb-4">
+                        <label class="neo-label">
+                            <i class="fas fa-plus-circle"></i> Agregar Nuevo Tipo
+                            <span class="help-text d-block mb-2">Separe los valores por comas o haga clic en "Añadir" para agregarlos individualmente</span>
+                        </label>
+                        <div class="input-group mb-3">
+                            <input type="text" id="nuevoTipoCliente" class="neo-input" placeholder="Ej: VIP, Regular, Corporativo">
+                            <button type="button" class="btn btn-primary" onclick="agregarTipoCliente()">
+                                <i class="fas fa-plus"></i> Añadir
+                            </button>
+                        </div>
+                        
+                        <!-- Container para Tags de Tipos de Clientes -->
+                        <div id="tiposClientesContainer" class="tags-container" style="min-height: 80px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            {% if tipos_clientes %}
+                                {% for tipo in tipos_clientes %}
+                                    {% if tipo.get('nombre') %}
+                                    <div class="custom-tag" data-tipo="tipo_cliente" style="background: {{ tipo.get('color', '#007bff') }};">
+                                        <span class="tag-icon"><i class="{{ tipo.get('icono', 'fas fa-user') }}"></i></span>
+                                        <input type="text" class="tag-name" value="{{ tipo.get('nombre') }}" data-original="{{ tipo.get('nombre') }}">
+                                        <select class="tag-color" onchange="cambiarColor(this)">
+                                            <option value="#007bff" {% if tipo.get('color') == '#007bff' %}selected{% endif %}>🔵 Azul</option>
+                                            <option value="#28a745" {% if tipo.get('color') == '#28a745' %}selected{% endif %}>🟢 Verde</option>
+                                            <option value="#ffc107" {% if tipo.get('color') == '#ffc107' %}selected{% endif %}>🟡 Amarillo</option>
+                                            <option value="#dc3545" {% if tipo.get('color') == '#dc3545' %}selected{% endif %}>🔴 Rojo</option>
+                                            <option value="#6f42c1" {% if tipo.get('color') == '#6f42c1' %}selected{% endif %}>🟣 Púrpura</option>
+                                            <option value="#fd7e14" {% if tipo.get('color') == '#fd7e14' %}selected{% endif %}>🟠 Naranja</option>
+                                        </select>
+                                        <select class="tag-icon-select" onchange="cambiarIcono(this)">
+                                            <option value="fas fa-user" {% if tipo.get('icono') == 'fas fa-user' %}selected{% endif %}>👤 Usuario</option>
+                                            <option value="fas fa-crown" {% if tipo.get('icono') == 'fas fa-crown' %}selected{% endif %}>👑 VIP</option>
+                                            <option value="fas fa-building" {% if tipo.get('icono') == 'fas fa-building' %}selected{% endif %}>🏢 Corporativo</option>
+                                            <option value="fas fa-star" {% if tipo.get('icono') == 'fas fa-star' %}selected{% endif %}>⭐ Estrella</option>
+                                        </select>
+                                        <button type="button" class="btn-tag-delete" onclick="eliminarTag(this)">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No hay tipos de clientes configurados</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Prioridades -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-exclamation-triangle section-icon"></i> Prioridades</h5>
+                    <div class="neo-form-group mb-4">
+                        <label class="neo-label">
+                            <i class="fas fa-plus-circle"></i> Agregar Nueva Prioridad
+                            <span class="help-text d-block mb-2">Arrastre para reordenar (importante para el orden semántico)</span>
+                        </label>
+                        <div class="input-group mb-3">
+                            <input type="text" id="nuevaPrioridad" class="neo-input" placeholder="Ej: Baja, Media, Alta, Urgente">
+                            <button type="button" class="btn btn-primary" onclick="agregarPrioridad()">
+                                <i class="fas fa-plus"></i> Añadir
+                            </button>
+                        </div>
+                        
+                        <!-- Container para Tags de Prioridades -->
+                        <div id="prioridadesContainer" class="tags-container" style="min-height: 80px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            {% if prioridades %}
+                                {% for prioridad in prioridades %}
+                                    {% if prioridad.get('nombre') %}
+                                    <div class="custom-tag" data-tipo="prioridad" data-priority="{{ loop.index }}" style="background: {{ prioridad.get('color', '#ffc107') }};">
+                                        <span class="tag-icon"><i class="{{ prioridad.get('icono', 'fas fa-flag') }}"></i></span>
+                                        <input type="text" class="tag-name" value="{{ prioridad.get('nombre') }}" data-original="{{ prioridad.get('nombre') }}">
+                                        <select class="tag-color" onchange="cambiarColor(this)">
+                                            <option value="#17a2b8" {% if prioridad.get('color') == '#17a2b8' %}selected{% endif %}>🔵 Baja</option>
+                                            <option value="#ffc107" {% if prioridad.get('color') == '#ffc107' %}selected{% endif %}>🟡 Media</option>
+                                            <option value="#fd7e14" {% if prioridad.get('color') == '#fd7e14' %}selected{% endif %}>🟠 Alta</option>
+                                            <option value="#dc3545" {% if prioridad.get('color') == '#dc3545' %}selected{% endif %}>🔴 Urgente</option>
+                                        </select>
+                                        <select class="tag-icon-select" onchange="cambiarIcono(this)">
+                                            <option value="fas fa-flag" {% if prioridad.get('icono') == 'fas fa-flag' %}selected{% endif %}>🏳️ Bandera</option>
+                                            <option value="fas fa-clock" {% if prioridad.get('icono') == 'fas fa-clock' %}selected{% endif %}>⏰ Reloj</option>
+                                            <option value="fas fa-fire" {% if prioridad.get('icono') == 'fas fa-fire' %}selected{% endif %}>🔥 Fuego</option>
+                                            <option value="fas fa-bolt" {% if prioridad.get('icono') == 'fas fa-bolt' %}selected{% endif %}>⚡ Ráfaga</option>
+                                        </select>
+                                        <button type="button" class="btn-tag-delete" onclick="eliminarTag(this)">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No hay prioridades configuradas</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Botón de guardar -->
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Guardar Configuración
+                        </button>
                     </div>
                 </div>
             </div>
+            
+            <style>
+            .tags-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .custom-tag {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                border-radius: 20px;
+                background: #007bff;
+                color: white;
+                font-size: 14px;
+                cursor: move;
+                transition: all 0.3s;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .custom-tag:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            }
+            
+            .tag-icon {
+                font-size: 16px;
+            }
+            
+            .tag-name {
+                background: transparent;
+                border: none;
+                color: white;
+                font-weight: 500;
+                padding: 4px 8px;
+                border-radius: 4px;
+                min-width: 80px;
+            }
+            
+            .tag-name:focus {
+                background: rgba(255,255,255,0.2);
+                outline: 2px solid white;
+            }
+            
+            .tag-color, .tag-icon-select {
+                background: rgba(255,255,255,0.3);
+                border: 1px solid rgba(255,255,255,0.5);
+                color: white;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+            
+            .tag-color option, .tag-icon-select option {
+                background: #333;
+                color: white;
+            }
+            
+            .btn-tag-delete {
+                background: rgba(255,255,255,0.3);
+                border: none;
+                color: white;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            
+            .btn-tag-delete:hover {
+                background: rgba(255,255,255,0.5);
+                transform: scale(1.1);
+            }
+            </style>
+            
+            <script>
+            // Funciones para manejar tipos de clientes
+            function agregarTipoCliente() {
+                const input = document.getElementById('nuevoTipoCliente');
+                const texto = input.value.trim();
+                
+                if (!texto) {
+                    alert('Por favor ingrese un tipo de cliente');
+                    return;
+                }
+                
+                const items = texto.split(',').map(item => item.trim()).filter(item => item);
+                
+                items.forEach(item => {
+                    const container = document.getElementById('tiposClientesContainer');
+                    const nuevoTag = crearTag('tipo_cliente', item, '#007bff', 'fas fa-user');
+                    container.appendChild(nuevoTag);
+                });
+                
+                input.value = '';
+            }
+            
+            // Funciones para manejar prioridades
+            function agregarPrioridad() {
+                const input = document.getElementById('nuevaPrioridad');
+                const texto = input.value.trim();
+                
+                if (!texto) {
+                    alert('Por favor ingrese una prioridad');
+                    return;
+                }
+                
+                const items = texto.split(',').map(item => item.trim()).filter(item => item);
+                
+                items.forEach(item => {
+                    const container = document.getElementById('prioridadesContainer');
+                    const nuevoTag = crearTag('prioridad', item, '#ffc107', 'fas fa-flag');
+                    container.appendChild(nuevoTag);
+                });
+                
+                input.value = '';
+            }
+            
+            function crearTag(tipo, nombre, color, icono) {
+                const div = document.createElement('div');
+                div.className = 'custom-tag';
+                div.setAttribute('data-tipo', tipo);
+                div.style.background = color;
+                div.innerHTML = `
+                    <span class="tag-icon"><i class="${icono}"></i></span>
+                    <input type="text" class="tag-name" value="${nombre}" data-original="${nombre}">
+                    <select class="tag-color" onchange="cambiarColor(this)">
+                        <option value="#007bff" ${color === '#007bff' ? 'selected' : ''}>🔵 Azul</option>
+                        <option value="#28a745" ${color === '#28a745' ? 'selected' : ''}>🟢 Verde</option>
+                        <option value="#ffc107" ${color === '#ffc107' ? 'selected' : ''}>🟡 Amarillo</option>
+                        <option value="#dc3545" ${color === '#dc3545' ? 'selected' : ''}>🔴 Rojo</option>
+                        <option value="#6f42c1" ${color === '#6f42c1' ? 'selected' : ''}>🟣 Púrpura</option>
+                        <option value="#fd7e14" ${color === '#fd7e14' ? 'selected' : ''}>🟠 Naranja</option>
+                    </select>
+                    <select class="tag-icon-select" onchange="cambiarIcono(this)">
+                        <option value="fas fa-user">👤 Usuario</option>
+                        <option value="fas fa-crown">👑 VIP</option>
+                        <option value="fas fa-building">🏢 Corporativo</option>
+                        <option value="fas fa-flag">🏳️ Bandera</option>
+                        <option value="fas fa-clock">⏰ Reloj</option>
+                        <option value="fas fa-fire">🔥 Fuego</option>
+                    </select>
+                    <button type="button" class="btn-tag-delete" onclick="eliminarTag(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                return div;
+            }
+            
+            function cambiarColor(select) {
+                const tag = select.closest('.custom-tag');
+                const color = select.value;
+                tag.style.background = color;
+            }
+            
+            function cambiarIcono(select) {
+                const tag = select.closest('.custom-tag');
+                const icono = select.value;
+                const iconSpan = tag.querySelector('.tag-icon i');
+                iconSpan.className = icono;
+            }
+            
+            function eliminarTag(button) {
+                if (confirm('¿Está seguro de que desea eliminar este elemento?')) {
+                    const tag = button.closest('.custom-tag');
+                    tag.remove();
+                }
+            }
+            
+            // Inicializar drag and drop
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeDragAndDrop('tiposClientesContainer');
+                initializeDragAndDrop('prioridadesContainer');
+            });
+            
+            function initializeDragAndDrop(containerId) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                let draggedElement = null;
+                
+                container.querySelectorAll('.custom-tag').forEach(tag => {
+                    tag.draggable = true;
+                    
+                    tag.addEventListener('dragstart', function(e) {
+                        draggedElement = this;
+                        this.style.opacity = '0.5';
+                    });
+                    
+                    tag.addEventListener('dragend', function(e) {
+                        this.style.opacity = '1';
+                    });
+                    
+                    tag.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        const afterElement = getDragAfterElement(container, e.clientY);
+                        if (afterElement == null) {
+                            container.appendChild(draggedElement);
+                        } else {
+                            container.insertBefore(draggedElement, afterElement);
+                        }
+                    });
+                });
+            }
+            
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.custom-tag:not(.dragging)')];
+                
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+            </script>
 
             <!-- SEGURIDAD -->
             <div id="tab-seguridad" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-shield-alt me-2"></i>Seguridad</h3>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Tiempo de Sesión (segundos)</label>
-                        <input type="number" name="tiempo_sesion" class="neo-input" value="{{ config.get('seguridad', {}).get('tiempo_sesion', 3600) }}">
+                    <h3><i class="fas fa-shield-alt me-2"></i>Seguridad del Sistema</h3>
+                    <p class="text-muted mb-4">Configure las políticas de seguridad y autenticación para proteger su sistema</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Seguridad Avanzada:</strong> Configure políticas de contraseñas, autenticación de dos factores, y monitoreo de actividades.
                     </div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Intentos de Login Permitidos</label>
-                        <input type="number" name="intentos_login" class="neo-input" value="{{ config.get('seguridad', {}).get('intentos_login', 5) }}">
+                    
+                    {% set seguridad = config.get('seguridad', {}) %}
+                    
+                    <!-- Autenticación y Sesiones -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-user-shield section-icon"></i> Autenticación y Sesiones</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo de Sesión (minutos)</label>
+                                <input type="number" name="tiempo_sesion" class="neo-input" 
+                                       value="{{ seguridad.get('tiempo_sesion', 60) }}" min="5" max="480">
+                                <small class="help-text">Después de este tiempo la sesión expira automáticamente</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Sesiones Concurrentes Máximas</label>
+                                <input type="number" name="sesiones_concurrentes_max" class="neo-input" 
+                                       value="{{ seguridad.get('sesiones_concurrentes_max', 2) }}" min="1">
+                                <small class="help-text">Número máximo de sesiones simultáneas por usuario</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="neo-checkbox">
-                        <input type="checkbox" name="complejidad_contraseña" {% if config.get('seguridad', {}).get('complejidad_contraseña', True) %}checked{% endif %}>
-                        <label>Complejidad de Contraseñas Requerida</label>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Intentos de Login Permitidos</label>
+                                <input type="number" name="intentos_login" class="neo-input" 
+                                       value="{{ seguridad.get('intentos_login', 5) }}" min="3" max="10">
+                                <small class="help-text">Después de esto, la IP es bloqueada temporalmente</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo de Bloqueo de IP (minutos)</label>
+                                <input type="number" name="tiempo_bloqueo_ip" class="neo-input" 
+                                       value="{{ seguridad.get('tiempo_bloqueo_ip', 15) }}" min="5">
+                                <small class="help-text">Tiempo que una IP queda bloqueada por intentos fallidos</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="cerrar_sesiones_concurrentes" 
+                               {% if seguridad.get('cerrar_sesiones_concurrentes', True) %}checked{% endif %}>
+                        <label><strong>Cerrar Sesiones Anteriores Automáticamente</strong></label>
+                        <small class="help-text d-block">Cierra automáticamente otras sesiones cuando se alcanza el máximo concurrente</small>
+                    </div>
+                    
+                    <!-- Políticas de Contraseñas -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-key section-icon"></i> Políticas de Contraseñas</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Longitud Mínima de Contraseña</label>
+                                <input type="number" name="longitud_min_contraseña" class="neo-input" 
+                                       value="{{ seguridad.get('longitud_min_contraseña', 8) }}" min="6" max="20">
+                                <small class="help-text">Mínimo de caracteres requeridos</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Expiración de Contraseña (días)</label>
+                                <input type="number" name="dias_expira_contraseña" class="neo-input" 
+                                       value="{{ seguridad.get('dias_expira_contraseña', 90) }}" min="0" max="365">
+                                <small class="help-text">0 = Sin expiración, obliga a cambiar cada X días</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="complejidad_contraseña" 
+                               {% if seguridad.get('complejidad_contraseña', True) %}checked{% endif %}>
+                        <label><strong>Complejidad de Contraseñas Requerida</strong></label>
+                        <small class="help-text d-block">Requiere mayúsculas, minúsculas, números y símbolos</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="no_reusar_contraseñas" 
+                               {% if seguridad.get('no_reusar_contraseñas', True) %}checked{% endif %}>
+                        <label><strong>No Permitir Reutilizar Contraseñas</strong></label>
+                        <small class="help-text d-block">Evita usar las últimas 5 contraseñas anteriores</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="expira_contraseña" 
+                               {% if seguridad.get('expira_contraseña', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Expiración de Contraseñas</strong></label>
+                        <small class="help-text d-block">Activa el sistema de expiración automática</small>
+                    </div>
+                    
+                    <!-- Autenticación de Dos Factores (2FA) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-mobile-alt section-icon"></i> Autenticación de Dos Factores (2FA)</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="autenticacion_2fa" 
+                               {% if seguridad.get('autenticacion_2fa', False) %}checked{% endif %}>
+                        <label><strong>Habilitar 2FA para Todos los Usuarios</strong></label>
+                        <small class="help-text d-block">Requiere código adicional para iniciar sesión</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="2fa_sms" 
+                                       {% if seguridad.get('2fa_sms', True) %}checked{% endif %}>
+                                <label>Permitir Códigos por SMS</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="2fa_email" 
+                                       {% if seguridad.get('2fa_email', True) %}checked{% endif %}>
+                                <label>Permitir Códigos por Email</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Registro de Actividades (Security Audit Log) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-clipboard-list section-icon"></i> Registro de Actividades</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="registro_actividades" 
+                               {% if seguridad.get('registro_actividades', True) %}checked{% endif %}>
+                        <label><strong>Registrar Todas las Actividades de Seguridad</strong></label>
+                        <small class="help-text d-block">Guarda logs de login, cambios de permisos, modificaciones de datos</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Retención de Logs (días)</label>
+                                <input type="number" name="retencion_logs" class="neo-input" 
+                                       value="{{ seguridad.get('retencion_logs', 90) }}" min="7" max="365">
+                                <small class="help-text">Tiempo que se mantienen los logs de seguridad</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cifrado de Datos Sensibles -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-lock section-icon"></i> Cifrado de Datos</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="cifrar_datos_sensibles" 
+                               {% if seguridad.get('cifrar_datos_sensibles', True) %}checked{% endif %}>
+                        <label><strong>Cifrar Datos Sensibles (Tarjetas, RGPD)</strong></label>
+                        <small class="help-text d-block">Protege información personal y datos de tarjetas</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="backups_cifrados" 
+                               {% if seguridad.get('backups_cifrados', True) %}checked{% endif %}>
+                        <label><strong>Cifrar Todos los Backups</strong></label>
+                        <small class="help-text d-block">Todos los respaldos se guardan con cifrado AES-256</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="exportaciones_cifradas" 
+                               {% if seguridad.get('exportaciones_cifradas', True) %}checked{% endif %}>
+                        <label><strong>Exportaciones con Contraseña</strong></label>
+                        <small class="help-text d-block">Las exportaciones de datos requieren contraseña para abrir</small>
+                    </div>
+                    
+                    <!-- Backups Automáticos -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cloud-download-alt section-icon"></i> Backups Automáticos</h5>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="backups_automaticos_seguridad" 
+                               {% if seguridad.get('backups_automaticos_seguridad', True) %}checked{% endif %}>
+                        <label><strong>Habilitar Backups Automáticos Diarios</strong></label>
+                        <small class="help-text d-block">Respaldos automáticos cada 24 horas</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Días de Retención</label>
+                                <input type="number" name="dias_retencion_backups" class="neo-input" 
+                                       value="{{ seguridad.get('dias_retencion_backups', 30) }}" min="7" max="90">
+                                <small class="help-text">Cuántos días mantener los backups</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Control de Acceso -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-network-wired section-icon"></i> Control de Acceso</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="bloqueo_ip_activo" 
+                               {% if seguridad.get('bloqueo_ip_activo', False) %}checked{% endif %}>
+                        <label><strong>Bloquear IPs Desconocidas</strong></label>
+                        <small class="help-text d-block">Solo permite acceso desde IPs previamente registradas</small>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">IPs Permitidas (separadas por comas)</label>
+                        <textarea name="ips_permitidas" class="neo-input" rows="3" 
+                                  placeholder="192.168.1.100, 10.0.0.50">{{ seguridad.get('ips_permitidas', '') }}</textarea>
+                        <small class="help-text">Deje vacío para permitir cualquier IP</small>
+                    </div>
+                    
+                    <!-- Alertas de Seguridad -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-bell section-icon"></i> Alertas de Seguridad</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertar_login_nuevo" 
+                               {% if seguridad.get('alertar_login_nuevo', True) %}checked{% endif %}>
+                        <label><strong>Notificar Nuevos Logins</strong></label>
+                        <small class="help-text d-block">Envía email/SMS cuando alguien inicia sesión</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertar_cambios_permisos" 
+                               {% if seguridad.get('alertar_cambios_permisos', True) %}checked{% endif %}>
+                        <label><strong>Notificar Cambios de Permisos</strong></label>
+                        <small class="help-text d-block">Avisa cuando se modifican permisos de usuarios</small>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Canales de Alerta</label>
+                        <div class="neo-checkbox">
+                            <input type="checkbox" name="alertas_email" 
+                                   {% if seguridad.get('alertas_email', True) %}checked{% endif %}>
+                            <label>Email</label>
+                        </div>
+                        <div class="neo-checkbox">
+                            <input type="checkbox" name="alertas_sms" 
+                                   {% if seguridad.get('alertas_sms', False) %}checked{% endif %}>
+                            <label>SMS</label>
+                        </div>
+                        <div class="neo-checkbox">
+                            <input type="checkbox" name="alertas_whatsapp" 
+                                   {% if seguridad.get('alertas_whatsapp', False) %}checked{% endif %}>
+                            <label>WhatsApp</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1167,51 +2254,1320 @@
             <!-- VISUAL -->
             <div id="tab-visual" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-palette me-2"></i>Aparencia Visual</h3>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Tema</label>
-                        <select name="tema" class="neo-input">
-                            <option value="automatico" {% if config.get('visual', {}).get('tema', 'automatico') == 'automatico' %}selected{% endif %}>Automático</option>
-                            <option value="claro" {% if config.get('visual', {}).get('tema') == 'claro' %}selected{% endif %}>Claro</option>
-                            <option value="oscuro" {% if config.get('visual', {}).get('tema') == 'oscuro' %}selected{% endif %}>Oscuro</option>
+                    <h3><i class="fas fa-palette me-2"></i>Personalización Visual Completa</h3>
+                    <p class="text-muted mb-4">Personalice completamente la apariencia, colores, tipografía, tema y estilo de su sistema</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-magic"></i> 
+                        <strong>Personalización Total:</strong> Colores, tipografía, temas, densidad, animaciones, accesibilidad y más de 100 opciones configurables.
+                    </div>
+                    
+                    {% set visual = config.get('visual', {}) %}
+                    
+                    <!-- TEMAS PREDEFINIDOS (4) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-paint-brush section-icon"></i> Temas Prediseñados</h5>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tema Principal</label>
+                                <select name="tema" class="neo-input" onchange="aplicarTemaPreview(this.value)">
+                                    <option value="automatico" {% if visual.get('tema', 'automatico') == 'automatico' %}selected{% endif %}>🔄 Automático (sigue sistema)</option>
+                                    <option value="claro" {% if visual.get('tema') == 'claro' %}selected{% endif %}>☀️ Claro</option>
+                                    <option value="oscuro" {% if visual.get('tema') == 'oscuro' %}selected{% endif %}>🌙 Oscuro</option>
+                                    <option value="alto_contraste" {% if visual.get('tema') == 'alto_contraste' %}selected{% endif %}>🔆 Alto Contraste</option>
+                                    <option value="sepia" {% if visual.get('tema') == 'sepia' %}selected{% endif %}>📜 Sepia</option>
+                                    <option value="cyber" {% if visual.get('tema') == 'cyber' %}selected{% endif %}>🤖 Cyber (verde neón)</option>
+                                    <option value="formal" {% if visual.get('tema') == 'formal' %}selected{% endif %}>👔 Formal (azul profesional)</option>
+                                    <option value="clasico" {% if visual.get('tema') == 'clasico' %}selected{% endif %}>🏛️ Clásico</option>
+                                </select>
+                                <small class="help-text">Seleccione un tema y personalice los colores a continuación</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="preview_tiempo_real" checked id="previewTiempoReal">
+                        <label for="previewTiempoReal"><strong>Vista Previa en Tiempo Real</strong></label>
+                        <small class="help-text d-block">Muestra los cambios visuales inmediatamente mientras configura</small>
+                    </div>
+                    
+                    <!-- PALETA DE COLORES (1) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-palette section-icon"></i> Paleta de Colores</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color Primario</label>
+                                <input type="color" name="color_primario" class="neo-input" 
+                                       value="{{ visual.get('color_primario', '#4f46e5') }}" 
+                                       onchange="actualizarColorPrimario(this.value)">
+                                <input type="text" class="neo-input mt-2" name="color_primario_hex" 
+                                       value="{{ visual.get('color_primario', '#4f46e5') }}" 
+                                       placeholder="#4f46e5" style="font-family: monospace;">
+                                <small class="help-text">Color principal del sistema (botones, enlaces, acentos)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color Secundario</label>
+                                <input type="color" name="color_secundario" class="neo-input" 
+                                       value="{{ visual.get('color_secundario', '#7c3aed') }}">
+                                <input type="text" class="neo-input mt-2" name="color_secundario_hex" 
+                                       value="{{ visual.get('color_secundario', '#7c3aed') }}" 
+                                       placeholder="#7c3aed" style="font-family: monospace;">
+                                <small class="help-text">Color secundario (botones hover, elementos secundarios)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color de Acentos</label>
+                                <input type="color" name="color_acentos" class="neo-input" 
+                                       value="{{ visual.get('color_acentos', '#10b981') }}">
+                                <small class="help-text">Para highlights, badges, notificaciones</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color de Fondos</label>
+                                <input type="color" name="color_fondo" class="neo-input" 
+                                       value="{{ visual.get('color_fondo', '#f9fafb') }}">
+                                <small class="help-text">Color de fondo principal</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TIPOGRAFÍA (2, 16) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-font section-icon"></i> Tipografía</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Familia de Fuente</label>
+                                <select name="familia_fuente" class="neo-input">
+                                    <option value="roboto" {% if visual.get('familia_fuente') == 'roboto' %}selected{% endif %}>Roboto</option>
+                                    <option value="inter" {% if visual.get('familia_fuente') == 'inter' %}selected{% endif %}>Inter</option>
+                                    <option value="open_sans" {% if visual.get('familia_fuente') == 'open_sans' %}selected{% endif %}>Open Sans</option>
+                                    <option value="lato" {% if visual.get('familia_fuente') == 'lato' %}selected{% endif %}>Lato</option>
+                                    <option value="montserrat" {% if visual.get('familia_fuente') == 'montserrat' %}selected{% endif %}>Montserrat</option>
+                                    <option value="poppins" {% if visual.get('familia_fuente', 'poppins') == 'poppins' %}selected{% endif %}>Poppins (Recomendada)</option>
+                                    <option value="nunito" {% if visual.get('familia_fuente') == 'nunito' %}selected{% endif %}>Nunito</option>
+                                    <option value="custom" {% if visual.get('familia_fuente') == 'custom' %}selected{% endif %}>Personalizada (subir archivo)</option>
+                                </select>
+                                <small class="help-text">Fuente que usará todo el sistema</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tamaño Base de Fuente</label>
+                                <input type="number" name="tamano_fuente_base" class="neo-input" 
+                                       value="{{ visual.get('tamano_fuente_base', 16) }}" min="12" max="20" step="1">
+                                <small class="help-text">Tamaño base en pixels (12-20px)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Escala Móvil</label>
+                                <input type="number" name="escala_movil" class="neo-input" 
+                                       value="{{ visual.get('escala_movil', 1) }}" min="0.8" max="1.5" step="0.1">
+                                <small class="help-text">Multiplicador para móviles</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Escala Tablet</label>
+                                <input type="number" name="escala_tablet" class="neo-input" 
+                                       value="{{ visual.get('escala_tablet', 1.1) }}" min="0.9" max="1.6" step="0.1">
+                                <small class="help-text">Multiplicador para tablets</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Escala Desktop</label>
+                                <input type="number" name="escala_desktop" class="neo-input" 
+                                       value="{{ visual.get('escala_desktop', 1.2) }}" min="1" max="2" step="0.1">
+                                <small class="help-text">Multiplicador para desktop</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Fuente Personalizada (opcional)</label>
+                        <input type="file" name="fuente_personalizada" accept=".woff2,.woff,.ttf,.otf" class="neo-input">
+                        <small class="help-text">Subir archivo de fuente personalizada (.woff2, .woff, .ttf, .otf)</small>
+                    </div>
+                    
+                    <!-- DENSIDAD Y ESPACIADO (3) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-compress-arrows-alt section-icon"></i> Densidad y Espaciado</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Densidad de Información</label>
+                        <select name="densidad" class="neo-input">
+                            <option value="compacta" {% if visual.get('densidad') == 'compacta' %}selected{% endif %}>📦 Compacta (más información visible)</option>
+                            <option value="normal" {% if visual.get('densidad', 'normal') == 'normal' %}selected{% endif %}>📄 Normal (balance ideal)</option>
+                            <option value="espaciosa" {% if visual.get('densidad') == 'espaciosa' %}selected{% endif %}>📋 Espaciosa (fácil lectura)</option>
                         </select>
+                        <small class="help-text">Controla el espaciado entre elementos y la densidad de información</small>
                     </div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Color Primario</label>
-                        <input type="color" name="color_primario" class="neo-input" value="{{ config.get('visual', {}).get('color_primario', '#4f46e5') }}">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Altura de Filas de Tablas</label>
+                                <input type="number" name="altura_filas" class="neo-input" 
+                                       value="{{ visual.get('altura_filas', 48) }}" min="32" max="80" step="4">
+                                <small class="help-text">Altura en pixels</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Padding General</label>
+                                <input type="number" name="padding_general" class="neo-input" 
+                                       value="{{ visual.get('padding_general', 16) }}" min="8" max="32" step="4">
+                                <small class="help-text">Espaciado general en pixels</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Gap entre Cards</label>
+                                <input type="number" name="gap_cards" class="neo-input" 
+                                       value="{{ visual.get('gap_cards', 16) }}" min="0" max="32" step="4">
+                                <small class="help-text">Espacio entre tarjetas</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Idioma</label>
+                    
+                    <!-- ESTILO DE COMPONENTES (5) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-shapes section-icon"></i> Estilo de Componentes</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Bordes</label>
+                                <select name="estilo_bordes" class="neo-input">
+                                    <option value="redondeado" {% if visual.get('estilo_bordes', 'redondeado') == 'redondeado' %}selected{% endif %}>⭕ Redondeado</option>
+                                    <option value="cuadrado" {% if visual.get('estilo_bordes') == 'cuadrado' %}selected{% endif %}>⬜ Cuadrado</option>
+                                    <option value="muy_redondeado" {% if visual.get('estilo_bordes') == 'muy_redondeado' %}selected{% endif %}>🔵 Muy Redondeado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Estilo de Botones</label>
+                                <select name="estilo_botones" class="neo-input">
+                                    <option value="filled" {% if visual.get('estilo_botones', 'filled') == 'filled' %}selected{% endif %}>🟦 Filled (sólido)</option>
+                                    <option value="outlined" {% if visual.get('estilo_botones') == 'outlined' %}selected{% endif %}>⬜ Outlined (borde)</option>
+                                    <option value="text" {% if visual.get('estilo_botones') == 'text' %}selected{% endif %}>📝 Text (solo texto)</option>
+                                    <option value="neumorphic" {% if visual.get('estilo_botones') == 'neumorphic' %}selected{% endif %}>🎨 Neomorphic</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Estilo de Tarjetas</label>
+                                <select name="estilo_tarjetas" class="neo-input">
+                                    <option value="sombra" {% if visual.get('estilo_tarjetas', 'sombra') == 'sombra' %}selected{% endif %}>💫 Con Sombra</option>
+                                    <option value="neumorphic" {% if visual.get('estilo_tarjetas') == 'neumorphic' %}selected{% endif %}>🎨 Neomorphic</option>
+                                    <option value="plano" {% if visual.get('estilo_tarjetas') == 'plano' %}selected{% endif %}>📄 Plano (sin elevación)</option>
+                                    <option value="borde" {% if visual.get('estilo_tarjetas') == 'borde' %}selected{% endif %}>📋 Con Borde</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BARRA LATERAL (6) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-bars section-icon"></i> Barra Lateral (Sidebar)</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Ancho</label>
+                                <select name="ancho_sidebar" class="neo-input">
+                                    <option value="delgado" {% if visual.get('ancho_sidebar') == 'delgado' %}selected{% endif %}>📏 Delgado (200px)</option>
+                                    <option value="normal" {% if visual.get('ancho_sidebar', 'normal') == 'normal' %}selected{% endif %}>📐 Normal (260px)</option>
+                                    <option value="ancho" {% if visual.get('ancho_sidebar') == 'ancho' %}selected{% endif %}>📊 Ancho (320px)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Posición</label>
+                                <select name="posicion_sidebar" class="neo-input">
+                                    <option value="izquierda" {% if visual.get('posicion_sidebar', 'izquierda') == 'izquierda' %}selected{% endif %}>⬅️ Izquierda</option>
+                                    <option value="derecha" {% if visual.get('posicion_sidebar') == 'derecha' %}selected{% endif %}>➡️ Derecha</option>
+                                    <option value="superior" {% if visual.get('posicion_sidebar') == 'superior' %}selected{% endif %}>⬆️ Superior (Top Nav)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-checkbox" style="margin-top: 35px;">
+                                <input type="checkbox" name="sidebar_colapsable" 
+                                       {% if visual.get('sidebar_colapsable', True) %}checked{% endif %}>
+                                <label>Es Colapsable</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ANIMACIONES (7) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-film section-icon"></i> Animaciones y Transiciones</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="animaciones_habilitadas" 
+                               {% if visual.get('animaciones_habilitadas', True) %}checked{% endif %}>
+                        <label><strong>Habilitar Animaciones</strong></label>
+                        <small class="help-text d-block">Activa/desactiva todas las animaciones del sistema</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Velocidad de Animación</label>
+                                <select name="velocidad_animacion" class="neo-input">
+                                    <option value="lenta" {% if visual.get('velocidad_animacion') == 'lenta' %}selected{% endif %}>🐌 Lenta (300ms)</option>
+                                    <option value="normal" {% if visual.get('velocidad_animacion', 'normal') == 'normal' %}selected{% endif %}>⚡ Normal (200ms)</option>
+                                    <option value="rapida" {% if visual.get('velocidad_animacion') == 'rapida' %}selected{% endif %}>💨 Rápida (100ms)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tipo de Carga</label>
+                                <select name="tipo_carga" class="neo-input">
+                                    <option value="spinner" {% if visual.get('tipo_carga', 'spinner') == 'spinner' %}selected{% endif %}>🌀 Spinner</option>
+                                    <option value="skeleton" {% if visual.get('tipo_carga') == 'skeleton' %}selected{% endif %}>💀 Skeleton</option>
+                                    <option value="progress" {% if visual.get('tipo_carga') == 'progress' %}selected{% endif %}>📊 Progress Bar</option>
+                                    <option value="pulsante" {% if visual.get('tipo_carga') == 'pulsante' %}selected{% endif %}>💓 Pulsante</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ACCESIBILIDAD (9) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-universal-access section-icon"></i> Accesibilidad</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alto_contraste" 
+                               {% if visual.get('alto_contraste', False) %}checked{% endif %}>
+                        <label><strong>Modo Alto Contraste</strong></label>
+                        <small class="help-text d-block">Mayor contraste para mejor visibilidad</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="reducir_movimiento" 
+                               {% if visual.get('reducir_movimiento', False) %}checked{% endif %}>
+                        <label><strong>Reducir Movimiento</strong></label>
+                        <small class="help-text d-block">Desactiva animaciones y movimientos (accesibilidad)</small>
+                    </div>
+                    
+                    <!-- IDIOMAS (10) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-globe section-icon"></i> Idioma</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Idioma del Sistema</label>
                         <select name="idioma" class="neo-input">
-                            <option value="es" {% if config.get('visual', {}).get('idioma', 'es') == 'es' %}selected{% endif %}>Español</option>
-                            <option value="en" {% if config.get('visual', {}).get('idioma') == 'en' %}selected{% endif %}>Inglés</option>
+                            <option value="es" {% if visual.get('idioma', 'es') == 'es' %}selected{% endif %}>🇪🇸 Español</option>
+                            <option value="en" {% if visual.get('idioma') == 'en' %}selected{% endif %}>🇺🇸 English</option>
+                            <option value="pt" {% if visual.get('idioma') == 'pt' %}selected{% endif %}>🇵🇹 Português</option>
+                            <option value="fr" {% if visual.get('idioma') == 'fr' %}selected{% endif %}>🇫🇷 Français</option>
+                            <option value="de" {% if visual.get('idioma') == 'de' %}selected{% endif %}>🇩🇪 Deutsch</option>
+                            <option value="it" {% if visual.get('idioma') == 'it' %}selected{% endif %}>🇮🇹 Italiano</option>
+                            <option value="ru" {% if visual.get('idioma') == 'ru' %}selected{% endif %}>🇷🇺 Русский</option>
+                            <option value="zh" {% if visual.get('idioma') == 'zh' %}selected{% endif %}>🇨🇳 中文</option>
+                            <option value="ja" {% if visual.get('idioma') == 'ja' %}selected{% endif %}>🇯🇵 日本語</option>
                         </select>
+                        <small class="help-text">Seleccione el idioma para toda la interfaz</small>
+                    </div>
+                    
+                    <!-- LOGO (11) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-image section-icon"></i> Logo Personalizado</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Subir Logo</label>
+                        <input type="file" name="logo_personalizado" accept="image/*" class="neo-input">
+                        <small class="help-text">PNG, JPG, SVG (tamaño recomendado: 200x60px)</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Posición del Logo</label>
+                                <select name="posicion_logo" class="neo-input">
+                                    <option value="esquina" {% if visual.get('posicion_logo', 'esquina') == 'esquina' %}selected{% endif %}>📌 Esquina</option>
+                                    <option value="centrado" {% if visual.get('posicion_logo') == 'centrado' %}selected{% endif %}>📍 Centrado</option>
+                                    <option value="derecha" {% if visual.get('posicion_logo') == 'derecha' %}selected{% endif %}>▶️ Derecha</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tamaño del Logo (%)</label>
+                                <input type="number" name="tamano_logo" class="neo-input" 
+                                       value="{{ visual.get('tamano_logo', 100) }}" min="50" max="200" step="10">
+                                <small class="help-text">50% a 200% del tamaño original</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RESPONSIVE (8) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-mobile-alt section-icon"></i> Adaptación Responsive</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="sidebar_movil" 
+                               {% if visual.get('sidebar_movil', True) %}checked{% endif %}>
+                        <label><strong>Sidebar Flotante en Móvil</strong></label>
+                        <small class="help-text d-block">La barra lateral se convierte en menú deslizable en móviles</small>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Punto de Quiebre para Desktop (px)</label>
+                        <input type="number" name="breakpoint_desktop" class="neo-input" 
+                               value="{{ visual.get('breakpoint_desktop', 1024) }}" min="768" max="1400">
+                        <small class="help-text">Ancho mínimo para activar diseño desktop</small>
+                    </div>
+                    
+                    <!-- GRADIENTES (19) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-layer-group section-icon"></i> Gradientes y Efectos</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="gradiente_fondo" 
+                               {% if visual.get('gradiente_fondo', False) %}checked{% endif %}>
+                        <label><strong>Fondo con Gradiente</strong></label>
+                        <small class="help-text d-block">Aplica un gradiente al fondo del sistema</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color Inicial del Gradiente</label>
+                                <input type="color" name="gradiente_color_inicio" class="neo-input" 
+                                       value="{{ visual.get('gradiente_color_inicio', '#667eea') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color Final del Gradiente</label>
+                                <input type="color" name="gradiente_color_fin" class="neo-input" 
+                                       value="{{ visual.get('gradiente_color_fin', '#764ba2') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Dirección del Gradiente</label>
+                        <select name="gradiente_direccion" class="neo-input">
+                            <option value="horizontal" {% if visual.get('gradiente_direccion') == 'horizontal' %}selected{% endif %}>➡️ Horizontal</option>
+                            <option value="vertical" {% if visual.get('gradiente_direccion', 'vertical') == 'vertical' %}selected{% endif %}>⬇️ Vertical</option>
+                            <option value="diagonal" {% if visual.get('gradiente_direccion') == 'diagonal' %}selected{% endif %}>↘️ Diagonal</option>
+                            <option value="radial" {% if visual.get('gradiente_direccion') == 'radial' %}selected{% endif %}>⭕ Radial</option>
+                        </select>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="efecto_glassmorphism" 
+                               {% if visual.get('efecto_glassmorphism', False) %}checked{% endif %}>
+                        <label><strong>Efecto Glassmorphism</strong></label>
+                        <small class="help-text d-block">Bordes translúcidos con blur (efecto moderno)</small>
+                    </div>
+                    
+                    <!-- GUARDAR Y EXPORTAR (14) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-download section-icon"></i> Guardar y Exportar Configuración</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-info" onclick="exportarTema()">
+                                <i class="fas fa-file-export"></i> Exportar Tema
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-secondary" onclick="importarTema()">
+                                <i class="fas fa-file-import"></i> Importar Tema
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-form-group">
+                        <label class="neo-label">Nombre del Tema Personalizado</label>
+                        <input type="text" name="nombre_tema" class="neo-input" 
+                               value="{{ visual.get('nombre_tema', 'Mi Tema Personalizado') }}" 
+                               placeholder="Ej: Tema Corporativo 2024">
+                        <small class="help-text">Guarde su configuración visual con un nombre</small>
+                    </div>
+                    
+                    <!-- VISTA PREVIA (13) -->
+                    <div class="mt-4 p-3" style="background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                        <h6 class="mb-3"><i class="fas fa-eye"></i> Vista Previa</h6>
+                        <div id="vistaPrevisual" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <div class="btn btn-primary">Botón Primario</div>
+                            <div class="btn btn-secondary">Botón Secundario</div>
+                            <div class="btn btn-success">Éxito</div>
+                            <div class="btn btn-danger">Peligro</div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="alert alert-info">Este es un ejemplo de alerta de información</div>
+                            <div class="alert alert-warning">Este es un ejemplo de alerta de advertencia</div>
+                        </div>
                     </div>
                 </div>
             </div>
+            
+            <script>
+            function aplicarTemaPreview(tema) {
+                console.log('Aplicando tema:', tema);
+                // Aquí se puede agregar lógica para cambiar colores automáticamente
+            }
+            
+            function actualizarColorPrimario(color) {
+                document.querySelector('input[name="color_primario_hex"]').value = color;
+                if (document.getElementById('previewTiempoReal').checked) {
+                    document.documentElement.style.setProperty('--color-primario', color);
+                }
+            }
+            
+            function exportarTema() {
+                const tema = {
+                    nombre: document.querySelector('input[name="nombre_tema"]').value,
+                    fecha: new Date().toISOString(),
+                    configuracion: {}
+                };
+                const blob = new Blob([JSON.stringify(tema, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'tema_personalizado.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            function importarTema() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'application/json';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const tema = JSON.parse(event.target.result);
+                                alert('Tema importado: ' + tema.nombre);
+                                // Aquí cargar las configuraciones del tema
+                            } catch (error) {
+                                alert('Error al importar el tema');
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+                input.click();
+            }
+            </script>
 
             <!-- INVENTARIO -->
             <div id="tab-inventario" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-boxes me-2"></i>Inventario</h3>
-                    <div class="neo-checkbox"><input type="checkbox" name="control_stock" {% if config.get('inventario', {}).get('control_stock', True) %}checked{% endif %}><label>Control de Stock</label></div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Stock Mínimo por Defecto</label>
-                        <input type="number" name="stock_minimo_default" class="neo-input" value="{{ config.get('inventario', {}).get('stock_minimo_default', 5) }}">
+                    <h3><i class="fas fa-boxes me-2"></i>Gestión Avanzada de Inventario</h3>
+                    <p class="text-muted mb-4">Configure el control completo de stock, códigos de barras, seriales, ubicaciones y más</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Inventario Inteligente:</strong> Control de stock avanzado, códigos de barras, seriales, ubicaciones múltiples y alertas automáticas.
                     </div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('inventario', {}).get('codigos_barras', False) %}checked{% endif %}><label>Usar Códigos de Barras</label></div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('inventario', {}).get('seriales', True) %}checked{% endif %}><label>Control de Seriales</label></div>
+                    
+                    {% set inventario = config.get('inventario', {}) %}
+                    
+                    <!-- CONTROL DE STOCK AVANZADO (1) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-chart-line section-icon"></i> Control de Stock Avanzado</h5>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="control_stock" 
+                               {% if inventario.get('control_stock', True) %}checked{% endif %}>
+                        <label><strong>Habilitar Control de Stock</strong></label>
+                        <small class="help-text d-block">Activa el sistema completo de gestión de inventario</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Stock Mínimo por Defecto</label>
+                                <input type="number" name="stock_minimo_default" class="neo-input" 
+                                       value="{{ inventario.get('stock_minimo_default', 5) }}" min="0">
+                                <small class="help-text">Cantidad mínima antes de alertar</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Stock Máximo por Defecto</label>
+                                <input type="number" name="stock_maximo_default" class="neo-input" 
+                                       value="{{ inventario.get('stock_maximo_default', 100) }}" min="1">
+                                <small class="help-text">Cantidad máxima recomendada</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Punto de Reorden</label>
+                                <input type="number" name="punto_reorden_default" class="neo-input" 
+                                       value="{{ inventario.get('punto_reorden_default', 10) }}" min="1">
+                                <small class="help-text">Cantidad para sugerir compra</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="alertas_stock_critico" 
+                               {% if inventario.get('alertas_stock_critico', True) %}checked{% endif %}>
+                        <label><strong>Alertas por Stock Crítico</strong></label>
+                        <small class="help-text d-block">Notifica cuando el stock está por debajo del mínimo</small>
+                    </div>
+                    
+                    <!-- CÓDIGOS DE BARRAS Y QR (2) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-barcode section-icon"></i> Códigos de Barras y QR</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="codigos_barras" 
+                               {% if inventario.get('codigos_barras', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Códigos de Barras</strong></label>
+                        <small class="help-text d-block">Genera y gestiona códigos de barras para productos</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Formato de Código</label>
+                                <select name="formato_codigo_barras" class="neo-input">
+                                    <option value="EAN13" {% if inventario.get('formato_codigo_barras') == 'EAN13' %}selected{% endif %}>EAN-13 (Recomendado)</option>
+                                    <option value="UPC" {% if inventario.get('formato_codigo_barras') == 'UPC' %}selected{% endif %}>UPC</option>
+                                    <option value="Code128" {% if inventario.get('formato_codigo_barras', 'Code128') == 'Code128' %}selected{% endif %}>Code 128</option>
+                                    <option value="QR" {% if inventario.get('formato_codigo_barras') == 'QR' %}selected{% endif %}>QR Code</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox" style="margin-top: 35px;">
+                                <input type="checkbox" name="generacion_automatica_codigos" 
+                                       {% if inventario.get('generacion_automatica_codigos', True) %}checked{% endif %}>
+                                <label>Generación Automática</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="impresion_masiva_etiquetas" 
+                               {% if inventario.get('impresion_masiva_etiquetas', False) %}checked{% endif %}>
+                        <label><strong>Impresión Masiva de Etiquetas</strong></label>
+                        <small class="help-text d-block">Permite imprimir etiquetas en lotes</small>
+                    </div>
+                    
+                    <!-- CONTROL DE SERIALES Y LOTES (3) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-tags section-icon"></i> Control de Seriales y Lotes</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="seriales" 
+                               {% if inventario.get('seriales', True) %}checked{% endif %}>
+                        <label><strong>Control de Seriales</strong></label>
+                        <small class="help-text d-block">Rastrea productos por número de serie único</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="control_lotes" 
+                               {% if inventario.get('control_lotes', False) %}checked{% endif %}>
+                        <label><strong>Control de Lotes</strong></label>
+                        <small class="help-text d-block">Gestiona productos por lotes con fechas</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="trazabilidad_completa" 
+                               {% if inventario.get('trazabilidad_completa', True) %}checked{% endif %}>
+                        <label><strong>Trazabilidad Completa</strong></label>
+                        <small class="help-text d-block">Historial completo de movimientos por producto</small>
+                    </div>
+                    
+                    <!-- UBICACIONES MÚLTIPLES (4) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-map-marker-alt section-icon"></i> Ubicaciones Múltiples</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="ubicaciones_multiples" 
+                               {% if inventario.get('ubicaciones_multiples', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Ubicaciones Múltiples</strong></label>
+                        <small class="help-text d-block">Permite gestionar múltiples almacenes y ubicaciones</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Almacenes por Defecto</label>
+                                <textarea name="almacenes_default" class="neo-input" rows="3" 
+                                          placeholder="Almacén Principal, Bodega Secundaria, Depósito">{{ inventario.get('almacenes_default', '') }}</textarea>
+                                <small class="help-text">Separados por comas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox" style="margin-top: 35px;">
+                                <input type="checkbox" name="transferencias_entre_ubicaciones" 
+                                       {% if inventario.get('transferencias_entre_ubicaciones', True) %}checked{% endif %}>
+                                <label>Transferencias entre Ubicaciones</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- GESTIÓN DE PROVEEDORES (5) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-truck section-icon"></i> Gestión de Proveedores</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="catalogo_proveedores" 
+                               {% if inventario.get('catalogo_proveedores', False) %}checked{% endif %}>
+                        <label><strong>Catálogo de Proveedores</strong></label>
+                        <small class="help-text d-block">Mantiene información detallada de proveedores</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo de Entrega Promedio (días)</label>
+                                <input type="number" name="tiempo_entrega_promedio" class="neo-input" 
+                                       value="{{ inventario.get('tiempo_entrega_promedio', 7) }}" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox" style="margin-top: 35px;">
+                                <input type="checkbox" name="evaluacion_proveedores" 
+                                       {% if inventario.get('evaluacion_proveedores', False) %}checked{% endif %}>
+                                <label>Evaluación de Proveedores</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CONTROL DE CADUCIDAD (6) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-calendar-times section-icon"></i> Control de Caducidad</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="control_caducidad" 
+                               {% if inventario.get('control_caducidad', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Control de Caducidad</strong></label>
+                        <small class="help-text d-block">Gestiona fechas de vencimiento de productos</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Días de Alerta de Caducidad</label>
+                                <input type="number" name="dias_alerta_caducidad" class="neo-input" 
+                                       value="{{ inventario.get('dias_alerta_caducidad', 30) }}" min="1">
+                                <small class="help-text">Días antes del vencimiento para alertar</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Método de Rotación</label>
+                                <select name="metodo_rotacion" class="neo-input">
+                                    <option value="FIFO" {% if inventario.get('metodo_rotacion', 'FIFO') == 'FIFO' %}selected{% endif %}>FIFO (Primero en Entrar, Primero en Salir)</option>
+                                    <option value="LIFO" {% if inventario.get('metodo_rotacion') == 'LIFO' %}selected{% endif %}>LIFO (Último en Entrar, Primero en Salir)</option>
+                                    <option value="FEFO" {% if inventario.get('metodo_rotacion') == 'FEFO' %}selected{% endif %}>FEFO (Primero en Vencer, Primero en Salir)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- MOVIMIENTOS DE INVENTARIO (7) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-exchange-alt section-icon"></i> Movimientos de Inventario</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="causas_movimiento" 
+                               {% if inventario.get('causas_movimiento', True) %}checked{% endif %}>
+                        <label><strong>Registrar Causas de Movimiento</strong></label>
+                        <small class="help-text d-block">Obliga a especificar el motivo de cada movimiento</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="aprobaciones_movimiento" 
+                               {% if inventario.get('aprobaciones_movimiento', False) %}checked{% endif %}>
+                        <label><strong>Aprobaciones por Rol</strong></label>
+                        <small class="help-text d-block">Requiere aprobación para ciertos movimientos</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="historial_detallado" 
+                               {% if inventario.get('historial_detallado', True) %}checked{% endif %}>
+                        <label><strong>Historial Detallado</strong></label>
+                        <small class="help-text d-block">Mantiene registro completo de todos los movimientos</small>
+                    </div>
+                    
+                    <!-- COSTOS Y PRECIOS (8) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-dollar-sign section-icon"></i> Costos y Precios</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Método de Costeo</label>
+                        <select name="metodo_costeo" class="neo-input">
+                            <option value="promedio_ponderado" {% if inventario.get('metodo_costeo', 'promedio_ponderado') == 'promedio_ponderado' %}selected{% endif %}>Promedio Ponderado</option>
+                            <option value="ultimo_costo" {% if inventario.get('metodo_costeo') == 'ultimo_costo' %}selected{% endif %}>Último Costo</option>
+                            <option value="fifo" {% if inventario.get('metodo_costeo') == 'fifo' %}selected{% endif %}>FIFO (Primero en Entrar)</option>
+                            <option value="lifo" {% if inventario.get('metodo_costeo') == 'lifo' %}selected{% endif %}>LIFO (Último en Entrar)</option>
+                        </select>
+                        <small class="help-text">Método para calcular el costo de inventario</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="precios_por_cliente" 
+                               {% if inventario.get('precios_por_cliente', False) %}checked{% endif %}>
+                        <label><strong>Precios por Cliente/Categoría</strong></label>
+                        <small class="help-text d-block">Permite establecer precios diferenciados</small>
+                    </div>
+                    
+                    <!-- ALERTAS Y NOTIFICACIONES (9) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-bell section-icon"></i> Alertas y Notificaciones</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertas_stock_minimo" 
+                               {% if inventario.get('alertas_stock_minimo', True) %}checked{% endif %}>
+                        <label><strong>Alertas de Stock Mínimo</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertas_caducidad" 
+                               {% if inventario.get('alertas_caducidad', True) %}checked{% endif %}>
+                        <label><strong>Alertas de Caducidad</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="alertas_movimientos_inusuales" 
+                               {% if inventario.get('alertas_movimientos_inusuales', False) %}checked{% endif %}>
+                        <label><strong>Alertas de Movimientos Inusuales</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="reportes_automaticos" 
+                               {% if inventario.get('reportes_automaticos', False) %}checked{% endif %}>
+                        <label><strong>Reportes Automáticos</strong></label>
+                        <small class="help-text d-block">Envía reportes periódicos por email</small>
+                    </div>
+                    
+                    <!-- INTEGRACIÓN CON COMPRAS (10) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-shopping-cart section-icon"></i> Integración con Compras</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="ordenes_compra_automaticas" 
+                               {% if inventario.get('ordenes_compra_automaticas', False) %}checked{% endif %}>
+                        <label><strong>Órdenes de Compra Automáticas</strong></label>
+                        <small class="help-text d-block">Genera órdenes cuando se alcanza el punto de reorden</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="sugerencias_reposicion" 
+                               {% if inventario.get('sugerencias_reposicion', True) %}checked{% endif %}>
+                        <label><strong>Sugerencias de Reposición</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="comparacion_precios" 
+                               {% if inventario.get('comparacion_precios', False) %}checked{% endif %}>
+                        <label><strong>Comparación de Precios</strong></label>
+                        <small class="help-text d-block">Compara precios entre proveedores</small>
+                    </div>
+                    
+                    <!-- REPORTES AVANZADOS (11) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-chart-bar section-icon"></i> Reportes Avanzados</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="rotacion_inventario" 
+                               {% if inventario.get('rotacion_inventario', True) %}checked{% endif %}>
+                        <label><strong>Análisis de Rotación de Inventario</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="analisis_abc" 
+                               {% if inventario.get('analisis_abc', True) %}checked{% endif %}>
+                        <label><strong>Análisis ABC de Productos</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="tendencias_inventario" 
+                               {% if inventario.get('tendencias_inventario', False) %}checked{% endif %}>
+                        <label><strong>Análisis de Tendencias</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="exportacion_reportes" 
+                               {% if inventario.get('exportacion_reportes', True) %}checked{% endif %}>
+                        <label><strong>Exportación a Excel/PDF</strong></label>
+                    </div>
+                    
+                    <!-- CONFIGURACIÓN DE CATEGORÍAS (12) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-layer-group section-icon"></i> Configuración de Categorías</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="categorias_personalizables" 
+                               {% if inventario.get('categorias_personalizables', True) %}checked{% endif %}>
+                        <label><strong>Categorías Personalizables</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="subcategorias" 
+                               {% if inventario.get('subcategorias', False) %}checked{% endif %}>
+                        <label><strong>Subcategorías</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="plantillas_productos" 
+                               {% if inventario.get('plantillas_productos', False) %}checked{% endif %}>
+                        <label><strong>Plantillas de Productos</strong></label>
+                        <small class="help-text d-block">Plantillas predefinidas por categoría</small>
+                    </div>
+                    
+                    <!-- CONTROL DE CALIDAD (13) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-check-circle section-icon"></i> Control de Calidad</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="inspecciones_recepcion" 
+                               {% if inventario.get('inspecciones_recepcion', False) %}checked{% endif %}>
+                        <label><strong>Inspecciones de Recepción</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="certificados_calidad" 
+                               {% if inventario.get('certificados_calidad', False) %}checked{% endif %}>
+                        <label><strong>Certificados de Calidad</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="productos_defectuosos" 
+                               {% if inventario.get('productos_defectuosos', True) %}checked{% endif %}>
+                        <label><strong>Control de Productos Defectuosos</strong></label>
+                    </div>
+                    
+                    <!-- INVENTARIO FÍSICO (14) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-clipboard-check section-icon"></i> Inventario Físico</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="conteos_ciclicos" 
+                               {% if inventario.get('conteos_ciclicos', False) %}checked{% endif %}>
+                        <label><strong>Conteos Cíclicos</strong></label>
+                        <small class="help-text d-block">Conteos programados por categoría</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="auditorias_programadas" 
+                               {% if inventario.get('auditorias_programadas', False) %}checked{% endif %}>
+                        <label><strong>Auditorías Programadas</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="ajustes_automaticos" 
+                               {% if inventario.get('ajustes_automaticos', False) %}checked{% endif %}>
+                        <label><strong>Ajustes Automáticos</strong></label>
+                        <small class="help-text d-block">Ajusta diferencias menores automáticamente</small>
+                    </div>
+                    
+                    <!-- CONFIGURACIÓN DE UNIDADES (15) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-ruler section-icon"></i> Configuración de Unidades</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="unidades_multiples" 
+                               {% if inventario.get('unidades_multiples', False) %}checked{% endif %}>
+                        <label><strong>Unidades de Medida Múltiples</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="conversiones_automaticas" 
+                               {% if inventario.get('conversiones_automaticas', True) %}checked{% endif %}>
+                        <label><strong>Conversiones Automáticas</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="empaques_presentaciones" 
+                               {% if inventario.get('empaques_presentaciones', False) %}checked{% endif %}>
+                        <label><strong>Empaques y Presentaciones</strong></label>
+                    </div>
+                    
+                    <!-- ETIQUETAS Y CÓDIGOS (16) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-tag section-icon"></i> Etiquetas y Códigos</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="etiquetas_personalizables" 
+                               {% if inventario.get('etiquetas_personalizables', False) %}checked{% endif %}>
+                        <label><strong>Diseño de Etiquetas Personalizable</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="codigos_qr_informacion" 
+                               {% if inventario.get('codigos_qr_informacion', False) %}checked{% endif %}>
+                        <label><strong>Códigos QR con Información</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="etiquetas_ubicacion" 
+                               {% if inventario.get('etiquetas_ubicacion', False) %}checked{% endif %}>
+                        <label><strong>Etiquetas de Ubicación</strong></label>
+                    </div>
+                    
+                    <!-- BACKUP DE INVENTARIO (17) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cloud-upload-alt section-icon"></i> Backup de Inventario</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="backups_automaticos_inventario" 
+                               {% if inventario.get('backups_automaticos_inventario', True) %}checked{% endif %}>
+                        <label><strong>Respaldos Automáticos</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="sincronizacion_nube" 
+                               {% if inventario.get('sincronizacion_nube', False) %}checked{% endif %}>
+                        <label><strong>Sincronización en la Nube</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="historial_cambios" 
+                               {% if inventario.get('historial_cambios', True) %}checked{% endif %}>
+                        <label><strong>Historial de Cambios</strong></label>
+                    </div>
+                    
+                    <!-- PERMISOS POR USUARIO (18) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-user-shield section-icon"></i> Permisos por Usuario</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="acceso_por_modulo" 
+                               {% if inventario.get('acceso_por_modulo', True) %}checked{% endif %}>
+                        <label><strong>Acceso por Módulo</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="aprobaciones_requeridas" 
+                               {% if inventario.get('aprobaciones_requeridas', False) %}checked{% endif %}>
+                        <label><strong>Aprobaciones Requeridas</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="roles_inventario" 
+                               {% if inventario.get('roles_inventario', True) %}checked{% endif %}>
+                        <label><strong>Roles de Inventario</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="auditoria_cambios" 
+                               {% if inventario.get('auditoria_cambios', True) %}checked{% endif %}>
+                        <label><strong>Auditoría de Cambios</strong></label>
+                    </div>
+                    
+                    <!-- INTEGRACIÓN CON VENTAS (19) -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-handshake section-icon"></i> Integración con Ventas</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="reserva_stock" 
+                               {% if inventario.get('reserva_stock', True) %}checked{% endif %}>
+                        <label><strong>Reserva de Stock</strong></label>
+                        <small class="help-text d-block">Reserva productos al crear órdenes</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="backorders" 
+                               {% if inventario.get('backorders', False) %}checked{% endif %}>
+                        <label><strong>Backorders</strong></label>
+                        <small class="help-text d-block">Permite órdenes sin stock disponible</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="disponibilidad_tiempo_real" 
+                               {% if inventario.get('disponibilidad_tiempo_real', True) %}checked{% endif %}>
+                        <label><strong>Disponibilidad en Tiempo Real</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="sincronizacion_automatica" 
+                               {% if inventario.get('sincronizacion_automatica', True) %}checked{% endif %}>
+                        <label><strong>Sincronización Automática</strong></label>
+                        <small class="help-text d-block">Actualiza stock automáticamente con las ventas</small>
+                    </div>
                 </div>
             </div>
 
             <!-- PROVEEDORES -->
             <div id="tab-proveedores" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-truck me-2"></i>Proveedores</h3>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('proveedores', {}).get('habilitado', False) %}checked{% endif %}><label>Habilitar Gestión de Proveedores</label></div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Términos de Pago (días)</label>
-                        <input type="number" class="neo-input" value="{{ config.get('proveedores', {}).get('terminos_pago', 30) }}">
+                    <h3><i class="fas fa-truck me-2"></i>Gestión de Proveedores</h3>
+                    <p class="text-muted mb-4">Configure las políticas y parámetros para la gestión de proveedores</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Gestión Completa de Proveedores:</strong> Configure términos de pago, políticas de compra, evaluación y reportes automáticos.
+                    </div>
+                    
+                    {% set proveedores_config = config.get('proveedores', {}) %}
+                    
+                    <!-- CONFIGURACIÓN GENERAL -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración General</h5>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_habilitado" 
+                               {% if proveedores_config.get('habilitado', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Gestión de Proveedores</strong></label>
+                        <small class="help-text d-block">Activa el sistema completo de proveedores</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_requerido" 
+                               {% if proveedores_config.get('proveedor_requerido', False) %}checked{% endif %}>
+                        <label><strong>Proveedor Requerido en Productos</strong></label>
+                        <small class="help-text d-block">Obliga a especificar un proveedor al crear productos</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_codigo_propio" 
+                               {% if proveedores_config.get('codigo_propio_requerido', False) %}checked{% endif %}>
+                        <label><strong>Código Propio de Proveedor</strong></label>
+                        <small class="help-text d-block">Permite que cada proveedor tenga su propio sistema de códigos</small>
+                    </div>
+                    
+                    <!-- TÉRMINOS DE PAGO -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-handshake section-icon"></i> Términos de Pago</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Términos de Pago por Defecto (días)</label>
+                                <input type="number" name="proveedores_terminos_pago" class="neo-input" 
+                                       value="{{ proveedores_config.get('terminos_pago', 30) }}" min="0" max="180">
+                                <small class="help-text">Días para pagar facturas de proveedores</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Descuento por Pronto Pago (%)</label>
+                                <input type="number" name="proveedores_descuento_pronto_pago" class="neo-input" 
+                                       value="{{ proveedores_config.get('descuento_pronto_pago', 0) }}" min="0" max="100" step="0.5">
+                                <small class="help-text">Descuento si se paga antes del plazo</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Recargo por Pago Tardío (%)</label>
+                                <input type="number" name="proveedores_recargo_tardio" class="neo-input" 
+                                       value="{{ proveedores_config.get('recargo_tardio', 0) }}" min="0" max="50" step="0.5">
+                                <small class="help-text">Recargo adicional por pagos fuera de término</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Forma de Pago Favorita</label>
+                                <select name="proveedores_forma_pago" class="neo-input">
+                                    <option value="transferencia" {% if proveedores_config.get('forma_pago') == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                                    <option value="efectivo" {% if proveedores_config.get('forma_pago') == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                                    <option value="cheque" {% if proveedores_config.get('forma_pago') == 'cheque' %}selected{% endif %}>Cheque</option>
+                                    <option value="credito" {% if proveedores_config.get('forma_pago') == 'credito' %}selected{% endif %}>Crédito Comercial</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PLAZOS DE ENTREGA -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-clock section-icon"></i> Plazos de Entrega</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo de Entrega Promedio (días)</label>
+                                <input type="number" name="proveedores_plazos_entrega" class="neo-input" 
+                                       value="{{ proveedores_config.get('plazos_entrega', 7) }}" min="1" max="30">
+                                <small class="help-text">Tiempo promedio de entrega</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo de Entrega Urgente (días)</label>
+                                <input type="number" name="proveedores_entrega_urgente" class="neo-input" 
+                                       value="{{ proveedores_config.get('entrega_urgente', 2) }}" min="1" max="7">
+                                <small class="help-text">Días para entregas urgentes con costo adicional</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Costo de Envío Promedio (USD)</label>
+                        <input type="number" name="proveedores_costo_envio" class="neo-input" 
+                               value="{{ proveedores_config.get('costo_envio', 0) }}" min="0" step="0.01">
+                        <small class="help-text">Costo promedio de envío</small>
+                    </div>
+                    
+                    <!-- EVALUACIÓN DE PROVEEDORES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-star section-icon"></i> Evaluación de Proveedores</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_evaluacion_automatica" 
+                               {% if proveedores_config.get('evaluacion_automatica', False) %}checked{% endif %}>
+                        <label><strong>Evaluación Automática</strong></label>
+                        <small class="help-text d-block">Evalúa proveedores basado en entregas y tiempos</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Umbral de Calificación Mínima</label>
+                                <input type="number" name="proveedores_umbral_calificacion" class="neo-input" 
+                                       value="{{ proveedores_config.get('umbral_calificacion', 3) }}" min="0" max="5" step="0.5">
+                                <small class="help-text">Calificación mínima para mantener activo</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Criterio de Puntualidad (%)</label>
+                                <input type="number" name="proveedores_puntualidad_min" class="neo-input" 
+                                       value="{{ proveedores_config.get('puntualidad_min', 80) }}" min="0" max="100">
+                                <small class="help-text">% de entregas a tiempo requerido</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Criterio de Calidad (%)</label>
+                                <input type="number" name="proveedores_calidad_min" class="neo-input" 
+                                       value="{{ proveedores_config.get('calidad_min', 85) }}" min="0" max="100">
+                                <small class="help-text">% de productos sin defectos requerido</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- POLÍTICAS DE COMPRA -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-shopping-cart section-icon"></i> Políticas de Compra</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_cotizaciones_multiples" 
+                               {% if proveedores_config.get('cotizaciones_multiples', True) %}checked{% endif %}>
+                        <label><strong>Requerir Cotizaciones Múltiples</strong></label>
+                        <small class="help-text d-block">Solicita cotizaciones de al menos 3 proveedores</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_aprobacion_compras" 
+                               {% if proveedores_config.get('aprobacion_compras', False) %}checked{% endif %}>
+                        <label><strong>Aprobación Requerida para Compras</strong></label>
+                        <small class="help-text d-block">Las órdenes requieren aprobación de supervisor</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Monto Mínimo para Cotización (USD)</label>
+                                <input type="number" name="proveedores_monto_min_cotizacion" class="neo-input" 
+                                       value="{{ proveedores_config.get('monto_min_cotizacion', 100) }}" min="0">
+                                <small class="help-text">Requiere cotización si el monto es mayor</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Monto Máximo sin Aprobación (USD)</label>
+                                <input type="number" name="proveedores_monto_max_sin_aprobacion" class="neo-input" 
+                                       value="{{ proveedores_config.get('monto_max_sin_aprobacion', 500) }}" min="0">
+                                <small class="help-text">Órdenes menores a este monto no requieren aprobación</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- GARANTÍAS Y DEVOLUCIONES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-shield-alt section-icon"></i> Garantías y Devoluciones</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Política de Garantía (días)</label>
+                                <input type="number" name="proveedores_politica_garantia" class="neo-input" 
+                                       value="{{ proveedores_config.get('politica_garantia', 30) }}" min="0" max="365">
+                                <small class="help-text">Días de garantía estándar</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Plazo para Devoluciones (días)</label>
+                                <input type="number" name="proveedores_plazo_devolucion" class="neo-input" 
+                                       value="{{ proveedores_config.get('plazo_devolucion', 7) }}" min="0" max="30">
+                                <small class="help-text">Días para devolver productos defectuosos</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_reembolso" 
+                               {% if proveedores_config.get('reembolso_automatico', False) %}checked{% endif %}>
+                        <label><strong>Reembolso Automático</strong></label>
+                        <small class="help-text d-block">Aplica reembolso automático en devoluciones</small>
+                    </div>
+                    
+                    <!-- COMUNICACIÓN CON PROVEEDORES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-comments section-icon"></i> Comunicación con Proveedores</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_notificaciones_email" 
+                               {% if proveedores_config.get('notificaciones_email', True) %}checked{% endif %}>
+                        <label><strong>Notificaciones por Email</strong></label>
+                        <small class="help-text d-block">Envía órdenes y actualizaciones por email</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_notificaciones_whatsapp" 
+                               {% if proveedores_config.get('notificaciones_whatsapp', False) %}checked{% endif %}>
+                        <label><strong>Notificaciones por WhatsApp</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_alertas_stock" 
+                               {% if proveedores_config.get('alertas_stock_bajo', False) %}checked{% endif %}>
+                        <label><strong>Alertar Proveedores por Stock Bajo</strong></label>
+                        <small class="help-text d-block">Notifica a proveedores cuando el stock está bajo</small>
+                    </div>
+                    
+                    <!-- REPORTES Y ANALÍTICAS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-chart-line section-icon"></i> Reportes y Analíticas</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_reportes_compras" 
+                               {% if proveedores_config.get('reportes_compras', True) %}checked{% endif %}>
+                        <label><strong>Reporte de Compras Mensuales</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_analisis_rendimiento" 
+                               {% if proveedores_config.get('analisis_rendimiento', True) %}checked{% endif %}>
+                        <label><strong>Análisis de Rendimiento de Proveedores</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_ranking_proveedores" 
+                               {% if proveedores_config.get('ranking_proveedores', True) %}checked{% endif %}>
+                        <label><strong>Ranking de Proveedores</strong></label>
+                        <small class="help-text d-block">Clasifica proveedores por mejor desempeño</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_comparacion_precios" 
+                               {% if proveedores_config.get('comparacion_precios', True) %}checked{% endif %}>
+                        <label><strong>Comparación de Precios entre Proveedores</strong></label>
+                    </div>
+                    
+                    <!-- CATÁLOGO DE PROVEEDORES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-book section-icon"></i> Catálogo de Proveedores</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_catalogo_publico" 
+                               {% if proveedores_config.get('catalogo_publico', False) %}checked{% endif %}>
+                        <label><strong>Catálogo Público</strong></label>
+                        <small class="help-text d-block">Permite a proveedores mantener su catálogo actualizado</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="proveedores_sincronizacion_precios" 
+                               {% if proveedores_config.get('sincronizacion_precios', False) %}checked{% endif %}>
+                        <label><strong>Sincronización Automática de Precios</strong></label>
+                        <small class="help-text d-block">Actualiza precios automáticamente desde proveedores</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="proveedores_actualizacion_stock" 
+                               {% if proveedores_config.get('actualizacion_stock_automatica', False) %}checked{% endif %}>
+                        <label><strong>Actualización de Stock desde Proveedores</strong></label>
                     </div>
                 </div>
             </div>
@@ -1219,23 +3575,261 @@
             <!-- CALENDARIO -->
             <div id="tab-calendario" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-calendar me-2"></i>Calendario</h3>
+                    <h3><i class="fas fa-calendar-alt me-2"></i>Gestión de Calendario y Agenda</h3>
+                    <p class="text-muted mb-4">Configure horarios, días laborables, citas y recordatorios del sistema</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Calendario Inteligente:</strong> Configure horarios de atención, días laborables, citas automáticas y recordatorios del sistema.
+                    </div>
+                    
                     {% set calendario = config.get('calendario', {}) %}
-                    <div class="row">
+                    
+                    <!-- HORARIOS DE ATENCIÓN -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-clock section-icon"></i> Horarios de Atención</h5>
+                    
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="neo-form-group">
-                                <label class="neo-label">Hora Inicio</label>
-                                <input type="time" class="neo-input" value="{{ calendario.get('horarios_atencion', {}).get('inicio', '08:00') }}">
+                                <label class="neo-label">Hora de Inicio</label>
+                                <input type="time" name="calendario_inicio" class="neo-input" 
+                                       value="{{ calendario.get('horarios_atencion', {}).get('inicio', '08:00') }}">
+                                <small class="help-text">Hora de inicio de operaciones diarias</small>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="neo-form-group">
-                                <label class="neo-label">Hora Fin</label>
-                                <input type="time" class="neo-input" value="{{ calendario.get('horarios_atencion', {}).get('fin', '17:00') }}">
+                                <label class="neo-label">Hora de Fin</label>
+                                <input type="time" name="calendario_fin" class="neo-input" 
+                                       value="{{ calendario.get('horarios_atencion', {}).get('fin', '17:00') }}">
+                                <small class="help-text">Hora de cierre de operaciones diarias</small>
                             </div>
                         </div>
                     </div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if calendario.get('agenda_habilitada', False) %}checked{% endif %}><label>Habilitar Agenda</label></div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="calendario_horario_extendido" 
+                               {% if calendario.get('horario_extendido', False) %}checked{% endif %}>
+                        <label><strong>Horario Extendido</strong></label>
+                        <small class="help-text d-block">Permite horarios más allá del horario regular</small>
+                    </div>
+                    
+                    <!-- DÍAS LABORABLES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-calendar-week section-icon"></i> Días Laborables</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="neo-label">Seleccione los días laborables</label>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_lunes" 
+                                       {% if 'lunes' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Lunes</label>
+                            </div>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_martes" 
+                                       {% if 'martes' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Martes</label>
+                            </div>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_miercoles" 
+                                       {% if 'miercoles' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Miércoles</label>
+                            </div>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_jueves" 
+                                       {% if 'jueves' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Jueves</label>
+                            </div>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_viernes" 
+                                       {% if 'viernes' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Viernes</label>
+                            </div>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_sabado" 
+                                       {% if 'sabado' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Sábado</label>
+                            </div>
+                            <div class="neo-checkbox mb-2">
+                                <input type="checkbox" name="calendario_domingo" 
+                                       {% if 'domingo' in calendario.get('dias_laborables', []) %}checked{% endif %}>
+                                <label>Domingo</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AGENDA Y CITAS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-calendar-check section-icon"></i> Agenda y Citas</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="calendario_agenda_habilitada" 
+                               {% if calendario.get('agenda_habilitada', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Agenda de Citas</strong></label>
+                        <small class="help-text d-block">Activa el sistema de gestión de citas</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="calendario_citas_automaticas" 
+                               {% if calendario.get('citas_automaticas', True) %}checked{% endif %}>
+                        <label><strong>Citas Automáticas para Servicios</strong></label>
+                        <small class="help-text d-block">Genera citas automáticamente al crear órdenes de servicio</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Duración de Cita (minutos)</label>
+                                <input type="number" name="calendario_duracion_cita" class="neo-input" 
+                                       value="{{ calendario.get('duracion_cita', 30) }}" min="15" max="180" step="15">
+                                <small class="help-text">Tiempo por defecto de cada cita</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Intervalo entre Citas (minutos)</label>
+                                <input type="number" name="calendario_intervalo_citas" class="neo-input" 
+                                       value="{{ calendario.get('intervalo_citas', 15) }}" min="5" max="60" step="5">
+                                <small class="help-text">Tiempo de preparación entre citas</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RECORDATORIOS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-bell section-icon"></i> Recordatorios y Notificaciones</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="calendario_recordatorios_citas" 
+                               {% if calendario.get('recordatorios_citas', True) %}checked{% endif %}>
+                        <label><strong>Enviar Recordatorios de Citas</strong></label>
+                        <small class="help-text d-block">Notifica a clientes antes de su cita</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tiempo de Recordatorio (horas antes)</label>
+                                <input type="number" name="calendario_recordatorio_horas" class="neo-input" 
+                                       value="{{ calendario.get('recordatorio_horas', 24) }}" min="1" max="168">
+                                <small class="help-text">Con cuánta anticipación enviar recordatorios</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Medio de Recordatorio</label>
+                                <select name="calendario_medio_recordatorio" class="neo-input">
+                                    <option value="email" {% if calendario.get('medio_recordatorio', 'email') == 'email' %}selected{% endif %}>Email</option>
+                                    <option value="whatsapp" {% if calendario.get('medio_recordatorio') == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
+                                    <option value="sms" {% if calendario.get('medio_recordatorio') == 'sms' %}selected{% endif %}>SMS</option>
+                                    <option value="todos" {% if calendario.get('medio_recordatorio') == 'todos' %}selected{% endif %}>Todos los Medios</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- FESTIVOS Y VACACIONES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-calendar-times section-icon"></i> Festivos y Vacaciones</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Días Festivos (separados por comas)</label>
+                        <textarea name="calendario_festivos" class="neo-input" rows="3" 
+                                  placeholder="YYYY-MM-DD, YYYY-MM-DD, ...">{{ calendario.get('festivos', [])|join(', ') }}</textarea>
+                        <small class="help-text">Formato: YYYY-MM-DD (ejemplo: 2025-12-25, 2025-01-01)</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="calendario_vacaciones_habilitadas" 
+                               {% if calendario.get('vacaciones_habilitadas', False) %}checked{% endif %}>
+                        <label><strong>Habilitar Período de Vacaciones</strong></label>
+                        <small class="help-text d-block">Permite programar períodos de cierre</small>
+                    </div>
+                    
+                    <!-- HORARIOS ESPECIALES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-calendar-day section-icon"></i> Horarios Especiales</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="calendario_horarios_especiales" 
+                               {% if calendario.get('horarios_especiales', False) %}checked{% endif %}>
+                        <label><strong>Permitir Horarios Especiales</strong></label>
+                        <small class="help-text d-block">Permite configurar horarios diferentes por día</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Hora Almuerzo Inicio</label>
+                                <input type="time" name="calendario_hora_almuerzo_inicio" class="neo-input" 
+                                       value="{{ calendario.get('hora_almuerzo_inicio', '12:00') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Hora Almuerzo Fin</label>
+                                <input type="time" name="calendario_hora_almuerzo_fin" class="neo-input" 
+                                       value="{{ calendario.get('hora_almuerzo_fin', '13:00') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CAPACIDAD Y CONCURRENCIA -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-users section-icon"></i> Capacidad y Concurrencia</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Citas Máximas por Día</label>
+                                <input type="number" name="calendario_max_citas_dia" class="neo-input" 
+                                       value="{{ calendario.get('max_citas_dia', 10) }}" min="1" max="50">
+                                <small class="help-text">Número máximo de citas programadas por día</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Técnicos Simultáneos</label>
+                                <input type="number" name="calendario_tecnicos_simultaneos" class="neo-input" 
+                                       value="{{ calendario.get('tecnicos_simultaneos', 2) }}" min="1" max="10">
+                                <small class="help-text">Número de técnicos trabajando simultáneamente</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- SINCRONIZACIÓN -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-sync section-icon"></i> Sincronización</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="calendario_sincronizacion_google" 
+                               {% if calendario.get('sincronizacion_google', False) %}checked{% endif %}>
+                        <label><strong>Sincronización con Google Calendar</strong></label>
+                        <small class="help-text d-block">Sincroniza citas con Google Calendar</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="calendario_sincronizacion_outlook" 
+                               {% if calendario.get('sincronizacion_outlook', False) %}checked{% endif %}>
+                        <label><strong>Sincronización con Outlook</strong></label>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="calendario_exportar_calendario" 
+                               {% if calendario.get('exportar_calendario', False) %}checked{% endif %}>
+                        <label><strong>Exportar Calendario (.ics)</strong></label>
+                        <small class="help-text d-block">Permite exportar calendario en formato estándar</small>
+                    </div>
+                    
+                    <!-- ZONA HORARIA -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-globe section-icon"></i> Zona Horaria</h5>
+                    
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Zona Horaria</label>
+                        <select name="calendario_zona_horaria" class="neo-input">
+                            <option value="America/Caracas" {% if calendario.get('zona_horaria', 'America/Caracas') == 'America/Caracas' %}selected{% endif %}>America/Caracas (Venezuela)</option>
+                            <option value="America/Mexico_City" {% if calendario.get('zona_horaria') == 'America/Mexico_City' %}selected{% endif %}>America/Mexico_City (México)</option>
+                            <option value="America/Bogota" {% if calendario.get('zona_horaria') == 'America/Bogota' %}selected{% endif %}>America/Bogota (Colombia)</option>
+                            <option value="America/Buenos_Aires" {% if calendario.get('zona_horaria') == 'America/Buenos_Aires' %}selected{% endif %}>America/Buenos_Aires (Argentina)</option>
+                            <option value="America/Santiago" {% if calendario.get('zona_horaria') == 'America/Santiago' %}selected{% endif %}>America/Santiago (Chile)</option>
+                            <option value="America/Lima" {% if calendario.get('zona_horaria') == 'America/Lima' %}selected{% endif %}>America/Lima (Perú)</option>
+                        </select>
+                        <small class="help-text">Zona horaria para las citas y recordatorios</small>
+                    </div>
                 </div>
             </div>
 
@@ -1578,6 +4172,57 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             console.log('🚀 FORMULARIO SIENDO ENVIADO...');
             console.log('📋 Campos del formulario:', Object.keys(this.elements).length);
+            
+            // Capturar tags de tipos de clientes
+            const tiposClientesContainer = document.getElementById('tiposClientesContainer');
+            const tiposClientes = [];
+            if (tiposClientesContainer) {
+                tiposClientesContainer.querySelectorAll('.custom-tag').forEach(tag => {
+                    const nombre = tag.querySelector('.tag-name').value.trim();
+                    const color = tag.style.background || '#007bff';
+                    const icono = tag.querySelector('.tag-icon i').className;
+                    if (nombre) {
+                        tiposClientes.push({ nombre, color, icono });
+                    }
+                });
+            }
+            
+            // Capturar tags de prioridades
+            const prioridadesContainer = document.getElementById('prioridadesContainer');
+            const prioridades = [];
+            if (prioridadesContainer) {
+                prioridadesContainer.querySelectorAll('.custom-tag').forEach(tag => {
+                    const nombre = tag.querySelector('.tag-name').value.trim();
+                    const color = tag.style.background || '#ffc107';
+                    const icono = tag.querySelector('.tag-icon i').className;
+                    if (nombre) {
+                        prioridades.push({ nombre, color, icono });
+                    }
+                });
+            }
+            
+            // Agregar datos de categorías como campo hidden
+            const categoriasData = JSON.stringify({
+                tipos_clientes: tiposClientes,
+                prioridades: prioridades
+            });
+            
+            // Eliminar campo anterior si existe
+            const campoAnterior = document.getElementById('categorias_data');
+            if (campoAnterior) {
+                campoAnterior.remove();
+            }
+            
+            // Crear nuevo campo hidden
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'categorias_data';
+            hiddenInput.id = 'categorias_data';
+            hiddenInput.value = categoriasData;
+            this.appendChild(hiddenInput);
+            
+            console.log('📦 Datos de categorías enviados:', categoriasData);
+            
             const btn = document.querySelector('.btn-save');
             if (btn) {
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Guardando...';
@@ -1678,40 +4323,52 @@ function actualizarTasaManual() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
     btn.disabled = true;
     
-    fetch('/forzar-actualizacion-tasa-bcv')
+    fetch('/api/tasas-actualizadas')
         .then(response => response.json())
         .then(data => {
-            console.log('Respuesta forzar actualización:', data);
-            if (data.success || data.tasa) {
+            console.log('Respuesta actualización tasas:', data);
+            if (data.success) {
+                // Actualizar tasas en la página
+                if (document.getElementById('tasaUsdActual')) {
+                    document.getElementById('tasaUsdActual').textContent = data.tasa_bcv.toFixed(2);
+                }
+                if (document.getElementById('tasaEurActual')) {
+                    document.getElementById('tasaEurActual').textContent = data.tasa_bcv_eur.toFixed(2);
+                }
+                
                 btn.innerHTML = '<i class="fas fa-check"></i> Actualizado';
-                btn.classList.remove('btn-outline-primary');
                 btn.classList.add('btn-success');
+                btn.classList.remove('btn-primary');
                 setTimeout(() => {
                     btn.innerHTML = originalHTML;
                     btn.classList.remove('btn-success');
-                    btn.classList.add('btn-outline-primary');
+                    btn.classList.add('btn-primary');
                     btn.disabled = false;
-                    // Recargar la tasa después de un momento
-                    setTimeout(cargarTasaActual, 500);
-                }, 2000);
+                    // Recargar página después de un momento para mostrar nueva actualización
+                    location.reload();
+                }, 1000);
             } else {
                 btn.innerHTML = '<i class="fas fa-times"></i> Error';
-                btn.classList.remove('btn-outline-primary');
                 btn.classList.add('btn-danger');
+                btn.classList.remove('btn-primary');
                 setTimeout(() => {
                     btn.innerHTML = originalHTML;
                     btn.classList.remove('btn-danger');
-                    btn.classList.add('btn-outline-primary');
+                    btn.classList.add('btn-primary');
                     btn.disabled = false;
                 }, 2000);
             }
         })
         .catch(error => {
-            console.error('Error actualizando tasa:', error);
+            console.error('Error actualizando tasas:', error);
             btn.innerHTML = '<i class="fas fa-times"></i> Error';
+            btn.classList.add('btn-danger');
+            btn.classList.remove('btn-primary');
             setTimeout(() => {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-primary');
             }, 2000);
         });
 }

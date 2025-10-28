@@ -55,5 +55,15 @@
         "usuario_ultima_actualizacion": "administrador",
         "activo": true,
         "validado_seniat": true
+    },
+    "cliente_20251028003906": {
+        "id": "cliente_20251028003906",
+        "nombre": "ESTEFANY TOVAR",
+        "cedula_rif": "V-27489569",
+        "telefono": "04223325684",
+        "telefono2": "",
+        "telefono_fijo": "",
+        "email": "ESTEFANY133@GMAIL.COM",
+        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a\r\nCasa 1_A"
     }
 }

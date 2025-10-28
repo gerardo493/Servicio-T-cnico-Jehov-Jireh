@@ -647,8 +647,9 @@ async function cargarTasas() {
         const response = await fetch('/api/tasas-actualizadas');
         const data = await response.json();
         
-        tasasActuales.USD = data.tasa_usd || 216.37;
-        tasasActuales.EUR = data.tasa_eur || 240.50;
+        // Corregir nombres de campos para que coincidan con el endpoint
+        tasasActuales.USD = data.tasa_bcv || 216.37;
+        tasasActuales.EUR = data.tasa_bcv_eur || 240.50;
         tasasActuales.BS = 1;
         tasasActuales.fechaActualizacion = data.fecha_actualizacion || new Date().toLocaleString('es-VE');
         

@@ -224,6 +224,7 @@
             <a class="nav-link {% if '/servicio-tecnico' in request.path %}active{% endif %}" href="/servicio-tecnico"><i class="fas fa-tools"></i> Servicio Técnico</a>
             <a class="nav-link {% if '/clientes' in request.path %}active{% endif %}" href="/clientes"><i class="fas fa-users"></i> Clientes</a>
             <a class="nav-link {% if '/inventario' in request.path %}active{% endif %}" href="/inventario"><i class="fas fa-box"></i> Inventario</a>
+            <a class="nav-link {% if '/proveedores' in request.path %}active{% endif %}" href="/proveedores"><i class="fas fa-truck"></i> Proveedores</a>
             <a class="nav-link {% if '/notas-entrega' in request.path %}active{% endif %}" href="/notas-entrega"><i class="fas fa-clipboard-list"></i> Notas de Entrega</a>
             <a class="nav-link {% if '/notas-entrega/reporte' in request.path %}active{% endif %}" href="/notas-entrega/reporte"><i class="fas fa-chart-line"></i> Reporte Notas</a>
             <a class="nav-link {% if '/cuentas-por-cobrar' in request.path %}active{% endif %}" href="/cuentas-por-cobrar"><i class="fas fa-money-bill-wave"></i> Cuentas por Cobrar</a>
@@ -323,18 +324,18 @@
     {% block extra_js %}{% endblock %}
     
     <script>
-        // Verificar permisos de configuración
-        fetch('/api/mi-rol')
-            .then(response => response.json())
-            .then(data => {
-                if (data.rol !== 'Administrador Principal') {
-                    const navConfig = document.getElementById('nav-configuracion');
-                    if (navConfig) {
-                        navConfig.style.display = 'none';
-                    }
-                }
-            })
-            .catch(error => console.error('Error verificando rol:', error));
+        // Opcional: Verificar permisos de configuración (comentado para habilitar acceso)
+        // fetch('/api/mi-rol')
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         if (data.rol !== 'Administrador Principal') {
+        //             const navConfig = document.getElementById('nav-configuracion');
+        //             if (navConfig) {
+        //                 navConfig.style.display = 'none';
+        //             }
+        //         }
+        //     })
+        //     .catch(error => console.error('Error verificando rol:', error));
     </script>
     
     <!-- Incluir calculadoras completas -->

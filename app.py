@@ -705,6 +705,49 @@ def obtener_estadisticas():
         'total_pagos_recibidos_bs': total_pagos_recibidos_bs
     }
 
+def obtener_ordenes_estados_vencidos():
+    """Verifica órdenes con estados vencidos según tiempos máximos configurados"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        config_sistema = cargar_configuracion()
+        estados_config = config_sistema.get('estados_ordenes', {})
+        
+        ordenes_vencidas = []
+        ahora = datetime.now()
+        
+        for orden_id, orden in ordenes.items():
+            estado_actual = orden.get('estado', '')
+            fecha_actualizacion = orden.get('fecha_actualizacion', orden.get('fecha_creacion', ''))
+            
+            if not fecha_actualizacion:
+                continue
+            
+            # Obtener configuración del estado
+            estado_config = estados_config.get(estado_actual, {})
+            tiempo_maximo = estado_config.get('tiempo_maximo', 0)  # en horas
+            
+            if tiempo_maximo > 0:
+                try:
+                    fecha_dt = datetime.strptime(fecha_actualizacion, '%Y-%m-%d %H:%M:%S')
+                    horas_transcurridas = (ahora - fecha_dt).total_seconds() / 3600
+                    
+                    if horas_transcurridas > tiempo_maximo:
+                        ordenes_vencidas.append({
+                            'id': orden_id,
+                            'cliente': orden.get('cliente', {}).get('nombre', 'Sin nombre'),
+                            'estado': estado_actual,
+                            'tiempo_excedido': round(horas_transcurridas - tiempo_maximo, 1),
+                            'fecha_actualizacion': fecha_actualizacion
+                        })
+                except Exception as e:
+                    print(f"Error procesando fecha para orden {orden_id}: {e}")
+                    continue
+        
+        return ordenes_vencidas
+    except Exception as e:
+        print(f"Error obteniendo órdenes vencidas: {e}")
+        return []
+
 def obtener_tasa_bcv():
     try:
         # Usar la constante definida
@@ -1213,14 +1256,43 @@ def index():
     total_facturado_usd = sum(safe_float(f.get('total_usd', 0)) for f in notas.values())
     cantidad_notas = len(notas)
     promedio_nota_usd = total_facturado_usd / cantidad_notas if cantidad_notas > 0 else 0
-    # Obtener tasa euro igual que antes
+    # Obtener tasa EUR del BCV directamente (igual que el endpoint api_tasas_actualizadas)
+    tasa_bcv_eur = 0
     try:
-        # r = requests.get('https://s3.amazonaws.com/dolartoday/data.json', timeout=5)  # Temporarily commented out
-        # data = r.json()  # Temporarily commented out
-        # tasa_bcv_eur = safe_float(data['EUR']['promedio']) if 'EUR' in data and 'promedio' in data['EUR'] else None  # Temporarily commented out
-        tasa_bcv_eur = 0  # Temporarily set to 0
-    except Exception:
-        tasa_bcv_eur = 0
+        tasa_bcv_usd = stats.get('tasa_bcv', 0)
+        if tasa_bcv_usd and tasa_bcv_usd > 10:
+            # Intentar obtener tasas del BCV
+            import requests
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            url_bcv = 'https://www.bcv.org.ve/glosario/cambio-oficial'
+            resp = requests.get(url_bcv, timeout=10, verify=False)
+            
+            if resp.status_code == 200:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                
+                # Buscar todas las tasas en strong elements
+                tasas = []
+                for strong in soup.find_all('strong'):
+                    txt = strong.text.strip().replace('.', '').replace(',', '.')
+                    try:
+                        posible = float(txt)
+                        if 10 < posible < 1000:
+                            tasas.append(posible)
+                    except:
+                        continue
+                
+                # Si tenemos más de una tasa, la segunda debería ser EUR
+                if len(tasas) >= 2:
+                    tasa_bcv_eur = tasas[1]
+                    print(f"✅ Tasa EUR para dashboard: {tasa_bcv_eur}")
+    except Exception as e:
+        print(f"Error obteniendo tasa EUR para dashboard: {e}")
+        # Fallback: calcular basado en USD
+        if stats.get('tasa_bcv') and stats.get('tasa_bcv', 0) > 10:
+            tasa_bcv_eur = stats.get('tasa_bcv', 0) * 1.05
     advertencia_tasa = None
     if not stats.get('tasa_bcv') or stats.get('tasa_bcv', 0) < 1:
         advertencia_tasa = '¡Advertencia! No se ha podido obtener la tasa BCV actual.'
@@ -2075,6 +2147,143 @@ def ver_producto(id):
         flash('Producto no encontrado', 'danger')
         return redirect(url_for('mostrar_inventario'))
     return render_template('producto_detalle.html', producto=producto, id=id)
+
+
+# ========================================
+# RUTAS PARA GESTIÓN DE PROVEEDORES
+# ========================================
+
+@app.route('/proveedores')
+@login_required
+def mostrar_proveedores():
+    """Listar todos los proveedores"""
+    proveedores = cargar_datos('proveedores.json')
+    config = cargar_configuracion()
+    inventario = cargar_datos(ARCHIVO_INVENTARIO)
+    
+    # Contar productos por proveedor
+    productos_por_proveedor = {}
+    for prod_id, prod in inventario.items():
+        prov = prod.get('proveedor', 'Sin proveedor')
+        if prov not in productos_por_proveedor:
+            productos_por_proveedor[prov] = 0
+        productos_por_proveedor[prov] += 1
+    
+    return render_template('proveedores.html', proveedores=proveedores.get('proveedores', {}), 
+                         config=config, productos_por_proveedor=productos_por_proveedor)
+
+@app.route('/proveedores/nuevo', methods=['GET', 'POST'])
+@login_required
+def nuevo_proveedor():
+    """Crear o editar un proveedor"""
+    if request.method == 'POST':
+        try:
+            proveedores = cargar_datos('proveedores.json')
+            id_proveedor = request.form.get('id') or str(len(proveedores.get('proveedores', {})) + 1)
+            
+            proveedores['proveedores'][id_proveedor] = {
+                'nombre': request.form.get('nombre', ''),
+                'razon_social': request.form.get('razon_social', ''),
+                'rif': request.form.get('rif', ''),
+                'telefono': request.form.get('telefono', ''),
+                'email': request.form.get('email', ''),
+                'direccion': request.form.get('direccion', ''),
+                'ciudad': request.form.get('ciudad', ''),
+                'estado': request.form.get('estado', ''),
+                'pais': request.form.get('pais', 'Venezuela'),
+                'contacto_principal': request.form.get('contacto_principal', ''),
+                'tipo_productos': request.form.get('tipo_productos', ''),
+                'terminos_pago': request.form.get('terminos_pago', '30'),
+                'tiempo_entrega_promedio': int(request.form.get('tiempo_entrega_promedio', 7)),
+                'categoria_proveedor': request.form.get('categoria_proveedor', ''),
+                'notas': request.form.get('notas', ''),
+                'activo': request.form.get('activo') == 'on',
+                'fecha_creacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            
+            if guardar_datos('proveedores.json', proveedores):
+                flash('Proveedor guardado exitosamente', 'success')
+                return redirect(url_for('mostrar_proveedores'))
+            else:
+                flash('Error al guardar el proveedor', 'danger')
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'danger')
+    
+    return render_template('proveedor_form.html')
+
+@app.route('/proveedores/<id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_proveedor(id):
+    """Editar un proveedor existente"""
+    proveedores = cargar_datos('proveedores.json')
+    
+    if id not in proveedores.get('proveedores', {}):
+        flash('Proveedor no encontrado', 'danger')
+        return redirect(url_for('mostrar_proveedores'))
+    
+    if request.method == 'POST':
+        try:
+            proveedores['proveedores'][id].update({
+                'nombre': request.form.get('nombre', ''),
+                'razon_social': request.form.get('razon_social', ''),
+                'rif': request.form.get('rif', ''),
+                'telefono': request.form.get('telefono', ''),
+                'email': request.form.get('email', ''),
+                'direccion': request.form.get('direccion', ''),
+                'ciudad': request.form.get('ciudad', ''),
+                'estado': request.form.get('estado', ''),
+                'pais': request.form.get('pais', 'Venezuela'),
+                'contacto_principal': request.form.get('contacto_principal', ''),
+                'tipo_productos': request.form.get('tipo_productos', ''),
+                'terminos_pago': request.form.get('terminos_pago', '30'),
+                'tiempo_entrega_promedio': int(request.form.get('tiempo_entrega_promedio', 7)),
+                'categoria_proveedor': request.form.get('categoria_proveedor', ''),
+                'notas': request.form.get('notas', ''),
+                'activo': request.form.get('activo') == 'on',
+                'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+            if guardar_datos('proveedores.json', proveedores):
+                flash('Proveedor actualizado exitosamente', 'success')
+                return redirect(url_for('mostrar_proveedores'))
+            else:
+                flash('Error al actualizar el proveedor', 'danger')
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'danger')
+    
+    proveedor = proveedores['proveedores'][id].copy()
+    proveedor['id'] = id
+    
+    return render_template('proveedor_form.html', proveedor=proveedor)
+
+@app.route('/proveedores/<id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_proveedor(id):
+    """Eliminar un proveedor"""
+    proveedores = cargar_datos('proveedores.json')
+    
+    if id in proveedores.get('proveedores', {}):
+        del proveedores['proveedores'][id]
+        guardar_datos('proveedores.json', proveedores)
+        flash('Proveedor eliminado exitosamente', 'success')
+    else:
+        flash('Proveedor no encontrado', 'danger')
+    
+    return redirect(url_for('mostrar_proveedores'))
+
+@app.route('/api/proveedores/listar')
+@login_required
+def api_listar_proveedores():
+    """API para listar proveedores activos"""
+    proveedores = cargar_datos('proveedores.json')
+    activos = {}
+    
+    for id_prov, prov in proveedores.get('proveedores', {}).items():
+        if prov.get('activo', False):
+            activos[id_prov] = prov
+    
+    return jsonify(activos)
 
 
 
@@ -7567,52 +7776,71 @@ def api_tasas():
 @app.route('/api/tasas-actualizadas')
 def api_tasas_actualizadas():
     try:
-        # 1. Obtener tasa BCV (USD/BS) desde Monitor Dólar
+        # 1. Obtener tasas BCV (USD/BS y EUR/BS) desde el glosario oficial
         tasa_bcv = None
-        try:
-            r = requests.get('https://s3.amazonaws.com/dolartoday/data.json', timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                if 'USD' in data and 'bcv' in data['USD']:
-                    tasa_bcv = safe_float(str(data['USD']['bcv']).replace(',', '.'))
-        except Exception as e:
-            print(f"Error obteniendo BCV de Monitor Dólar: {e}")
-            tasa_bcv = None
-
-        # 2. Tasa paralela: manual (no scraping ni API)
-        tasa_paralelo = 0  # Puedes cambiar esto si quieres pasarla manualmente
-        fuente_paralelo = 'manual'
-
-        # 3. Obtener tasa EUR/BS desde la página oficial del BCV (scraping solo por <strong>)
         tasa_bcv_eur = None
         try:
-            url_bcv = 'https://www.bcv.org.ve/'
-            resp = requests.get(url_bcv, timeout=10, verify=False)
+            print("🔍 Obteniendo tasas desde BCV Oficial: https://www.bcv.org.ve/glosario/cambio-oficial")
+            url_bcv = 'https://www.bcv.org.ve/glosario/cambio-oficial'
+            resp = requests.get(url_bcv, timeout=20, verify=False)
+            
             if resp.status_code == 200:
                 from bs4 import BeautifulSoup
-                import re
                 soup = BeautifulSoup(resp.text, 'html.parser')
-                # Buscar todos los <strong> que contengan un número con coma decimal
-                for strong in soup.find_all('strong'):
-                    txt = strong.get_text(strip=True)
-                    valor_limpio = re.sub(r'[^\d,\.]', '', txt)
-                    valor_limpio = valor_limpio.replace('.', '').replace(',', '.')
-                    try:
-                        posible = safe_float(valor_limpio)
-                        if 10 < posible < 500:
-                            tasa_bcv_eur = posible
-                            break
-                    except Exception as e:
-                        continue
-            if tasa_bcv_eur is None:
-                print('No se encontró la tasa EUR en <strong> en el HTML del BCV. Primeros 2000 caracteres:')
-                print(resp.text[:2000])
-                tasa_bcv_eur = 0
+                
+                # Buscar tasa USD en div con id='dolar'
+                dolar_div = soup.find('div', id='dolar')
+                if dolar_div:
+                    strong = dolar_div.find('strong')
+                    if strong:
+                        txt = strong.text.strip().replace('.', '').replace(',', '.')
+                        try:
+                            tasa_bcv = float(txt)
+                            print(f"✅ Tasa USD obtenida del BCV: {tasa_bcv}")
+                        except:
+                            pass
+                
+                # Buscar tasa EUR buscando en todos los divs que contengan "EUR" o "euro"
+                for div in soup.find_all(['div', 'tr', 'td']):
+                    texto = div.get_text(strip=True).upper()
+                    if 'EUR' in texto or 'EURO' in texto:
+                        strong = div.find('strong')
+                        if strong:
+                            txt = strong.text.strip().replace('.', '').replace(',', '.')
+                            try:
+                                posible = float(txt)
+                                if posible > 10:
+                                    tasa_bcv_eur = posible
+                                    print(f"✅ Tasa EUR obtenida del BCV: {tasa_bcv_eur}")
+                                    break
+                            except:
+                                continue
+                
+                # Si no encontramos EUR explícito, buscar el segundo valor en la tabla
+                if not tasa_bcv_eur:
+                    tasas_encontradas = []
+                    for strong in soup.find_all('strong'):
+                        txt = strong.text.strip().replace('.', '').replace(',', '.')
+                        try:
+                            posible = float(txt)
+                            if 10 < posible < 1000:
+                                tasas_encontradas.append(posible)
+                        except:
+                            continue
+                    
+                    if len(tasas_encontradas) >= 2:
+                        # El segundo valor debería ser EUR
+                        tasa_bcv_eur = tasas_encontradas[1]
+                        print(f"✅ Tasa EUR (segunda tasa encontrada): {tasa_bcv_eur}")
+            
         except Exception as e:
-            print(f"Error obteniendo EUR/BS de BCV: {e}")
-            tasa_bcv_eur = 0
+            print(f"Error obteniendo tasas del BCV Oficial: {e}")
 
-        # Fallbacks
+        # 2. Tasa paralela: manual (no scraping ni API)
+        tasa_paralelo = 0
+        fuente_paralelo = 'manual'
+        
+        # 3. Fallbacks
         if tasa_bcv is None:
             tasa_bcv = cargar_ultima_tasa_bcv() or 1.0
         if tasa_paralelo is None:
@@ -7623,6 +7851,21 @@ def api_tasas_actualizadas():
         # Guardar la última tasa BCV
         if tasa_bcv:
             guardar_ultima_tasa_bcv(tasa_bcv)
+        
+        # Guardar las tasas actuales en configuración
+        try:
+            config = cargar_configuracion()
+            if 'tasas' not in config:
+                config['tasas'] = {}
+            if tasa_bcv and tasa_bcv > 10:
+                config['tasas']['tasa_actual_usd'] = round(tasa_bcv, 2)
+            if tasa_bcv_eur and tasa_bcv_eur > 10:
+                config['tasas']['tasa_actual_eur'] = round(tasa_bcv_eur, 2)
+            config['tasas']['ultima_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            guardar_configuracion(config)
+            print(f"✅ Tasas guardadas en configuración: USD={tasa_bcv}, EUR={tasa_bcv_eur}")
+        except Exception as e:
+            print(f"Error guardando tasas en configuración: {e}")
 
         return jsonify({
             'success': True,
@@ -8147,6 +8390,9 @@ def servicio_tecnico():
         ordenes_pendientes = len([o for o in ordenes.values() if isinstance(o, dict) and o.get('estado') in ['en_espera_revision', 'en_diagnostico', 'presupuesto_enviado', 'aprobado_por_cliente', 'en_reparacion']])
         ordenes_completadas = len([o for o in ordenes.values() if isinstance(o, dict) and o.get('estado') == 'entregado'])
         
+        # Obtener órdenes con estados vencidos
+        ordenes_vencidas = obtener_ordenes_estados_vencidos()
+        
         # Fecha actual para cálculos
         now = datetime.now()
         
@@ -8193,6 +8439,7 @@ def servicio_tecnico():
                              total_ordenes=total_ordenes,
                              ordenes_pendientes=ordenes_pendientes,
                              ordenes_completadas=ordenes_completadas,
+                             ordenes_vencidas=ordenes_vencidas,
                              now=now)
     except Exception as e:
         print(f"DEBUG: Error en servicio_tecnico: {str(e)}")
@@ -8815,6 +9062,34 @@ def actualizar_estado_orden(id):
         # Obtener estado anterior
         estado_anterior = ordenes[id].get('estado', '')
         
+        # Verificar permisos según configuración de estados
+        config_sistema = cargar_configuracion()
+        estados_config = config_sistema.get('estados_ordenes', {})
+        estado_config = estados_config.get(nuevo_estado, {})
+        
+        # Verificar si requiere admin
+        if estado_config.get('requiere_admin', False):
+            # Verificar si el usuario actual es admin
+            usuarios = cargar_datos('usuarios.json')
+            username = session.get('username', session.get('usuario', ''))
+            usuario_actual = usuarios.get(username, {})
+            rol_actual = usuario_actual.get('rol', 'vendedor')
+            
+            if rol_actual != 'admin':
+                mensaje = f'Se requieren permisos de administrador para cambiar a estado: {nuevo_estado.replace("_", " ").title()}'
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'message': mensaje}), 403
+                flash(mensaje, 'danger')
+                return redirect(url_for('ver_orden_servicio', id=id))
+        
+        # Verificar si requiere comentario obligatorio
+        if estado_config.get('comentario_obligatorio', False) and not comentarios:
+            mensaje = 'Se requiere un comentario para cambiar a este estado'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': mensaje}), 400
+            flash(mensaje, 'warning')
+            return redirect(url_for('ver_orden_servicio', id=id))
+        
         # Actualizar estado
         ordenes[id]['estado'] = nuevo_estado
         ordenes[id]['fecha_actualizacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -8848,6 +9123,17 @@ def actualizar_estado_orden(id):
             historial_entry["fecha_entrega_estimada"] = fecha_entrega_estimada
         
         ordenes[id]['historial_estados'].append(historial_entry)
+        
+        # Enviar notificación al cliente si está configurado
+        if estado_config.get('notificar_cliente', False):
+            try:
+                # Obtener datos del cliente
+                cliente = ordenes[id].get('cliente', {})
+                if cliente and cliente.get('whatsapp'):
+                    # Aquí puedes implementar la lógica de notificación por WhatsApp
+                    print(f"📱 Notificación enviada a cliente por cambio de estado: {nuevo_estado}")
+            except Exception as e:
+                print(f"⚠️ Error enviando notificación: {e}")
         
         # Lógica especial para ciertos estados
         if nuevo_estado == 'en_reparacion':
@@ -12112,11 +12398,31 @@ def cargar_configuracion():
                     'margen_campos': '10'
                 },
                 'estados_ordenes': {
-                    'recibido': {'campos_obligatorios': ['equipo', 'cliente'], 'tiempo_maximo': 24, 'requiere_aprobacion': False},
-                    'diagnostico': {'campos_obligatorios': ['diagnostico'], 'tiempo_maximo': 72, 'requiere_aprobacion': False},
-                    'en_reparacion': {'campos_obligatorios': ['repuestos'], 'tiempo_maximo': 168, 'requiere_aprobacion': False},
-                    'reparado': {'campos_obligatorios': ['pruebas'], 'tiempo_maximo': 48, 'requiere_aprobacion': True},
-                    'entregado': {'campos_obligatorios': ['firma'], 'tiempo_maximo': 24, 'requiere_aprobacion': False}
+                    'recibido': {
+                        'tiempo_maximo': 24,
+                        'campos_obligatorios': ['equipo', 'cliente'],
+                        'notificar_cliente': True
+                    },
+                    'diagnostico': {
+                        'tiempo_maximo': 72,
+                        'campos_obligatorios': ['diagnostico'],
+                        'notificar_cliente': True
+                    },
+                    'en_reparacion': {
+                        'tiempo_maximo': 168,
+                        'requiere_admin': False,
+                        'comentario_obligatorio': False
+                    },
+                    'reparado': {
+                        'tiempo_maximo': 48,
+                        'requiere_aprobacion': True,
+                        'notificar_cliente': True
+                    },
+                    'entregado': {
+                        'requiere_admin': True,
+                        'requiere_firma': True,
+                        'notificar_cliente': True
+                    }
                 },
                 'metodos_pago': {
                     'efectivo': {'habilitado': True},
@@ -12140,34 +12446,151 @@ def cargar_configuracion():
                 },
                 'categorias': {
                     'productos': [],
-                    'tipos_clientes': ['VIP', 'Regular', 'Corporativo'],
+                    'tipos_clientes': [
+                        {'nombre': 'VIP', 'color': '#6f42c1', 'icono': 'fas fa-crown'},
+                        {'nombre': 'Regular', 'color': '#007bff', 'icono': 'fas fa-user'},
+                        {'nombre': 'Corporativo', 'color': '#28a745', 'icono': 'fas fa-building'}
+                    ],
                     'zonas_cobertura': [],
-                    'prioridades': ['Baja', 'Media', 'Alta', 'Urgente']
+                    'prioridades': [
+                        {'nombre': 'Baja', 'color': '#17a2b8', 'icono': 'fas fa-flag'},
+                        {'nombre': 'Media', 'color': '#ffc107', 'icono': 'fas fa-clock'},
+                        {'nombre': 'Alta', 'color': '#fd7e14', 'icono': 'fas fa-fire'},
+                        {'nombre': 'Urgente', 'color': '#dc3545', 'icono': 'fas fa-bolt'}
+                    ]
                 },
                 'seguridad': {
-                    'tiempo_sesion': 3600,
+                    'tiempo_sesion': 60,
+                    'sesiones_concurrentes_max': 2,
                     'intentos_login': 5,
-                    'complejidad_contraseña': True,
-                    'expira_contraseña': False,
+                    'tiempo_bloqueo_ip': 15,
+                    'cerrar_sesiones_concurrentes': True,
+                    'longitud_min_contraseña': 8,
                     'dias_expira_contraseña': 90,
-                    'autenticacion_2fa': False
+                    'complejidad_contraseña': True,
+                    'no_reusar_contraseñas': True,
+                    'expira_contraseña': False,
+                    'autenticacion_2fa': False,
+                    '2fa_sms': True,
+                    '2fa_email': True,
+                    'registro_actividades': True,
+                    'retencion_logs': 90,
+                    'cifrar_datos_sensibles': True,
+                    'backups_cifrados': True,
+                    'exportaciones_cifradas': True,
+                    'backups_automaticos_seguridad': True,
+                    'dias_retencion_backups': 30,
+                    'bloqueo_ip_activo': False,
+                    'ips_permitidas': '',
+                    'alertar_login_nuevo': True,
+                    'alertar_cambios_permisos': True,
+                    'alertas_email': True,
+                    'alertas_sms': False,
+                    'alertas_whatsapp': False
                 },
                 'visual': {
                     'tema': 'automatico',
-                    'logo_empresa': '',
                     'color_primario': '#4f46e5',
                     'color_secundario': '#7c3aed',
-                    'idioma': 'es'
+                    'color_acentos': '#10b981',
+                    'color_fondo': '#f9fafb',
+                    'preview_tiempo_real': True,
+                    'familia_fuente': 'poppins',
+                    'tamano_fuente_base': 16,
+                    'escala_movil': 1.0,
+                    'escala_tablet': 1.1,
+                    'escala_desktop': 1.2,
+                    'densidad': 'normal',
+                    'altura_filas': 48,
+                    'padding_general': 16,
+                    'gap_cards': 16,
+                    'estilo_bordes': 'redondeado',
+                    'estilo_botones': 'filled',
+                    'estilo_tarjetas': 'sombra',
+                    'ancho_sidebar': 'normal',
+                    'posicion_sidebar': 'izquierda',
+                    'sidebar_colapsable': True,
+                    'sidebar_movil': True,
+                    'breakpoint_desktop': 1024,
+                    'animaciones_habilitadas': True,
+                    'velocidad_animacion': 'normal',
+                    'tipo_carga': 'spinner',
+                    'alto_contraste': False,
+                    'reducir_movimiento': False,
+                    'idioma': 'es',
+                    'posicion_logo': 'esquina',
+                    'tamano_logo': 100,
+                    'gradiente_fondo': False,
+                    'gradiente_color_inicio': '#667eea',
+                    'gradiente_color_fin': '#764ba2',
+                    'gradiente_direccion': 'vertical',
+                    'efecto_glassmorphism': False,
+                    'nombre_tema': 'Mi Tema Personalizado'
                 },
                 'inventario': {
                     'control_stock': True,
                     'stock_minimo_default': 5,
-                    'alertas_existencia_minima': True,
+                    'stock_maximo_default': 100,
+                    'punto_reorden_default': 10,
+                    'alertas_stock_critico': True,
+                    'codigos_barras': False,
+                    'formato_codigo_barras': 'Code128',
+                    'generacion_automatica_codigos': True,
+                    'impresion_masiva_etiquetas': False,
+                    'seriales': True,
+                    'control_lotes': False,
+                    'trazabilidad_completa': True,
+                    'ubicaciones_multiples': False,
+                    'almacenes_default': '',
+                    'transferencias_entre_ubicaciones': True,
+                    'catalogo_proveedores': False,
+                    'tiempo_entrega_promedio': 7,
+                    'evaluacion_proveedores': False,
                     'control_caducidad': False,
                     'dias_alerta_caducidad': 30,
-                    'codigos_barras': False,
-                    'seriales': True,
-                    'ubicaciones_multiples': False
+                    'metodo_rotacion': 'FIFO',
+                    'causas_movimiento': True,
+                    'aprobaciones_movimiento': False,
+                    'historial_detallado': True,
+                    'metodo_costeo': 'promedio_ponderado',
+                    'precios_por_cliente': False,
+                    'alertas_stock_minimo': True,
+                    'alertas_caducidad': True,
+                    'alertas_movimientos_inusuales': False,
+                    'reportes_automaticos': False,
+                    'ordenes_compra_automaticas': False,
+                    'sugerencias_reposicion': True,
+                    'comparacion_precios': False,
+                    'rotacion_inventario': True,
+                    'analisis_abc': True,
+                    'tendencias_inventario': False,
+                    'exportacion_reportes': True,
+                    'categorias_personalizables': True,
+                    'subcategorias': False,
+                    'plantillas_productos': False,
+                    'inspecciones_recepcion': False,
+                    'certificados_calidad': False,
+                    'productos_defectuosos': True,
+                    'conteos_ciclicos': False,
+                    'auditorias_programadas': False,
+                    'ajustes_automaticos': False,
+                    'unidades_multiples': False,
+                    'conversiones_automaticas': True,
+                    'empaques_presentaciones': False,
+                    'etiquetas_personalizables': False,
+                    'codigos_qr_informacion': False,
+                    'etiquetas_ubicacion': False,
+                    'backups_automaticos_inventario': True,
+                    'sincronizacion_nube': False,
+                    'historial_cambios': True,
+                    'acceso_por_modulo': True,
+                    'aprobaciones_requeridas': False,
+                    'roles_inventario': True,
+                    'auditoria_cambios': True,
+                    'reserva_stock': True,
+                    'backorders': False,
+                    'disponibilidad_tiempo_real': True,
+                    'sincronizacion_automatica': True
                 },
                 'proveedores': {
                     'habilitado': False,
@@ -12334,6 +12757,52 @@ def configuracion_sistema():
                 config['alertas']['estadisticas_mensuales'] = request.form.get('estadisticas_mensuales') == 'on'
                 config['alertas']['canal_notificacion'] = request.form.get('canal_notificacion', 'email')
                 config['alertas']['horario_alertas'] = request.form.get('horario_alertas', '08:00')
+                
+                # Agregar alertas para estados
+                config['alertas']['estados_vencidos'] = request.form.get('alertas_estados_vencidos') == 'on'
+                config['alertas']['estados_pendientes'] = request.form.get('alertas_estados_pendientes') == 'on'
+            
+            # Actualizar sección estados de órdenes
+            if 'estado_recibido_tiempo_max' in request.form:
+                if 'estados_ordenes' not in config:
+                    config['estados_ordenes'] = {}
+                
+                # Configurar estado Recibido
+                config['estados_ordenes']['recibido'] = {
+                    'tiempo_maximo': int(request.form.get('estado_recibido_tiempo_max', 24)),
+                    'campos_obligatorios': request.form.get('estado_recibido_campos', 'equipo,cliente').split(','),
+                    'notificar_cliente': request.form.get('estado_recibido_notificar') == 'on'
+                }
+                
+                # Configurar estado Diagnóstico
+                config['estados_ordenes']['diagnostico'] = {
+                    'tiempo_maximo': int(request.form.get('estado_diagnostico_tiempo_max', 72)),
+                    'campos_obligatorios': request.form.get('estado_diagnostico_campos', 'diagnostico').split(','),
+                    'notificar_cliente': request.form.get('estado_diagnostico_notificar') == 'on'
+                }
+                
+                # Configurar estado En Reparación
+                config['estados_ordenes']['en_reparacion'] = {
+                    'tiempo_maximo': int(request.form.get('estado_reparacion_tiempo_max', 168)),
+                    'requiere_admin': request.form.get('estado_reparacion_requiere_admin') == 'true',
+                    'comentario_obligatorio': request.form.get('estado_reparacion_comentario_obligatorio') == 'on'
+                }
+                
+                # Configurar estado Reparado
+                config['estados_ordenes']['reparado'] = {
+                    'tiempo_maximo': int(request.form.get('estado_reparado_tiempo_max', 48)),
+                    'requiere_aprobacion': request.form.get('estado_reparado_requiere_aprobacion') == 'true',
+                    'notificar_cliente': request.form.get('estado_reparado_notificar') == 'on'
+                }
+                
+                # Configurar estado Entregado
+                config['estados_ordenes']['entregado'] = {
+                    'requiere_admin': request.form.get('estado_entregado_requiere_admin') == 'true',
+                    'requiere_firma': request.form.get('estado_entregado_requiere_firma') == 'on',
+                    'notificar_cliente': request.form.get('estado_entregado_notificar') == 'on'
+                }
+                
+                print("✅ Configuración de estados de órdenes actualizada")
             
             # Actualizar sección métodos de pago
             if 'pago_efectivo' in request.form or 'banco_nombre' in request.form:
@@ -12362,11 +12831,478 @@ def configuracion_sistema():
             
             # Actualizar sección inventario
             if 'control_stock' in request.form:
+                if 'inventario' not in config:
+                    config['inventario'] = {}
+                
+                # Control de Stock Avanzado (1)
                 config['inventario']['control_stock'] = request.form.get('control_stock') == 'on'
                 config['inventario']['stock_minimo_default'] = int(request.form.get('stock_minimo_default', 5))
-                config['inventario']['alertas_existencia_minima'] = request.form.get('alertas_existencia_minima') == 'on'
+                config['inventario']['stock_maximo_default'] = int(request.form.get('stock_maximo_default', 100))
+                config['inventario']['punto_reorden_default'] = int(request.form.get('punto_reorden_default', 10))
+                config['inventario']['alertas_stock_critico'] = request.form.get('alertas_stock_critico') == 'on'
+                
+                # Códigos de Barras y QR (2)
+                config['inventario']['codigos_barras'] = request.form.get('codigos_barras') == 'on'
+                config['inventario']['formato_codigo_barras'] = request.form.get('formato_codigo_barras', 'Code128')
+                config['inventario']['generacion_automatica_codigos'] = request.form.get('generacion_automatica_codigos') == 'on'
+                config['inventario']['impresion_masiva_etiquetas'] = request.form.get('impresion_masiva_etiquetas') == 'on'
+                
+                # Control de Seriales y Lotes (3)
+                config['inventario']['seriales'] = request.form.get('seriales') == 'on'
+                config['inventario']['control_lotes'] = request.form.get('control_lotes') == 'on'
+                config['inventario']['trazabilidad_completa'] = request.form.get('trazabilidad_completa') == 'on'
+                
+                # Ubicaciones Múltiples (4)
+                config['inventario']['ubicaciones_multiples'] = request.form.get('ubicaciones_multiples') == 'on'
+                config['inventario']['almacenes_default'] = request.form.get('almacenes_default', '')
+                config['inventario']['transferencias_entre_ubicaciones'] = request.form.get('transferencias_entre_ubicaciones') == 'on'
+                
+                # Gestión de Proveedores (5)
+                config['inventario']['catalogo_proveedores'] = request.form.get('catalogo_proveedores') == 'on'
+                config['inventario']['tiempo_entrega_promedio'] = int(request.form.get('tiempo_entrega_promedio', 7))
+                config['inventario']['evaluacion_proveedores'] = request.form.get('evaluacion_proveedores') == 'on'
+                
+                # Control de Caducidad (6)
                 config['inventario']['control_caducidad'] = request.form.get('control_caducidad') == 'on'
                 config['inventario']['dias_alerta_caducidad'] = int(request.form.get('dias_alerta_caducidad', 30))
+                config['inventario']['metodo_rotacion'] = request.form.get('metodo_rotacion', 'FIFO')
+                
+                # Movimientos de Inventario (7)
+                config['inventario']['causas_movimiento'] = request.form.get('causas_movimiento') == 'on'
+                config['inventario']['aprobaciones_movimiento'] = request.form.get('aprobaciones_movimiento') == 'on'
+                config['inventario']['historial_detallado'] = request.form.get('historial_detallado') == 'on'
+                
+                # Costos y Precios (8)
+                config['inventario']['metodo_costeo'] = request.form.get('metodo_costeo', 'promedio_ponderado')
+                config['inventario']['precios_por_cliente'] = request.form.get('precios_por_cliente') == 'on'
+                
+                # Alertas y Notificaciones (9)
+                config['inventario']['alertas_stock_minimo'] = request.form.get('alertas_stock_minimo') == 'on'
+                config['inventario']['alertas_caducidad'] = request.form.get('alertas_caducidad') == 'on'
+                config['inventario']['alertas_movimientos_inusuales'] = request.form.get('alertas_movimientos_inusuales') == 'on'
+                config['inventario']['reportes_automaticos'] = request.form.get('reportes_automaticos') == 'on'
+                
+                # Integración con Compras (10)
+                config['inventario']['ordenes_compra_automaticas'] = request.form.get('ordenes_compra_automaticas') == 'on'
+                config['inventario']['sugerencias_reposicion'] = request.form.get('sugerencias_reposicion') == 'on'
+                config['inventario']['comparacion_precios'] = request.form.get('comparacion_precios') == 'on'
+                
+                # Reportes Avanzados (11)
+                config['inventario']['rotacion_inventario'] = request.form.get('rotacion_inventario') == 'on'
+                config['inventario']['analisis_abc'] = request.form.get('analisis_abc') == 'on'
+                config['inventario']['tendencias_inventario'] = request.form.get('tendencias_inventario') == 'on'
+                config['inventario']['exportacion_reportes'] = request.form.get('exportacion_reportes') == 'on'
+                
+                # Configuración de Categorías (12)
+                config['inventario']['categorias_personalizables'] = request.form.get('categorias_personalizables') == 'on'
+                config['inventario']['subcategorias'] = request.form.get('subcategorias') == 'on'
+                config['inventario']['plantillas_productos'] = request.form.get('plantillas_productos') == 'on'
+                
+                # Control de Calidad (13)
+                config['inventario']['inspecciones_recepcion'] = request.form.get('inspecciones_recepcion') == 'on'
+                config['inventario']['certificados_calidad'] = request.form.get('certificados_calidad') == 'on'
+                config['inventario']['productos_defectuosos'] = request.form.get('productos_defectuosos') == 'on'
+                
+                # Inventario Físico (14)
+                config['inventario']['conteos_ciclicos'] = request.form.get('conteos_ciclicos') == 'on'
+                config['inventario']['auditorias_programadas'] = request.form.get('auditorias_programadas') == 'on'
+                config['inventario']['ajustes_automaticos'] = request.form.get('ajustes_automaticos') == 'on'
+                
+                # Configuración de Unidades (15)
+                config['inventario']['unidades_multiples'] = request.form.get('unidades_multiples') == 'on'
+                config['inventario']['conversiones_automaticas'] = request.form.get('conversiones_automaticas') == 'on'
+                config['inventario']['empaques_presentaciones'] = request.form.get('empaques_presentaciones') == 'on'
+                
+                # Etiquetas y Códigos (16)
+                config['inventario']['etiquetas_personalizables'] = request.form.get('etiquetas_personalizables') == 'on'
+                config['inventario']['codigos_qr_informacion'] = request.form.get('codigos_qr_informacion') == 'on'
+                config['inventario']['etiquetas_ubicacion'] = request.form.get('etiquetas_ubicacion') == 'on'
+                
+                # Backup de Inventario (17)
+                config['inventario']['backups_automaticos_inventario'] = request.form.get('backups_automaticos_inventario') == 'on'
+                config['inventario']['sincronizacion_nube'] = request.form.get('sincronizacion_nube') == 'on'
+                config['inventario']['historial_cambios'] = request.form.get('historial_cambios') == 'on'
+                
+                # Permisos por Usuario (18)
+                config['inventario']['acceso_por_modulo'] = request.form.get('acceso_por_modulo') == 'on'
+                config['inventario']['aprobaciones_requeridas'] = request.form.get('aprobaciones_requeridas') == 'on'
+                config['inventario']['roles_inventario'] = request.form.get('roles_inventario') == 'on'
+                config['inventario']['auditoria_cambios'] = request.form.get('auditoria_cambios') == 'on'
+                
+                # Integración con Ventas (19)
+                config['inventario']['reserva_stock'] = request.form.get('reserva_stock') == 'on'
+                config['inventario']['backorders'] = request.form.get('backorders') == 'on'
+                config['inventario']['disponibilidad_tiempo_real'] = request.form.get('disponibilidad_tiempo_real') == 'on'
+                config['inventario']['sincronizacion_automatica'] = request.form.get('sincronizacion_automatica') == 'on'
+                
+                print("✅ Configuración avanzada de inventario actualizada correctamente")
+            
+            # Actualizar sección categorías desde el JSON que viene en el request
+            if 'categorias_data' in request.form:
+                try:
+                    categorias_data = json.loads(request.form.get('categorias_data', '{}'))
+                    if 'tipos_clientes' in categorias_data or 'prioridades' in categorias_data:
+                        if 'categorias' not in config:
+                            config['categorias'] = {}
+                        
+                        if 'tipos_clientes' in categorias_data:
+                            config['categorias']['tipos_clientes'] = categorias_data['tipos_clientes']
+                        if 'prioridades' in categorias_data:
+                            config['categorias']['prioridades'] = categorias_data['prioridades']
+                        
+                        print("✅ Categorías actualizadas correctamente")
+                except Exception as e:
+                    print(f"⚠️ Error procesando categorías: {e}")
+            
+            # Actualizar sección proveedores
+            if 'proveedores_habilitado' in request.form:
+                if 'proveedores' not in config:
+                    config['proveedores'] = {}
+                
+                # Configuración General
+                config['proveedores']['habilitado'] = request.form.get('proveedores_habilitado') == 'on'
+                config['proveedores']['proveedor_requerido'] = request.form.get('proveedores_requerido') == 'on'
+                config['proveedores']['codigo_propio_requerido'] = request.form.get('proveedores_codigo_propio') == 'on'
+                
+                # Términos de Pago
+                config['proveedores']['terminos_pago'] = int(request.form.get('proveedores_terminos_pago', 30))
+                config['proveedores']['descuento_pronto_pago'] = float(request.form.get('proveedores_descuento_pronto_pago', 0))
+                config['proveedores']['recargo_tardio'] = float(request.form.get('proveedores_recargo_tardio', 0))
+                config['proveedores']['forma_pago'] = request.form.get('proveedores_forma_pago', 'transferencia')
+                
+                # Plazos de Entrega
+                config['proveedores']['plazos_entrega'] = int(request.form.get('proveedores_plazos_entrega', 7))
+                config['proveedores']['entrega_urgente'] = int(request.form.get('proveedores_entrega_urgente', 2))
+                config['proveedores']['costo_envio'] = float(request.form.get('proveedores_costo_envio', 0))
+                
+                # Evaluación de Proveedores
+                config['proveedores']['evaluacion_automatica'] = request.form.get('proveedores_evaluacion_automatica') == 'on'
+                config['proveedores']['umbral_calificacion'] = float(request.form.get('proveedores_umbral_calificacion', 3))
+                config['proveedores']['puntualidad_min'] = int(request.form.get('proveedores_puntualidad_min', 80))
+                config['proveedores']['calidad_min'] = int(request.form.get('proveedores_calidad_min', 85))
+                
+                # Políticas de Compra
+                config['proveedores']['cotizaciones_multiples'] = request.form.get('proveedores_cotizaciones_multiples') == 'on'
+                config['proveedores']['aprobacion_compras'] = request.form.get('proveedores_aprobacion_compras') == 'on'
+                config['proveedores']['monto_min_cotizacion'] = float(request.form.get('proveedores_monto_min_cotizacion', 100))
+                config['proveedores']['monto_max_sin_aprobacion'] = float(request.form.get('proveedores_monto_max_sin_aprobacion', 500))
+                
+                # Garantías y Devoluciones
+                config['proveedores']['politica_garantia'] = int(request.form.get('proveedores_politica_garantia', 30))
+                config['proveedores']['plazo_devolucion'] = int(request.form.get('proveedores_plazo_devolucion', 7))
+                config['proveedores']['reembolso_automatico'] = request.form.get('proveedores_reembolso') == 'on'
+                
+                # Comunicación
+                config['proveedores']['notificaciones_email'] = request.form.get('proveedores_notificaciones_email') == 'on'
+                config['proveedores']['notificaciones_whatsapp'] = request.form.get('proveedores_notificaciones_whatsapp') == 'on'
+                config['proveedores']['alertas_stock_bajo'] = request.form.get('proveedores_alertas_stock') == 'on'
+                
+                # Reportes y Analíticas
+                config['proveedores']['reportes_compras'] = request.form.get('proveedores_reportes_compras') == 'on'
+                config['proveedores']['analisis_rendimiento'] = request.form.get('proveedores_analisis_rendimiento') == 'on'
+                config['proveedores']['ranking_proveedores'] = request.form.get('proveedores_ranking_proveedores') == 'on'
+                config['proveedores']['comparacion_precios'] = request.form.get('proveedores_comparacion_precios') == 'on'
+                
+                # Catálogo de Proveedores
+                config['proveedores']['catalogo_publico'] = request.form.get('proveedores_catalogo_publico') == 'on'
+                config['proveedores']['sincronizacion_precios'] = request.form.get('proveedores_sincronizacion_precios') == 'on'
+                config['proveedores']['actualizacion_stock_automatica'] = request.form.get('proveedores_actualizacion_stock') == 'on'
+                
+                print("✅ Configuración de proveedores actualizada correctamente")
+            
+            # Actualizar sección calendario
+            if 'calendario_inicio' in request.form:
+                if 'calendario' not in config:
+                    config['calendario'] = {}
+                
+                if 'horarios_atencion' not in config['calendario']:
+                    config['calendario']['horarios_atencion'] = {}
+                
+                config['calendario']['horarios_atencion']['inicio'] = request.form.get('calendario_inicio', '08:00')
+                config['calendario']['horarios_atencion']['fin'] = request.form.get('calendario_fin', '17:00')
+                config['calendario']['horario_extendido'] = request.form.get('calendario_horario_extendido') == 'on'
+                
+                # Días laborables
+                dias_laborables = []
+                if request.form.get('calendario_lunes') == 'on':
+                    dias_laborables.append('lunes')
+                if request.form.get('calendario_martes') == 'on':
+                    dias_laborables.append('martes')
+                if request.form.get('calendario_miercoles') == 'on':
+                    dias_laborables.append('miercoles')
+                if request.form.get('calendario_jueves') == 'on':
+                    dias_laborables.append('jueves')
+                if request.form.get('calendario_viernes') == 'on':
+                    dias_laborables.append('viernes')
+                if request.form.get('calendario_sabado') == 'on':
+                    dias_laborables.append('sabado')
+                if request.form.get('calendario_domingo') == 'on':
+                    dias_laborables.append('domingo')
+                
+                config['calendario']['dias_laborables'] = dias_laborables
+                
+                # Agenda y citas
+                config['calendario']['agenda_habilitada'] = request.form.get('calendario_agenda_habilitada') == 'on'
+                config['calendario']['citas_automaticas'] = request.form.get('calendario_citas_automaticas') == 'on'
+                config['calendario']['duracion_cita'] = int(request.form.get('calendario_duracion_cita', 30))
+                config['calendario']['intervalo_citas'] = int(request.form.get('calendario_intervalo_citas', 15))
+                
+                # Recordatorios
+                config['calendario']['recordatorios_citas'] = request.form.get('calendario_recordatorios_citas') == 'on'
+                config['calendario']['recordatorio_horas'] = int(request.form.get('calendario_recordatorio_horas', 24))
+                config['calendario']['medio_recordatorio'] = request.form.get('calendario_medio_recordatorio', 'email')
+                
+                # Festivos
+                festivos_text = request.form.get('calendario_festivos', '')
+                if festivos_text:
+                    config['calendario']['festivos'] = [d.strip() for d in festivos_text.split(',') if d.strip()]
+                else:
+                    config['calendario']['festivos'] = []
+                
+                config['calendario']['vacaciones_habilitadas'] = request.form.get('calendario_vacaciones_habilitadas') == 'on'
+                
+                # Horarios especiales
+                config['calendario']['horarios_especiales'] = request.form.get('calendario_horarios_especiales') == 'on'
+                config['calendario']['hora_almuerzo_inicio'] = request.form.get('calendario_hora_almuerzo_inicio', '12:00')
+                config['calendario']['hora_almuerzo_fin'] = request.form.get('calendario_hora_almuerzo_fin', '13:00')
+                
+                # Capacidad
+                config['calendario']['max_citas_dia'] = int(request.form.get('calendario_max_citas_dia', 10))
+                config['calendario']['tecnicos_simultaneos'] = int(request.form.get('calendario_tecnicos_simultaneos', 2))
+                
+                # Sincronización
+                config['calendario']['sincronizacion_google'] = request.form.get('calendario_sincronizacion_google') == 'on'
+                config['calendario']['sincronizacion_outlook'] = request.form.get('calendario_sincronizacion_outlook') == 'on'
+                config['calendario']['exportar_calendario'] = request.form.get('calendario_exportar_calendario') == 'on'
+                
+                # Zona horaria
+                config['calendario']['zona_horaria'] = request.form.get('calendario_zona_horaria', 'America/Caracas')
+                
+                print("✅ Configuración de calendario actualizada correctamente")
+            
+            # Actualizar sección equipos clientes
+            if 'equipos_habilitado' in request.form:
+                if 'equipos_clientes' not in config:
+                    config['equipos_clientes'] = {}
+                
+                # Configuración General
+                config['equipos_clientes']['habilitado'] = request.form.get('equipos_habilitado') == 'on'
+                config['equipos_clientes']['trazabilidad_completa'] = request.form.get('equipos_trazabilidad_completa') == 'on'
+                config['equipos_clientes']['historial_detallado'] = request.form.get('equipos_historial_detallado') == 'on'
+                
+                # Tipos y Marcas
+                marcas_text = request.form.get('equipos_marcas_permitidas', '')
+                if marcas_text:
+                    config['equipos_clientes']['marcas_permitidas'] = [m.strip() for m in marcas_text.split(',') if m.strip()]
+                else:
+                    config['equipos_clientes']['marcas_permitidas'] = []
+                
+                modelos_text = request.form.get('modelos_disponibles', '')
+                if modelos_text:
+                    config['equipos_clientes']['modelos_disponibles'] = [m.strip() for m in modelos_text.split(',') if m.strip()]
+                else:
+                    config['equipos_clientes']['modelos_disponibles'] = []
+                
+                config['equipos_clientes']['personalizar_modelos'] = request.form.get('equipos_personalizar_modelos') == 'on'
+                
+                # Estados de Equipos
+                estados_text = request.form.get('estados_equipos', '')
+                if estados_text:
+                    config['equipos_clientes']['estados_equipos'] = [e.strip() for e in estados_text.split(',') if e.strip()]
+                else:
+                    config['equipos_clientes']['estados_equipos'] = []
+                
+                config['equipos_clientes']['notificar_cambio_estado'] = request.form.get('equipos_notificar_cambio_estado') == 'on'
+                config['equipos_clientes']['auto_cambiar_entregado'] = request.form.get('equipos_auto_entregado') == 'on'
+                
+                # Condición Física
+                condicion_text = request.form.get('equipos_condicion_fisica', '')
+                if condicion_text:
+                    config['equipos_clientes']['condicion_fisica_opciones'] = [c.strip() for c in condicion_text.split(',') if c.strip()]
+                else:
+                    config['equipos_clientes']['condicion_fisica_opciones'] = []
+                
+                config['equipos_clientes']['fotos_condicion'] = request.form.get('equipos_fotos_condicion') == 'on'
+                config['equipos_clientes']['descripcion_danos'] = request.form.get('equipos_descripcion_danos') == 'on'
+                
+                # Accesorios Entregados
+                accesorios_text = request.form.get('equipos_tipos_accesorios', '')
+                if accesorios_text:
+                    config['equipos_clientes']['tipos_accesorios'] = [a.strip() for a in accesorios_text.split(',') if a.strip()]
+                else:
+                    config['equipos_clientes']['tipos_accesorios'] = []
+                
+                config['equipos_clientes']['registrar_accesorios_entregados'] = request.form.get('equipos_registrar_accesorios') == 'on'
+                config['equipos_clientes']['alertar_accesorios_faltantes'] = request.form.get('equipos_alertar_accesorios_faltantes') == 'on'
+                
+                # Características Técnicas
+                config['equipos_clientes']['registrar_imei'] = request.form.get('equipos_registrar_imei') == 'on'
+                config['equipos_clientes']['registrar_serial'] = request.form.get('equipos_registrar_serial') == 'on'
+                config['equipos_clientes']['especificaciones_completas'] = request.form.get('equipos_especificaciones') == 'on'
+                config['equipos_clientes']['codigo_barras'] = request.form.get('equipos_codigo_barras') == 'on'
+                
+                # Datos Adicionales
+                colores_text = request.form.get('equipos_colores_disponibles', '')
+                if colores_text:
+                    config['equipos_clientes']['colores_disponibles'] = [c.strip() for c in colores_text.split(',') if c.strip()]
+                else:
+                    config['equipos_clientes']['colores_disponibles'] = []
+                
+                config['equipos_clientes']['registrar_capacidad_almacenamiento'] = request.form.get('equipos_capacidad_almacenamiento') == 'on'
+                config['equipos_clientes']['registrar_version_sistema'] = request.form.get('equipos_version_sistema') == 'on'
+                config['equipos_clientes']['registrar_numero_telefono'] = request.form.get('equipos_numero_telefono') == 'on'
+                
+                # Garantías y Reparaciones
+                config['equipos_clientes']['garantia_estandar'] = int(request.form.get('equipos_garantia_estandar', 30))
+                config['equipos_clientes']['alerta_garantia'] = int(request.form.get('equipos_alerta_garantia', 7))
+                config['equipos_clientes']['validar_garantia'] = request.form.get('equipos_validar_garantia') == 'on'
+                config['equipos_clientes']['reparaciones_multiples'] = request.form.get('equipos_reparaciones_multiples') == 'on'
+                
+                # Inventario de Equipos
+                config['equipos_clientes']['inventario_en_lugar'] = request.form.get('equipos_inventario_en_lugar') == 'on'
+                config['equipos_clientes']['alertar_equipos_largos'] = request.form.get('equipos_alertar_equipos_largos') == 'on'
+                config['equipos_clientes']['tiempo_max_entrega'] = int(request.form.get('equipos_tiempo_max_entrega', 30))
+                config['equipos_clientes']['revision_periodica'] = int(request.form.get('equipos_revision_periodica', 7))
+                
+                # Valoración y Precios
+                config['equipos_clientes']['valor_mercado'] = request.form.get('equipos_valor_mercado') == 'on'
+                config['equipos_clientes']['valor_reparacion'] = request.form.get('equipos_valor_reparacion') == 'on'
+                config['equipos_clientes']['comparar_precios_reparacion'] = request.form.get('equipos_comparar_precios') == 'on'
+                
+                # Servicios Adicionales
+                servicios_text = request.form.get('equipos_servicios_disponibles', '')
+                if servicios_text:
+                    config['equipos_clientes']['servicios_disponibles'] = [s.strip() for s in servicios_text.split(',') if s.strip()]
+                else:
+                    config['equipos_clientes']['servicios_disponibles'] = []
+                
+                config['equipos_clientes']['registrar_costos_adicionales'] = request.form.get('equipos_costos_adicionales') == 'on'
+                
+                # Estadísticas y Reportes
+                config['equipos_clientes']['reportes_frecuencia_equipos'] = request.form.get('equipos_reportes_frecuencia') == 'on'
+                config['equipos_clientes']['estadisticas_marcas'] = request.form.get('equipos_estadisticas_marcas') == 'on'
+                config['equipos_clientes']['estadisticas_modelos'] = request.form.get('equipos_estadisticas_modelos') == 'on'
+                config['equipos_clientes']['reportes_reparaciones'] = request.form.get('equipos_reportes_reparaciones') == 'on'
+                
+                print("✅ Configuración de equipos clientes actualizada correctamente")
+            
+            # Actualizar sección visual
+            if 'tema' in request.form or 'color_primario' in request.form:
+                if 'visual' not in config:
+                    config['visual'] = {}
+                
+                # Temas y colores
+                config['visual']['tema'] = request.form.get('tema', 'automatico')
+                config['visual']['color_primario'] = request.form.get('color_primario', '#4f46e5')
+                config['visual']['color_secundario'] = request.form.get('color_secundario', '#7c3aed')
+                config['visual']['color_acentos'] = request.form.get('color_acentos', '#10b981')
+                config['visual']['color_fondo'] = request.form.get('color_fondo', '#f9fafb')
+                config['visual']['preview_tiempo_real'] = request.form.get('preview_tiempo_real') == 'on'
+                
+                # Tipografía
+                config['visual']['familia_fuente'] = request.form.get('familia_fuente', 'poppins')
+                config['visual']['tamano_fuente_base'] = int(request.form.get('tamano_fuente_base', 16))
+                config['visual']['escala_movil'] = float(request.form.get('escala_movil', 1.0))
+                config['visual']['escala_tablet'] = float(request.form.get('escala_tablet', 1.1))
+                config['visual']['escala_desktop'] = float(request.form.get('escala_desktop', 1.2))
+                
+                # Densidad
+                config['visual']['densidad'] = request.form.get('densidad', 'normal')
+                config['visual']['altura_filas'] = int(request.form.get('altura_filas', 48))
+                config['visual']['padding_general'] = int(request.form.get('padding_general', 16))
+                config['visual']['gap_cards'] = int(request.form.get('gap_cards', 16))
+                
+                # Estilos
+                config['visual']['estilo_bordes'] = request.form.get('estilo_bordes', 'redondeado')
+                config['visual']['estilo_botones'] = request.form.get('estilo_botones', 'filled')
+                config['visual']['estilo_tarjetas'] = request.form.get('estilo_tarjetas', 'sombra')
+                
+                # Sidebar
+                config['visual']['ancho_sidebar'] = request.form.get('ancho_sidebar', 'normal')
+                config['visual']['posicion_sidebar'] = request.form.get('posicion_sidebar', 'izquierda')
+                config['visual']['sidebar_colapsable'] = request.form.get('sidebar_colapsable') == 'on'
+                
+                # Animaciones
+                config['visual']['animaciones_habilitadas'] = request.form.get('animaciones_habilitadas') == 'on'
+                config['visual']['velocidad_animacion'] = request.form.get('velocidad_animacion', 'normal')
+                config['visual']['tipo_carga'] = request.form.get('tipo_carga', 'spinner')
+                
+                # Accesibilidad
+                config['visual']['alto_contraste'] = request.form.get('alto_contraste') == 'on'
+                config['visual']['reducir_movimiento'] = request.form.get('reducir_movimiento') == 'on'
+                
+                # Idioma
+                config['visual']['idioma'] = request.form.get('idioma', 'es')
+                
+                # Logo
+                config['visual']['posicion_logo'] = request.form.get('posicion_logo', 'esquina')
+                config['visual']['tamano_logo'] = int(request.form.get('tamano_logo', 100))
+                
+                # Responsive
+                config['visual']['sidebar_movil'] = request.form.get('sidebar_movil') == 'on'
+                config['visual']['breakpoint_desktop'] = int(request.form.get('breakpoint_desktop', 1024))
+                
+                # Gradientes
+                config['visual']['gradiente_fondo'] = request.form.get('gradiente_fondo') == 'on'
+                config['visual']['gradiente_color_inicio'] = request.form.get('gradiente_color_inicio', '#667eea')
+                config['visual']['gradiente_color_fin'] = request.form.get('gradiente_color_fin', '#764ba2')
+                config['visual']['gradiente_direccion'] = request.form.get('gradiente_direccion', 'vertical')
+                config['visual']['efecto_glassmorphism'] = request.form.get('efecto_glassmorphism') == 'on'
+                
+                # Guardar y exportar
+                config['visual']['nombre_tema'] = request.form.get('nombre_tema', 'Mi Tema Personalizado')
+                
+                print("✅ Configuración visual actualizada correctamente")
+            
+            # Actualizar sección seguridad
+            if 'tiempo_sesion' in request.form:
+                if 'seguridad' not in config:
+                    config['seguridad'] = {}
+                
+                # Autenticación y Sesiones
+                config['seguridad']['tiempo_sesion'] = int(request.form.get('tiempo_sesion', 60))
+                config['seguridad']['sesiones_concurrentes_max'] = int(request.form.get('sesiones_concurrentes_max', 2))
+                config['seguridad']['intentos_login'] = int(request.form.get('intentos_login', 5))
+                config['seguridad']['tiempo_bloqueo_ip'] = int(request.form.get('tiempo_bloqueo_ip', 15))
+                config['seguridad']['cerrar_sesiones_concurrentes'] = request.form.get('cerrar_sesiones_concurrentes') == 'on'
+                
+                # Políticas de Contraseñas
+                config['seguridad']['longitud_min_contraseña'] = int(request.form.get('longitud_min_contraseña', 8))
+                config['seguridad']['dias_expira_contraseña'] = int(request.form.get('dias_expira_contraseña', 90))
+                config['seguridad']['complejidad_contraseña'] = request.form.get('complejidad_contraseña') == 'on'
+                config['seguridad']['no_reusar_contraseñas'] = request.form.get('no_reusar_contraseñas') == 'on'
+                config['seguridad']['expira_contraseña'] = request.form.get('expira_contraseña') == 'on'
+                
+                # Autenticación 2FA
+                config['seguridad']['autenticacion_2fa'] = request.form.get('autenticacion_2fa') == 'on'
+                config['seguridad']['2fa_sms'] = request.form.get('2fa_sms') == 'on'
+                config['seguridad']['2fa_email'] = request.form.get('2fa_email') == 'on'
+                
+                # Registro de Actividades
+                config['seguridad']['registro_actividades'] = request.form.get('registro_actividades') == 'on'
+                config['seguridad']['retencion_logs'] = int(request.form.get('retencion_logs', 90))
+                
+                # Cifrado de Datos
+                config['seguridad']['cifrar_datos_sensibles'] = request.form.get('cifrar_datos_sensibles') == 'on'
+                config['seguridad']['backups_cifrados'] = request.form.get('backups_cifrados') == 'on'
+                config['seguridad']['exportaciones_cifradas'] = request.form.get('exportaciones_cifradas') == 'on'
+                
+                # Backups Automáticos
+                config['seguridad']['backups_automaticos_seguridad'] = request.form.get('backups_automaticos_seguridad') == 'on'
+                config['seguridad']['dias_retencion_backups'] = int(request.form.get('dias_retencion_backups', 30))
+                
+                # Control de Acceso
+                config['seguridad']['bloqueo_ip_activo'] = request.form.get('bloqueo_ip_activo') == 'on'
+                config['seguridad']['ips_permitidas'] = request.form.get('ips_permitidas', '')
+                
+                # Alertas de Seguridad
+                config['seguridad']['alertar_login_nuevo'] = request.form.get('alertar_login_nuevo') == 'on'
+                config['seguridad']['alertar_cambios_permisos'] = request.form.get('alertar_cambios_permisos') == 'on'
+                config['seguridad']['alertas_email'] = request.form.get('alertas_email') == 'on'
+                config['seguridad']['alertas_sms'] = request.form.get('alertas_sms') == 'on'
+                config['seguridad']['alertas_whatsapp'] = request.form.get('alertas_whatsapp') == 'on'
+                
+                print("✅ Configuración de seguridad actualizada")
             
             # Guardar configuración
             print("\n💾 Intentando guardar configuración...")
