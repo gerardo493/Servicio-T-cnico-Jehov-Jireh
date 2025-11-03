@@ -1,1 +1,19 @@
-{}
+{
+    "PAGO-20251103033112": {
+        "id": "PAGO-20251103033112",
+        "fecha": "2025-11-03",
+        "cliente": "GERARDO JAIMES",
+        "cliente_id": "cliente_20251026173246",
+        "concepto": "Servicio Técnico - Orden OS-PRUEBA-20251102212749",
+        "metodo_pago": "Punto De Venta",
+        "monto_usd": 140.0,
+        "monto_bs": 31354.4,
+        "tasa_bcv": 223.96,
+        "numero_referencia": "ST-OS-PRUEBA-20251102212749",
+        "orden_servicio": "OS-PRUEBA-20251102212749",
+        "banco": "",
+        "observaciones": "Entrega de equipo: Samsung Galaxy S22",
+        "usuario_registro": "Sistema",
+        "fecha_registro": "2025-11-03 03:31:12"
+    }
+}

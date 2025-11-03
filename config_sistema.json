@@ -1,18 +1,18 @@
 {
     "empresa": {
-        "nombre": "",
-        "rif": "",
-        "direccion": "",
-        "ciudad": "",
-        "estado": "",
+        "nombre": "Servicio Técnico Jehová Jireh",
+        "rif": "J-50225052",
+        "direccion": "Dirección de la empresa",
+        "ciudad": "maracay",
+        "estado": "aragua",
         "pais": "Venezuela",
-        "telefono": "",
-        "whatsapp": "",
-        "email": "",
+        "telefono": "0243-2838262",
+        "whatsapp": "+5804121447869",
+        "email": "gerardojaime72@gmail.com",
         "website": "",
         "instagram": "",
         "descripcion": "",
-        "horario": "administrador",
+        "horario": "",
         "logo_path": "static/logo.png"
     },
     "tasas": {
@@ -20,12 +20,12 @@
         "intervalo_actualizacion": 3600,
         "tasa_usd_defecto": 216.37,
         "tasa_eur_defecto": 235.0,
-        "tasa_actual_usd": 218.17,
-        "tasa_actual_eur": 253.9,
+        "tasa_actual_usd": 223.96,
+        "tasa_actual_eur": 258.15,
         "moneda_sistema": "USD",
         "fuente_tasa": "bcv",
         "notificar_cambios": true,
-        "ultima_actualizacion": "2025-10-28 00:37:37"
+        "ultima_actualizacion": "2025-11-03 03:35:43"
     },
     "notificaciones": {
         "whatsapp_habilitado": true,
@@ -34,7 +34,7 @@
         "email_smtp_server": "smtp.gmail.com",
         "email_smtp_port": 587,
         "email_usuario": "gerardojaime72@gmail.com",
-        "email_password": "Angel1998*",
+        "email_password": "jloh cbub rxag bpti",
         "email_remitente": "gerardojaime72@gmail.com"
     },
     "documentos": {

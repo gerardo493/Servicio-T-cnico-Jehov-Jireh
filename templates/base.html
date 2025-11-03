@@ -19,7 +19,7 @@
             --sidebar-width: 240px;
         }
         body {
-            background-color: #f8f9fa;
+            background: linear-gradient(135deg, #e6e6e9 0%, #f0f0f3 50%, #e6e6e9 100%) !important;
             margin: 0;
             padding: 0;
             min-height: 100vh;
@@ -49,22 +49,45 @@
             left: -220px;
             height: 100vh;
             width: var(--sidebar-width);
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
-            color: #fff;
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
+            color: #2d3748 !important;
             z-index: 1040;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding-top: 2rem;
-            box-shadow: 2px 0 12px rgba(0, 255, 136, 0.2);
-            transition: left 0.35s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff !important;
+            transition: left 0.35s cubic-bezier(.4,2,.6,1), box-shadow 0.3s;
             max-height: 100vh;
             overflow-y: auto;
-            border-right: 3px solid #00ff88;
+            border: none;
+            border-right: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        /* Scrollbar neomórfico para la sidebar */
+        .sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9);
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: linear-gradient(145deg, #d1d9e6, #c5ced8);
+            border-radius: 10px;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(145deg, #667eea, #764ba2);
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
         }
         .sidebar.visible {
             left: 0;
-            box-shadow: 2px 0 16px rgba(0,0,0,0.18);
+            box-shadow: 
+                25px 25px 70px #d1d9e6,
+                -25px -25px 70px #ffffff !important;
         }
         .sidebar-tab {
             position: fixed;
@@ -73,72 +96,117 @@
             transform: translateY(-50%);
             width: 32px;
             height: 90px;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
-            color: #00ff88;
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
+            color: #667eea !important;
             border-radius: 0 20px 20px 0;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1050;
             cursor: pointer;
-            box-shadow: 2px 0 8px rgba(0, 255, 136, 0.2);
-            border: 2px solid #00ff88;
+            box-shadow: 
+                8px 8px 20px #d1d9e6,
+                -8px -8px 20px #ffffff !important;
+            border: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-tab:hover {
+            box-shadow: 
+                12px 12px 25px #d1d9e6,
+                -12px -12px 25px #ffffff !important;
+            transform: translateY(-50%) translateX(3px);
+            color: #764ba2 !important;
+        }
+        .sidebar-tab:active {
+            box-shadow: 
+                4px 4px 10px #d1d9e6,
+                -4px -4px 10px #ffffff !important;
+            transform: translateY(-50%) translateX(1px);
         }
         .sidebar-tab i {
             font-size: 1.5rem;
         }
-        .sidebar .logo {
-            width: 80px;
+        .logo-container {
             margin-bottom: 2rem;
-            transition: transform 0.3s;
+        }
+        .logo-container img {
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
+            box-shadow: 
+                12px 12px 30px #d1d9e6,
+                -12px -12px 30px #ffffff !important;
+            border: none !important;
         }
         .logo-container img:hover {
-            transform: scale(1.1) rotate(5deg);
-            box-shadow: 0 15px 40px rgba(26,35,126,0.4), 0 8px 20px rgba(0,0,0,0.15);
+            transform: scale(1.08) rotate(5deg);
+            box-shadow: 
+                15px 15px 40px #d1d9e6,
+                -15px -15px 40px #ffffff !important;
         }
         .sidebar .nav {
             width: 100%;
         }
         .sidebar .nav-link {
-            color: #fff;
-            font-size: 1.15rem;
-            font-weight: 500;
-            padding: 1rem 2rem;
+            color: #4a5568 !important;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 1rem 1.5rem;
             display: flex;
             align-items: center;
-            border-radius: 30px 0 0 30px;
-            margin-bottom: 0.5rem;
-            transition: background 0.2s, color 0.2s, transform 0.2s;
+            border-radius: 20px;
+            margin: 0.5rem 1rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
+            box-shadow: 
+                6px 6px 15px #d1d9e6,
+                -6px -6px 15px #ffffff !important;
+            border: none;
         }
         .sidebar .nav-link .fa {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             margin-right: 1rem;
-            transition: transform 0.3s, color 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #667eea;
+            width: 24px;
+            text-align: center;
         }
         .sidebar .nav-link.active, .sidebar .nav-link:hover {
-            background: linear-gradient(90deg, #00ff88 60%, #00cc6a 100%);
-            color: #1a1a1a;
-            transform: translateX(8px) scale(1.04);
-            box-shadow: 2px 4px 16px rgba(0, 255, 136, 0.3);
+            background: linear-gradient(145deg, #667eea, #764ba2) !important;
+            color: #ffffff !important;
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 
+                8px 8px 20px rgba(102, 126, 234, 0.3),
+                -8px -8px 20px rgba(118, 75, 162, 0.3) !important;
         }
         .sidebar .nav-link.active .fa, .sidebar .nav-link:hover .fa {
-            color: #1a1a1a;
-            transform: scale(1.2) rotate(-10deg);
-            filter: drop-shadow(0 0 6px rgba(26, 26, 26, 0.5));
+            color: #ffffff !important;
+            transform: scale(1.15) rotate(-5deg);
         }
         .sidebar .logout {
             margin-top: auto;
             margin-bottom: 2rem;
             width: 100%;
+            padding: 0 1rem;
         }
         .sidebar .logout .nav-link {
-            color: #ff5252;
-            background: none;
+            color: #ef4444 !important;
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
+            box-shadow: 
+                6px 6px 15px #d1d9e6,
+                -6px -6px 15px #ffffff !important;
+        }
+        .sidebar .logout .nav-link .fa {
+            color: #ef4444 !important;
         }
         .sidebar .logout .nav-link:hover {
-            background: linear-gradient(90deg, #b71c1c 60%, #ff5252 100%);
-            color: #fff;
+            background: linear-gradient(145deg, #ef4444, #dc2626) !important;
+            color: #ffffff !important;
+            box-shadow: 
+                8px 8px 20px rgba(239, 68, 68, 0.3),
+                -8px -8px 20px rgba(220, 38, 38, 0.3) !important;
+        }
+        .sidebar .logout .nav-link:hover .fa {
+            color: #ffffff !important;
         }
         .main-content {
             margin-left: 0;
@@ -173,6 +241,18 @@
                 font-size: 2rem;
                 justify-content: center;
                 align-items: center;
+                box-shadow: 
+                    8px 8px 20px #d1d9e6,
+                    -8px -8px 20px #ffffff !important;
+            }
+            .sidebar-tab:hover {
+                transform: scale(1.05);
+            }
+            .sidebar-tab:active {
+                transform: scale(0.95);
+                box-shadow: 
+                    4px 4px 10px #d1d9e6,
+                    -4px -4px 10px #ffffff !important;
             }
         }
         .sidebar-toggle {
@@ -180,19 +260,39 @@
             top: 20px;
             left: 20px;
             z-index: 1100;
-            background: #fff;
+            background: linear-gradient(145deg, #f0f0f3, #e6e6e9) !important;
             border: none;
             border-radius: 50%;
             width: 48px;
             height: 48px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 
+                8px 8px 20px #d1d9e6,
+                -8px -8px 20px #ffffff !important;
             display: none;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .sidebar-toggle:hover {
+            box-shadow: 
+                10px 10px 25px #d1d9e6,
+                -10px -10px 25px #ffffff !important;
+            transform: scale(1.05);
+        }
+        .sidebar-toggle:active {
+            box-shadow: 
+                4px 4px 10px #d1d9e6,
+                -4px -4px 10px #ffffff !important;
+            transform: scale(0.98);
         }
         .sidebar-toggle .fa-bars {
             font-size: 1.7rem;
-            color: var(--primary-color);
+            color: #667eea;
+            transition: color 0.3s;
+        }
+        .sidebar-toggle:hover .fa-bars {
+            color: #764ba2;
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -201,22 +301,19 @@
     <div class="sidebar-tab" id="sidebarTab" title="Mostrar menú"><i class="fas fa-angle-right"></i></div>
     <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
     <aside class="sidebar" id="sidebar">
-        <div class="logo-container" style="text-align: center; margin-bottom: 1.5rem;">
+        <div class="logo-container" style="text-align: center;">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo Empresa" style="
                 width: 120px; 
                 height: 120px; 
                 border-radius: 50%; 
-                box-shadow: 0 10px 30px rgba(26,35,126,0.3), 0 4px 15px rgba(0,0,0,0.1); 
                 object-fit: cover;
-                background: transparent;
-                border: none;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
                 cursor: pointer;">
         </div>
-        <div style="color:#fff; font-weight:700; font-size:1.2rem; margin-bottom:0.5rem; text-align:center; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        <div style="color:#2d3748; font-weight:700; font-size:1.2rem; margin-bottom:0.5rem; text-align:center; text-shadow: 0 2px 4px rgba(255,255,255,0.8);">
             {{ empresa.nombre.split(' - ')[0] if empresa and empresa.nombre else 'TECNICEL' }}
         </div>
-        <div style="color:#b8c1ec; font-weight:500; font-size:0.9rem; margin-bottom:2rem; text-align:center; word-break:break-word;">
+        <div style="color:#667eea; font-weight:600; font-size:0.9rem; margin-bottom:2rem; text-align:center; word-break:break-word;">
             {{ session['usuario'] }}
         </div>
         <nav class="nav flex-column">

@@ -264,7 +264,6 @@
                 <div class="config-tab" onclick="mostrarTab('tasas')"><i class="fas fa-exchange-alt"></i> Tasas</div>
                 <div class="config-tab" onclick="mostrarTab('notificaciones')"><i class="fas fa-bell"></i> Notificaciones</div>
                 <div class="config-tab" onclick="mostrarTab('alertas')"><i class="fas fa-exclamation-triangle"></i> Alertas</div>
-                <div class="config-tab" onclick="mostrarTab('impresion')"><i class="fas fa-print"></i> Impresión</div>
                 <div class="config-tab" onclick="mostrarTab('estados')"><i class="fas fa-tasks"></i> Estados</div>
                 <div class="config-tab" onclick="mostrarTab('pagos')"><i class="fas fa-money-bill-wave"></i> Pagos</div>
                 <div class="config-tab" onclick="mostrarTab('categorias')"><i class="fas fa-tags"></i> Categorías</div>
@@ -806,6 +805,17 @@
                         <small class="text-muted">Haz clic para generar un reporte y obtener el enlace de WhatsApp para enviarlo.</small>
                     </div>
                     
+                    <div class="alert alert-warning mt-4" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem;">
+                        <i class="fas fa-paper-plane"></i> 
+                        <strong>Enviar Alertas Manualmente:</strong>
+                        <br><br>
+                        <button type="button" class="btn btn-warning btn-sm me-2" onclick="enviarAlertasManual()" id="btnEnviarAlertas">
+                            <i class="fas fa-bell me-1"></i> Enviar Alertas Ahora
+                        </button>
+                        <br><br>
+                        <small class="text-muted">Envía las alertas activas por el canal configurado (Email/WhatsApp). El envío automático se ejecuta según el horario configurado.</small>
+                    </div>
+                    
                     <h5 class="mb-3 mt-4"><i class="fas fa-cog section-icon"></i> Configuración de Alertas</h5>
                     <div class="neo-form-group">
                         <label class="neo-label">
@@ -825,70 +835,6 @@
                         </label>
                         <input type="time" name="horario_alertas" class="neo-input" value="{{ config.get('alertas', {}).get('horario_alertas', '08:00') }}">
                         <small class="help-text">Hora del día para enviar las alertas no urgentes</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- IMPRESIÓN -->
-            <div id="tab-impresion" class="config-tab-content">
-                <div class="neo-card-config">
-                    <h3><i class="fas fa-print me-2"></i>Configuración de Impresión</h3>
-                    <div class="neo-checkbox">
-                        <input type="checkbox" name="logo_personalizado" id="logo_personalizado" {% if config.get('impresion', {}).get('logo_personalizado', False) %}checked{% endif %}>
-                        <label for="logo_personalizado">Logo Personalizado</label>
-                    </div>
-                    <div class="neo-checkbox">
-                        <input type="checkbox" name="encabezados_personalizables" id="encabezados_personalizables" {% if config.get('impresion', {}).get('encabezados_personalizables', False) %}checked{% endif %}>
-                        <label for="encabezados_personalizables">Encabezados Personalizables</label>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Margen Superior (mm)</label>
-                                <input type="number" name="margen_superior" class="neo-input" value="{{ config.get('impresion', {}).get('margen_superior', '20') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Margen Inferior (mm)</label>
-                                <input type="number" name="margen_inferior" class="neo-input" value="{{ config.get('impresion', {}).get('margen_inferior', '20') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Margen Izquierdo (mm)</label>
-                                <input type="number" name="margen_izquierdo" class="neo-input" value="{{ config.get('impresion', {}).get('margen_izquierdo', '15') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Margen Derecho (mm)</label>
-                                <input type="number" name="margen_derecho" class="neo-input" value="{{ config.get('impresion', {}).get('margen_derecho', '15') }}">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Orientación</label>
-                                <select name="orientacion" class="neo-input">
-                                    <option value="vertical" {% if config.get('impresion', {}).get('orientacion', 'vertical') == 'vertical' %}selected{% endif %}>Vertical</option>
-                                    <option value="horizontal" {% if config.get('impresion', {}).get('orientacion') == 'horizontal' %}selected{% endif %}>Horizontal</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Tamaño Fuente</label>
-                                <input type="number" name="tamano_fuente" class="neo-input" value="{{ config.get('impresion', {}).get('tamano_fuente', '12') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="neo-form-group">
-                                <label class="neo-label">Color Texto</label>
-                                <input type="color" name="color_texto" class="neo-input" value="{{ config.get('impresion', {}).get('color_texto', '#000000') }}">
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -3977,6 +3923,59 @@ function filtrarTabs(searchText) {
 }
 
 // Función para generar y enviar reportes
+function enviarAlertasManual() {
+    const btn = document.getElementById('btnEnviarAlertas');
+    if (!btn) return;
+    
+    const textoOriginal = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Enviando...';
+    btn.disabled = true;
+    
+    fetch('/api/alertas/enviar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        // Verificar si la respuesta es JSON válido
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            return response.json();
+        } else {
+            return response.text().then(text => {
+                console.error('Respuesta no JSON:', text);
+                throw new Error('El servidor devolvió una respuesta no válida. Verifique que está autenticado.');
+            });
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            let mensaje = '✅ ' + data.mensaje;
+            if (data.canales && data.canales.enlace_whatsapp) {
+                mensaje += '\n\n📱 Enlace WhatsApp: ' + data.canales.enlace_whatsapp;
+                // Mostrar modal con enlace
+                alert(mensaje + '\n\nHaz clic en OK para abrir WhatsApp, o copia el enlace manualmente.');
+                if (confirm('¿Deseas abrir WhatsApp ahora?')) {
+                    window.open(data.canales.enlace_whatsapp, '_blank');
+                }
+            } else {
+                alert(mensaje);
+            }
+        } else {
+            alert('❌ Error: ' + (data.error || 'No se pudieron enviar las alertas'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Error al enviar alertas: ' + error.message);
+    })
+    .finally(() => {
+        btn.innerHTML = textoOriginal;
+        btn.disabled = false;
+    });
+}
+
 function generarYEnviarReporte(tipo) {
     const btn = event.target.closest('button');
     const textoOriginal = btn.innerHTML;
@@ -3989,11 +3988,36 @@ function generarYEnviarReporte(tipo) {
             'Content-Type': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        // Verificar si la respuesta es JSON válido
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            return response.json();
+        } else {
+            return response.text().then(text => {
+                console.error('Respuesta no JSON:', text);
+                throw new Error('El servidor devolvió una respuesta no válida. Verifique que está autenticado.');
+            });
+        }
+    })
     .then(data => {
         if (data.success) {
-            // Mostrar modal con el enlace de WhatsApp
-            mostrarModalReporte(data.mensaje, tipo);
+            // Si hay enlace WhatsApp, extraer el mensaje del enlace
+            if (data.tipo === 'whatsapp' && data.enlace) {
+                try {
+                    // Extraer el mensaje del enlace de WhatsApp
+                    const url = new URL(data.enlace);
+                    const mensajeCodificado = url.searchParams.get('text');
+                    const mensajeDecodificado = mensajeCodificado ? decodeURIComponent(mensajeCodificado) : '';
+                    mostrarModalReporte(mensajeDecodificado || data.enlace, tipo, data.enlace);
+                } catch (e) {
+                    // Si no se puede parsear, mostrar el enlace completo
+                    mostrarModalReporte(data.enlace, tipo, data.enlace);
+                }
+            } else {
+                // Mostrar mensaje de texto
+                mostrarModalReporte(data.mensaje, tipo);
+            }
             btn.innerHTML = '<i class="fas fa-check me-1"></i> Listo';
             setTimeout(() => {
                 btn.innerHTML = textoOriginal;
@@ -4013,7 +4037,11 @@ function generarYEnviarReporte(tipo) {
     });
 }
 
-function mostrarModalReporte(mensaje, tipo) {
+function mostrarModalReporte(mensaje, tipo, enlaceWhatsApp = null) {
+    // Escapar el mensaje para HTML
+    const mensajeEscapado = mensaje.trim().replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\${/g, '\\${');
+    const tieneEnlaceWhatsApp = enlaceWhatsApp && enlaceWhatsApp.startsWith('https://wa.me/');
+    
     // Crear modal dinámico
     const modalHTML = `
         <div class="modal fade" id="modalReporte" tabindex="-1">
@@ -4029,23 +4057,36 @@ function mostrarModalReporte(mensaje, tipo) {
                         <div class="alert alert-info">
                             <i class="fab fa-whatsapp me-2"></i>
                             <strong>Mensaje Listo para Enviar:</strong>
-                            <pre style="background: #f8f9fa; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; overflow-x: auto;">${mensaje.trim()}</pre>
+                            <pre style="background: #f8f9fa; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; overflow-x: auto; white-space: pre-wrap;">${mensajeEscapado}</pre>
                         </div>
                         <div class="text-center mt-4">
                             <p class="text-muted mb-3">
-                                Para enviar por WhatsApp, usa uno de estos métodos:
+                                ${tieneEnlaceWhatsApp ? 'Haz clic en el botón para abrir WhatsApp con el mensaje prellenado:' : 'Para enviar por WhatsApp, usa uno de estos métodos:'}
                             </p>
                             <div class="row">
+                                ${tieneEnlaceWhatsApp ? `
                                 <div class="col-md-6 mb-3">
-                                    <button class="btn btn-outline-primary w-100" onclick="abrirWhatsAppWeb('${mensaje.trim()}')">
+                                    <button class="btn btn-success w-100" onclick="window.open('${enlaceWhatsApp}', '_blank')">
+                                        <i class="fab fa-whatsapp me-2"></i>Abrir WhatsApp
+                                    </button>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <button class="btn btn-outline-success w-100" onclick="copiarMensaje(\`${mensajeEscapado.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`)">
+                                        <i class="fas fa-copy me-2"></i>Copiar Mensaje
+                                    </button>
+                                </div>
+                                ` : `
+                                <div class="col-md-6 mb-3">
+                                    <button class="btn btn-outline-primary w-100" onclick="abrirWhatsAppWeb(\`${mensajeEscapado.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`)">
                                         <i class="fab fa-whatsapp me-2"></i>Abrir WhatsApp Web
                                     </button>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <button class="btn btn-outline-success w-100" onclick="copiarMensaje('${mensaje.trim().replace(/'/g, "\\'")}')">
+                                    <button class="btn btn-outline-success w-100" onclick="copiarMensaje(\`${mensajeEscapado.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`)">
                                         <i class="fas fa-copy me-2"></i>Copiar Mensaje
                                     </button>
                                 </div>
+                                `}
                             </div>
                         </div>
                     </div>
@@ -4077,6 +4118,12 @@ function mostrarModalReporte(mensaje, tipo) {
 }
 
 function abrirWhatsAppWeb(mensaje) {
+    // Si ya es un enlace de WhatsApp, abrirlo directamente
+    if (mensaje && mensaje.startsWith('https://wa.me/')) {
+        window.open(mensaje, '_blank');
+        return;
+    }
+    
     // Obtener número de WhatsApp de la empresa
     fetch('/api/configuracion')
         .then(response => response.json())

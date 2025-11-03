@@ -81,6 +81,49 @@
             inset -6px -6px 12px #ffffff;
     }
 
+    .neo-input[type="text"],
+    .neo-input[type="number"],
+    .neo-input[type="email"],
+    .neo-input[type="tel"] {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+    }
+
+    select.neo-input {
+        background: #f0f0f3;
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        box-shadow: 
+            inset 4px 4px 8px #d1d9e6,
+            inset -4px -4px 8px #ffffff;
+        color: #2d3748;
+        font-size: 0.9rem;
+        cursor: pointer;
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232d3748' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+
+    select.neo-input:focus {
+        outline: none;
+        box-shadow: 
+            inset 6px 6px 12px #d1d9e6,
+            inset -6px -6px 12px #ffffff;
+    }
+
+    select.neo-input option {
+        background: #f0f0f3;
+        color: #2d3748;
+        padding: 0.5rem;
+    }
+
     .neo-select {
         background: #f0f0f3;
         border: none;
@@ -394,9 +437,28 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Proveedor</label>
-                            <input type="text" name="proveedor" class="neo-input" 
-                                   value="{{ producto.proveedor if producto else '' }}" 
-                                   placeholder="Nombre del proveedor">
+                            <select name="proveedor" class="neo-input" id="proveedor-select">
+                                <option value="">Seleccionar proveedor</option>
+                                {% if proveedores %}
+                                {% for id_prov, prov in proveedores.items() %}
+                                <option value="{{ prov.nombre }}" 
+                                        {% if producto and producto.proveedor == prov.nombre %}selected{% endif %}>
+                                    {{ prov.nombre }}{% if prov.razon_social %} - {{ prov.razon_social }}{% endif %}
+                                </option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                            {% if not proveedores %}
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-info-circle"></i> No hay proveedores registrados. 
+                                <a href="{{ url_for('nuevo_proveedor') }}" class="text-primary">Crear proveedor</a>
+                            </small>
+                            {% else %}
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-info-circle"></i> 
+                                <a href="{{ url_for('nuevo_proveedor') }}" class="text-primary">Agregar nuevo proveedor</a>
+                            </small>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

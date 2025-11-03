@@ -510,20 +510,31 @@
                     <tbody>
                         {% for orden in cliente.get('ordenes', []) %}
                         <tr>
-                            <td>{{ orden.get('numero_orden', 'N/A') }}</td>
-                            <td>{{ orden.get('equipo', {}).get('marca', 'N/A') }} {{ orden.get('equipo', {}).get('modelo', 'N/A') }}</td>
+                            <td>{{ orden.get('numero_orden', orden.get('id', 'N/A')) }}</td>
                             <td>
+                                {% if orden.get('equipo') %}
+                                    {% if orden.equipo is mapping %}
+                                        {{ orden.equipo.get('marca', '') }} {{ orden.equipo.get('modelo', '') }}
+                                    {% else %}
+                                        {{ orden.equipo }}
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set estado = orden.get('estado', 'N/A') %}
                                 <span class="neo-badge 
-                                    {% if orden.get('estado') == 'completado' %}neo-badge-success
-                                    {% elif orden.get('estado') == 'en_proceso' %}neo-badge-warning
-                                    {% elif orden.get('estado') == 'cancelado' %}neo-badge-danger
+                                    {% if estado in ['entregado', 'completado'] %}neo-badge-success
+                                    {% elif estado in ['en_reparacion', 'en_diagnostico', 'en_proceso', 'aprobado_por_cliente'] %}neo-badge-warning
+                                    {% elif estado in ['cancelado', 'rechazado'] %}neo-badge-danger
                                     {% else %}neo-badge-info{% endif %}">
-                                    {{ orden.get('estado', 'N/A')|title }}
+                                    {{ estado.replace('_', ' ')|title }}
                                 </span>
                             </td>
-                            <td>{{ orden.get('fecha_creacion', 'N/A')[:10] }}</td>
+                            <td>{{ orden.get('fecha_recepcion', orden.get('fecha_creacion', 'N/A'))[:10] if orden.get('fecha_recepcion') or orden.get('fecha_creacion') else 'N/A' }}</td>
                             <td>
-                                <a href="/servicio-tecnico/{{ orden.get('id') }}" class="btn btn-sm neo-button">
+                                <a href="/servicio-tecnico/orden/{{ orden.get('id', '') }}" class="btn btn-sm neo-button" title="Ver detalles">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </td>
@@ -570,22 +581,27 @@
                     <tbody>
                         {% for nota in cliente.get('notas', []) %}
                         <tr>
-                            <td>{{ nota.get('numero_nota', 'N/A') }}</td>
-                            <td>{{ nota.get('fecha', 'N/A')[:10] }}</td>
-                            <td>{{ nota.get('total_usd', 0)|format_currency }}</td>
+                            <td>{{ nota.get('numero_nota', nota.get('numero', 'N/A')) }}</td>
+                            <td>{{ nota.get('fecha', nota.get('fecha_creacion', 'N/A'))[:10] if nota.get('fecha') or nota.get('fecha_creacion') else 'N/A' }}</td>
+                            <td>${{ "%.2f"|format(nota.get('total_usd', nota.get('total', 0))) }}</td>
                             <td>
+                                {% set estado_nota = nota.get('estado', 'pendiente') %}
                                 <span class="neo-badge 
-                                    {% if nota.get('estado') == 'pagado' %}neo-badge-success
-                                    {% elif nota.get('estado') == 'pendiente' %}neo-badge-warning
-                                    {% elif nota.get('estado') == 'cancelado' %}neo-badge-danger
+                                    {% if estado_nota == 'pagado' or nota.get('total_abonado', 0) >= nota.get('total_usd', nota.get('total', 0)) %}neo-badge-success
+                                    {% elif estado_nota == 'pendiente' %}neo-badge-warning
+                                    {% elif estado_nota == 'cancelado' %}neo-badge-danger
                                     {% else %}neo-badge-info{% endif %}">
-                                    {{ nota.get('estado', 'N/A')|title }}
+                                    {{ estado_nota|title }}
                                 </span>
                             </td>
                             <td>
-                                <!-- Módulo de Notas de Entrega eliminado -->
+                                {% if nota.get('id') %}
+                                <a href="/notas-entrega/{{ nota.get('id') }}" class="btn btn-sm neo-button" title="Ver detalles">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% else %}

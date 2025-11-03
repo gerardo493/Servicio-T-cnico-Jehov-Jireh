@@ -749,9 +749,12 @@
                 <h1 class="neo-title">
                     <i class="fas fa-tools neo-icon me-3"></i>Servicio Técnico
                 </h1>
-                <div>
+                <div class="d-flex gap-2">
                     <a href="/servicio-tecnico/nueva-orden" class="btn neo-button neo-button-primary">
                         <i class="fas fa-plus me-2"></i>Nueva Orden
+                    </a>
+                    <a href="/servicio-tecnico/crear-orden-prueba" class="btn neo-button" style="background: #f59e0b; color: white;" title="Crear orden de prueba con diagnóstico y repuestos">
+                        <i class="fas fa-flask me-2"></i>Orden de Prueba
                     </a>
                 </div>
             </div>
@@ -900,12 +903,9 @@
                         <a href="/servicio-tecnico/nueva-orden" class="btn neo-button neo-button-primary" title="Crear nueva orden">
                             <i class="fas fa-plus me-1"></i>Nueva Orden
                         </a>
-                        <button class="btn neo-button" onclick="guardarFiltros()" title="Guardar filtros actuales">
-                            <i class="fas fa-save me-1"></i>Guardar
-                        </button>
-                        <button class="btn neo-button" onclick="cargarFiltros()" title="Cargar filtros guardados">
-                            <i class="fas fa-upload me-1"></i>Cargar
-                        </button>
+                        <a href="/servicio-tecnico/crear-orden-prueba" class="btn neo-button" style="background: #f59e0b; color: white;" title="Crear orden de prueba con diagnóstico y repuestos para testing">
+                            <i class="fas fa-flask me-1"></i>Orden Prueba
+                        </a>
                         <button class="btn neo-button" onclick="exportarResultados()" title="Exportar resultados">
                             <i class="fas fa-download me-1"></i>Exportar
                         </button>
@@ -1001,11 +1001,8 @@
                         </select>
                     </div>
                     <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn neo-button me-2" onclick="limpiarFiltros()">
+                        <button class="btn neo-button" onclick="limpiarFiltros()">
                             <i class="fas fa-times me-1"></i>Limpiar
-                        </button>
-                        <button class="btn neo-button" onclick="toggleModoOscuro()" title="Alternar modo oscuro">
-                            <i class="fas fa-moon me-1"></i>Modo Oscuro
                         </button>
                     </div>
                 </div>
@@ -1066,6 +1063,7 @@
                             <tbody id="tabla-ordenes">
                                 {% if ordenes %}
                                     {% for orden_id, orden in ordenes.items() %}
+                                    {% if not orden.get('es_borrador', False) %}
                                     <tr class="orden-row" data-estado="{{ orden.estado }}" data-prioridad="{{ orden.get('prioridad', 'media') }}" data-dispositivo="{{ orden.equipo.get('tipo', 'telefono') }}" data-orden-id="{{ orden_id }}">
                                         <td>
                                             <div class="d-flex align-items-center">
@@ -1187,8 +1185,11 @@
                                         </td>
                                         <td>
                                             <div class="btn-group" role="group">
-                                                <button class="btn neo-button btn-sm" onclick="verDetalles('{{ orden_id }}')" 
-                                                        data-bs-toggle="tooltip" title="Ver detalles completos">
+                                                <button class="btn neo-button btn-sm" 
+                                                        onclick="verDetalles(this.getAttribute('data-orden-id') || '{{ orden_id }}')" 
+                                                        data-bs-toggle="tooltip" 
+                                                        title="Ver detalles completos"
+                                                        data-orden-id="{{ orden_id }}">
                                                     <i class="fas fa-eye"></i>
                                                 </button>
                                                 <button class="btn neo-button btn-sm" onclick="editarOrden('{{ orden_id }}')" 
@@ -1218,6 +1219,7 @@
                                             </div>
                                         </td>
                                     </tr>
+                                    {% endif %}
                                     {% endfor %}
                                 {% else %}
                                     <tr>
@@ -1604,8 +1606,37 @@
 
     // Funciones de acciones
     function verDetalles(ordenId) {
+        // Si el ordenId viene vacío o no es válido, intentar obtenerlo del evento
+        if (!ordenId || ordenId.trim() === '') {
+            console.error('Error: ordenId vacío, intentando obtener del evento');
+            // Intentar obtener del elemento que disparó el evento
+            const event = window.event;
+            if (event && event.currentTarget) {
+                const btn = event.currentTarget;
+                ordenId = btn.getAttribute('data-orden-id') || btn.closest('tr')?.getAttribute('data-orden-id');
+            }
+        }
+        
+        // Validar que el ordenId exista
+        if (!ordenId || ordenId.trim() === '') {
+            console.error('Error: ordenId vacío o inválido después de intentos');
+            mostrarNotificacion('Error: ID de orden inválido', 'danger');
+            return;
+        }
+        
+        // Limpiar el ID de espacios
+        ordenId = ordenId.trim();
+        
+        // Los guiones son caracteres válidos en URLs, Flask los maneja correctamente
+        // Solo codificamos si hay caracteres especiales problemáticos
+        // Verificar si el ID contiene caracteres que necesiten codificación (excluyendo guiones y puntos)
+        const necesitaCodificacion = /[^a-zA-Z0-9\-_\.]/.test(ordenId);
+        const ordenIdFinal = necesitaCodificacion ? encodeURIComponent(ordenId) : ordenId;
+        
+        console.log('DEBUG: Redirigiendo a orden:', ordenId, 'Final:', ordenIdFinal);
+        
         // Redirigir a la página de detalles de la orden
-        window.location.href = `/servicio-tecnico/orden/${ordenId}`;
+        window.location.href = `/servicio-tecnico/orden/${ordenIdFinal}`;
     }
 
     function editarOrden(ordenId) {
@@ -1673,22 +1704,96 @@ function entregaOrden(ordenId) {
             return;
         }
         
+        // Verificar que el campo orden-id-tecnico existe
+        const ordenIdInput = document.getElementById('orden-id-tecnico');
+        if (!ordenIdInput) {
+            console.error('Campo orden-id-tecnico no encontrado');
+            alert('Error: Formulario no encontrado');
+            return;
+        }
+        
         // Configurar el formulario
-        document.getElementById('orden-id-tecnico').value = ordenId;
+        ordenIdInput.value = ordenId;
+        
+        // Limpiar formulario pero mantener el orden ID
+        const form = document.getElementById('formAsignarTecnico');
+        if (form) {
+        // Limpiar campos primero
+        const nombreInput = document.getElementById('tecnico-nombre');
+        const especialidadInput = document.getElementById('tecnico-especialidad');
+        const telefonoInput = document.getElementById('tecnico-telefono');
+        const emailInput = document.getElementById('tecnico-email');
+        const observacionesInput = document.getElementById('tecnico-observaciones');
+        const buscarTecnicoInputTab = document.getElementById('buscar-tecnico-modal-tab');
+        const infoTecnicoSeleccionado = document.getElementById('info-tecnico-seleccionado');
+        const infoTecnicoSeleccionadoTab = document.getElementById('info-tecnico-seleccionado-tab');
+        
+        // Limpiar campos explícitamente
+        if (nombreInput) nombreInput.value = '';
+        if (especialidadInput) especialidadInput.value = '';
+        if (telefonoInput) telefonoInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (observacionesInput) observacionesInput.value = '';
+        if (buscarTecnicoInputTab) buscarTecnicoInputTab.value = '';
+        if (infoTecnicoSeleccionado) infoTecnicoSeleccionado.style.display = 'none';
+        if (infoTecnicoSeleccionadoTab) infoTecnicoSeleccionadoTab.style.display = 'none';
+        
+        // Limpiar técnico seleccionado
+        tecnicoSeleccionado = null;
+        
+        // Asegurar que el orden ID se mantenga
+        ordenIdInput.value = ordenId;
+        }
+        
+        // Resetear pestañas al abrir el modal
+        const primeraPestaña = document.getElementById('tab-detalles-tecnico');
+        if (primeraPestaña) {
+            // Usar Bootstrap tab API para activar la pestaña
+            const tab = new bootstrap.Tab(primeraPestaña);
+            tab.show();
+        }
+        
+        // Agregar listener para cuando se active la pestaña de técnicos
+        const pestañaTecnicos = document.getElementById('tab-seleccionar-tecnico');
+        if (pestañaTecnicos) {
+            pestañaTecnicos.addEventListener('shown.bs.tab', function () {
+                // Cargar todos los técnicos cuando se active la pestaña
+                cargarListaTecnicosTab();
+            });
+        }
         
         // Cargar información de la orden
         cargarInfoOrdenModal(ordenId);
         
-        // Limpiar formulario
-        document.getElementById('formAsignarTecnico').reset();
-        document.getElementById('orden-id-tecnico').value = ordenId;
+        // No cargar aquí, se carga cuando se abre la pestaña "Seleccionar Técnico"
         
-        // Crear y mostrar el modal
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: true,
-            keyboard: true,
-            focus: true
-        });
+        // Precargar datos del técnico si ya existe uno asignado
+        // Esto se ejecutará después de limpiar los campos
+        setTimeout(() => {
+            precargarDatosTecnico(ordenId);
+        }, 100);
+        
+        // Crear o obtener instancia del modal
+        let modal;
+        const existingModal = bootstrap.Modal.getInstance(modalElement);
+        if (existingModal) {
+            modal = existingModal;
+        } else {
+            modal = new bootstrap.Modal(modalElement, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+        }
+        
+        // Agregar listener para cuando el modal se muestre completamente
+        modalElement.addEventListener('shown.bs.modal', function () {
+            // Enfocar el primer campo del formulario
+            const nombreInput = document.getElementById('tecnico-nombre');
+            if (nombreInput) {
+                nombreInput.focus();
+            }
+        }, { once: true });
         
         console.log('DEBUG: Mostrando modal');
         modal.show();
@@ -1828,24 +1933,29 @@ function entregaOrden(ordenId) {
         });
     }
 
-    function mostrarNotificacion(mensaje, tipo = 'info') {
+    function mostrarNotificacion(mensaje, tipo = 'info', duracion = 3000) {
         // Crear notificación
         const notificacion = document.createElement('div');
         notificacion.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
-        notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
         notificacion.innerHTML = `
             ${mensaje}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="this.parentElement.remove()"></button>
         `;
         
         document.body.appendChild(notificacion);
         
-        // Auto-remover después de 3 segundos
+        // Auto-remover después del tiempo especificado
         setTimeout(() => {
-            if (notificacion.parentNode) {
-                notificacion.remove();
+            if (notificacion && notificacion.parentNode) {
+                notificacion.classList.remove('show');
+                setTimeout(() => {
+                    if (notificacion.parentNode) {
+                        notificacion.parentNode.removeChild(notificacion);
+                    }
+                }, 300);
             }
-        }, 3000);
+        }, duracion);
     }
 
     // Funciones básicas del servicio técnico (mantener compatibilidad)
@@ -1914,11 +2024,32 @@ function guardarAsignacionTecnico() {
     
     if (!tecnicoNombre.trim()) {
         alert('El nombre del técnico es requerido');
+        document.getElementById('tecnico-nombre').focus();
         return;
+    }
+    
+    if (!ordenId) {
+        alert('Error: No se encontró el ID de la orden');
+        console.error('Orden ID no encontrado');
+        return;
+    }
+    
+    // Validar formato de email si se proporciona
+    if (tecnicoEmail && tecnicoEmail.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(tecnicoEmail.trim())) {
+            alert('Por favor ingrese un email válido');
+            document.getElementById('tecnico-email').focus();
+            return;
+        }
     }
     
     // Mostrar loading
     const btnGuardar = document.querySelector('#modalAsignarTecnico .btn-primary');
+    if (!btnGuardar) {
+        alert('Error: No se encontró el botón de guardar');
+        return;
+    }
     const textoOriginal = btnGuardar.innerHTML;
     btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Asignando...';
     btnGuardar.disabled = true;
@@ -1947,24 +2078,53 @@ function guardarAsignacionTecnico() {
     .then(data => {
         console.log('Datos recibidos:', data);
         if (data.success) {
-            // Mostrar notificación de éxito
-            alert('Técnico asignado exitosamente: ' + data.message);
+            // Mostrar notificación de éxito (más amigable)
+            const mensaje = data.message || `Técnico ${tecnicoNombre} asignado exitosamente`;
+            
+            // Mostrar notificación mejorada si existe la función
+            if (typeof mostrarNotificacion === 'function') {
+                mostrarNotificacion(mensaje, 'success', 3000);
+            } else {
+                alert(mensaje);
+            }
             
             // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAsignarTecnico'));
-            modal.hide();
+            const modalElement = document.getElementById('modalAsignarTecnico');
+            if (modalElement) {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    // Si no hay instancia, ocultar manualmente
+                    modalElement.classList.remove('show');
+                    modalElement.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) backdrop.remove();
+                }
+            }
             
             // Recargar la página para mostrar cambios
             setTimeout(() => {
                 window.location.reload();
-            }, 1500);
+            }, 1000);
         } else {
-            alert('Error: ' + data.message);
+            const errorMsg = data.message || 'Error desconocido al asignar técnico';
+            if (typeof mostrarNotificacion === 'function') {
+                mostrarNotificacion(errorMsg, 'danger', 5000);
+            } else {
+                alert('Error: ' + errorMsg);
+            }
         }
     })
     .catch(error => {
         console.error('Error completo:', error);
-        alert('Error al asignar técnico: ' + error.message);
+        const errorMsg = 'Error al asignar técnico: ' + (error.message || 'Error de conexión');
+        if (typeof mostrarNotificacion === 'function') {
+            mostrarNotificacion(errorMsg, 'danger', 5000);
+        } else {
+            alert(errorMsg);
+        }
     })
     .finally(() => {
         // Restaurar botón
@@ -1977,74 +2137,258 @@ function guardarAsignacionTecnico() {
 function cargarInfoOrdenModal(ordenId) {
     console.log('DEBUG: Cargando información para orden:', ordenId);
     
-    // Obtener datos de la orden desde la tabla
-    const ordenRows = document.querySelectorAll('.orden-row');
-    let ordenRow = null;
+    // Mostrar estado de carga
+    const infoNumeroOrden = document.getElementById('info-numero-orden');
+    const infoCliente = document.getElementById('info-cliente');
+    const infoEquipo = document.getElementById('info-equipo');
+    const infoEstado = document.getElementById('info-estado');
     
-    // Buscar la fila que contiene el ID de la orden
-    ordenRows.forEach(row => {
-        const numeroOrdenElement = row.querySelector('.numero-orden');
-        if (numeroOrdenElement && numeroOrdenElement.textContent.includes(ordenId)) {
-            ordenRow = row;
-        }
-    });
+    if (infoNumeroOrden) infoNumeroOrden.textContent = 'Cargando...';
+    if (infoCliente) infoCliente.textContent = 'Cargando...';
+    if (infoEquipo) infoEquipo.textContent = 'Cargando...';
+    if (infoEstado) infoEstado.textContent = 'Cargando...';
+    
+    // Método 1: Intentar obtener de la tabla usando data-orden-id
+    const ordenRow = document.querySelector(`.orden-row[data-orden-id="${ordenId}"]`);
     
     if (ordenRow) {
-        const numeroOrden = ordenRow.querySelector('.numero-orden')?.textContent || `#${ordenId}`;
-        const cliente = ordenRow.querySelector('.cliente-nombre')?.textContent || 'No disponible';
-        const equipo = ordenRow.querySelector('.equipo-info')?.textContent || 'No disponible';
-        const estado = ordenRow.querySelector('.estado-badge')?.textContent || 'No disponible';
-        
-        document.getElementById('info-numero-orden').textContent = numeroOrden;
-        document.getElementById('info-cliente').textContent = cliente;
-        document.getElementById('info-equipo').textContent = equipo;
-        document.getElementById('info-estado').textContent = estado;
-        
-        console.log('DEBUG: Información cargada:', { numeroOrden, cliente, equipo, estado });
-    } else {
-        // Fallback si no se encuentra la fila
-        document.getElementById('info-numero-orden').textContent = `#${ordenId}`;
-        document.getElementById('info-cliente').textContent = 'Cargando...';
-        document.getElementById('info-equipo').textContent = 'Cargando...';
-        document.getElementById('info-estado').textContent = 'Cargando...';
-        
-        console.log('DEBUG: Usando información de fallback');
+        try {
+            // Obtener número de orden
+            const numeroOrdenElement = ordenRow.querySelector('td:first-child strong');
+            const numeroOrden = numeroOrdenElement ? numeroOrdenElement.textContent.trim() : `#${ordenId}`;
+            
+            // Obtener cliente
+            const clienteCell = ordenRow.querySelector('td:nth-child(2)');
+            const clienteNombreElement = clienteCell ? clienteCell.querySelector('.fw-bold') : null;
+            const cliente = clienteNombreElement ? clienteNombreElement.textContent.trim() : 'No disponible';
+            
+            // Obtener equipo
+            const equipoCell = ordenRow.querySelector('td:nth-child(3)');
+            const equipoInfoElement = equipoCell ? equipoCell.querySelector('.equipo-info') : null;
+            let equipo = 'No disponible';
+            if (equipoInfoElement) {
+                const marcaModelo = equipoInfoElement.querySelector('.fw-bold');
+                if (marcaModelo) {
+                    equipo = marcaModelo.textContent.trim();
+                }
+            }
+            
+            // Obtener estado
+            const estadoCell = ordenRow.querySelector('td:nth-child(4)');
+            const estadoBadge = estadoCell ? estadoCell.querySelector('.badge') : null;
+            const estado = estadoBadge ? estadoBadge.textContent.trim() : 'No disponible';
+            
+            // Actualizar elementos del modal
+            if (infoNumeroOrden) infoNumeroOrden.textContent = numeroOrden;
+            if (infoCliente) infoCliente.textContent = cliente;
+            if (infoEquipo) infoEquipo.textContent = equipo;
+            if (infoEstado) infoEstado.textContent = estado;
+            
+            console.log('DEBUG: Información cargada desde tabla:', { numeroOrden, cliente, equipo, estado });
+            return;
+        } catch (error) {
+            console.error('Error extrayendo información de la tabla:', error);
+        }
     }
+    
+    // Método 2: Fallback - Cargar desde el servidor
+    console.log('DEBUG: Cargando información desde el servidor...');
+    fetch(`/api/orden-servicio/${ordenId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.orden) {
+                const orden = data.orden;
+                if (infoNumeroOrden) infoNumeroOrden.textContent = orden.numero_orden || `#${ordenId}`;
+                
+                // Obtener nombre del cliente
+                let clienteNombre = 'No disponible';
+                if (orden.cliente && typeof orden.cliente === 'object') {
+                    clienteNombre = orden.cliente.nombre || orden.cliente.nombre_cliente || 'No disponible';
+                } else if (orden.cliente_id) {
+                    // Intentar obtener cliente por ID si existe
+                    clienteNombre = `Cliente ID: ${orden.cliente_id}`;
+                }
+                if (infoCliente) infoCliente.textContent = clienteNombre;
+                
+                // Obtener información del equipo
+                let equipoStr = 'No disponible';
+                if (orden.equipo) {
+                    if (typeof orden.equipo === 'object') {
+                        equipoStr = `${orden.equipo.marca || ''} ${orden.equipo.modelo || ''}`.trim();
+                    } else {
+                        equipoStr = orden.equipo;
+                    }
+                }
+                if (infoEquipo) infoEquipo.textContent = equipoStr || 'No disponible';
+                
+                // Formatear estado
+                let estadoStr = 'No disponible';
+                if (orden.estado) {
+                    estadoStr = orden.estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                }
+                if (infoEstado) infoEstado.textContent = estadoStr;
+                
+                console.log('DEBUG: Información cargada desde servidor');
+            } else {
+                throw new Error(data.message || data.error || 'Error cargando información');
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando información del servidor:', error);
+            // Fallback final
+            if (infoNumeroOrden) infoNumeroOrden.textContent = `#${ordenId}`;
+            if (infoCliente) infoCliente.textContent = 'No disponible';
+            if (infoEquipo) infoEquipo.textContent = 'No disponible';
+            if (infoEstado) infoEstado.textContent = 'No disponible';
+        });
+}
+
+// Función para renderizar lista de clientes
+function renderizarListaClientes(clientes, listaClientes) {
+    listaClientes.innerHTML = '';
+    
+    if (!clientes || clientes.length === 0) {
+        listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-exclamation-circle me-2"></i>No se encontraron clientes</div>';
+        return;
+    }
+    
+    clientes.forEach(cliente => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action';
+        item.style.cursor = 'pointer';
+        item.style.transition = 'background-color 0.2s';
+        
+        // Agregar efecto hover
+        item.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        item.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+        
+        item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1 fw-bold">${cliente.nombre || 'Sin nombre'}</h6>
+                    <p class="mb-1 text-muted small">
+                        <i class="fas fa-id-card me-2"></i>${cliente.rif || cliente.cedula_rif || 'Sin cédula'}
+                    </p>
+                    <small class="text-muted">
+                        <i class="fas fa-phone me-2"></i>${cliente.telefono || 'Sin teléfono'}
+                    </small>
+                </div>
+            </div>
+        `;
+        item.addEventListener('click', function() {
+            seleccionarClienteModal(cliente);
+        });
+        listaClientes.appendChild(item);
+    });
+}
+
+// Función para cargar todos los clientes
+function cargarTodosLosClientes() {
+    const listaClientes = document.getElementById('lista-clientes-modal');
+    
+    if (!listaClientes) {
+        console.error('Elemento lista-clientes-modal no encontrado');
+        return;
+    }
+    
+    // Mostrar estado de carga
+    listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Cargando clientes...</div>';
+    
+    fetch('/api/listar-clientes')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const clientes = data.clientes || [];
+            renderizarListaClientes(clientes, listaClientes);
+            
+            // Remover contadores existentes antes de agregar uno nuevo
+            const contadoresExistentes = listaClientes.parentElement.querySelectorAll('.alert-info');
+            contadoresExistentes.forEach(cont => {
+                if (cont.id !== 'info-cliente-seleccionado') {
+                    cont.remove();
+                }
+            });
+            
+            // Mostrar contador
+            if (clientes.length > 0) {
+                const contador = document.createElement('div');
+                contador.className = 'alert alert-info mt-2 mb-0 py-2';
+                contador.innerHTML = `<small><i class="fas fa-info-circle me-2"></i>Total: ${clientes.length} cliente(s) registrado(s)</small>`;
+                listaClientes.parentElement.insertBefore(contador, listaClientes.nextSibling);
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando clientes:', error);
+            listaClientes.innerHTML = '<div class="list-group-item text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error al cargar clientes</div>';
+        });
 }
 
 // Función para buscar clientes en el modal
 function buscarClientesModal(query) {
     const listaClientes = document.getElementById('lista-clientes-modal');
     
-    if (query.length < 2) {
-        listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-search me-2"></i>Escriba para buscar clientes existentes</div>';
+    if (!listaClientes) {
+        console.error('Elemento lista-clientes-modal no encontrado');
         return;
     }
     
+    // Remover contador si existe
+    const contador = listaClientes.parentElement.querySelector('.alert-info');
+    if (contador) {
+        contador.remove();
+    }
+    
+    // Si no hay query o tiene menos de 2 caracteres, cargar todos los clientes
+    if (!query || query.trim().length === 0) {
+        cargarTodosLosClientes();
+        return;
+    }
+    
+    // Si tiene menos de 2 caracteres pero hay texto, mostrar mensaje
+    if (query.trim().length === 1) {
+        listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-search me-2"></i>Escriba al menos 2 caracteres para buscar</div>';
+        return;
+    }
+    
+    // Realizar búsqueda
     fetch(`/api/buscar-clientes?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            listaClientes.innerHTML = '';
+            const clientes = data.clientes || [];
+            renderizarListaClientes(clientes, listaClientes);
             
-            if (data.clientes && data.clientes.length > 0) {
-                data.clientes.forEach(cliente => {
-                    const item = document.createElement('div');
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.cursor = 'pointer';
-                    item.innerHTML = `
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">${cliente.nombre}</h6>
-                        </div>
-                        <p class="mb-1"><i class="fas fa-id-card me-2"></i>${cliente.rif || cliente.cedula_rif || 'Sin cédula'}</p>
-                        <small><i class="fas fa-phone me-2"></i>${cliente.telefono || 'Sin teléfono'}</small>
-                    `;
-                    item.addEventListener('click', function() {
-                        seleccionarClienteModal(cliente);
-                    });
-                    listaClientes.appendChild(item);
-                });
+            // Mostrar mensaje si no hay resultados
+            if (clientes.length === 0) {
+                listaClientes.innerHTML = `
+                    <div class="list-group-item text-center text-muted">
+                        <i class="fas fa-search me-2"></i>No se encontraron resultados para "${query}"
+                        <br><small class="text-muted">Intente con otros términos o <a href="#" onclick="cargarTodosLosClientes(); return false;">ver todos los clientes</a></small>
+                    </div>
+                `;
             } else {
-                listaClientes.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-exclamation-circle me-2"></i>No se encontraron clientes</div>';
+                // Mostrar contador de resultados
+                const contador = document.createElement('div');
+                contador.className = 'alert alert-info mt-2 mb-0 py-2';
+                contador.innerHTML = `<small><i class="fas fa-search me-2"></i>${clientes.length} resultado(s) encontrado(s)</small>`;
+                listaClientes.parentElement.insertBefore(contador, listaClientes.nextSibling);
             }
         })
         .catch(error => {
@@ -2056,14 +2400,350 @@ function buscarClientesModal(query) {
 // Función para seleccionar un cliente del modal
 function seleccionarClienteModal(cliente) {
     // Mostrar información del cliente seleccionado
-    document.getElementById('nombre-cliente-seleccionado').textContent = cliente.nombre;
-    document.getElementById('info-cliente-seleccionado').style.display = 'block';
+    const nombreClienteSeleccionado = document.getElementById('nombre-cliente-seleccionado');
+    const infoClienteSeleccionado = document.getElementById('info-cliente-seleccionado');
+    const infoCliente = document.getElementById('info-cliente');
     
-    // Actualizar el badge de cliente en la pestaña de detalles
-    document.getElementById('info-cliente').textContent = cliente.nombre;
+    if (nombreClienteSeleccionado) nombreClienteSeleccionado.textContent = cliente.nombre;
+    if (infoClienteSeleccionado) infoClienteSeleccionado.style.display = 'block';
+    if (infoCliente) infoCliente.textContent = cliente.nombre;
     
     // Mostrar notificación
     mostrarNotificacion(`Cliente "${cliente.nombre}" seleccionado`, 'success');
+}
+
+// Variable global para almacenar el técnico seleccionado
+let tecnicoSeleccionado = null;
+
+// Función para cargar lista de técnicos registrados (pestaña de detalles - ya no se usa pero se mantiene por compatibilidad)
+function cargarListaTecnicos() {
+    // Esta función ya no se usa, la lista está en la pestaña "Seleccionar Técnico"
+    // Se mantiene para compatibilidad
+    console.log('cargarListaTecnicos() - función obsoleta, usar cargarListaTecnicosTab()');
+}
+
+// Función para cargar lista de técnicos en la pestaña de selección
+function cargarListaTecnicosTab() {
+    const listaTecnicos = document.getElementById('lista-tecnicos-modal-tab');
+    
+    if (!listaTecnicos) {
+        console.error('Elemento lista-tecnicos-modal-tab no encontrado');
+        return;
+    }
+    
+    listaTecnicos.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Cargando técnicos...</div>';
+    
+    fetch('/api/tecnicos-registrados')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.tecnicos) {
+                renderizarListaTecnicosTab(data.tecnicos);
+            } else {
+                listaTecnicos.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-info-circle me-2"></i>No hay técnicos registrados aún</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando técnicos:', error);
+            listaTecnicos.innerHTML = '<div class="list-group-item text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error al cargar técnicos</div>';
+        });
+}
+
+// Función para renderizar lista de técnicos (obsoleta)
+function renderizarListaTecnicos(tecnicos) {
+    // Esta función ya no se usa
+    console.log('renderizarListaTecnicos() - función obsoleta, usar renderizarListaTecnicosTab()');
+}
+
+// Función para renderizar lista de técnicos en la pestaña de selección
+function renderizarListaTecnicosTab(tecnicos) {
+    const listaTecnicos = document.getElementById('lista-tecnicos-modal-tab');
+    
+    if (!listaTecnicos) return;
+    
+    listaTecnicos.innerHTML = '';
+    
+    if (tecnicos.length === 0) {
+        listaTecnicos.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-info-circle me-2"></i>No hay técnicos registrados aún</div>';
+        return;
+    }
+    
+    tecnicos.forEach(tecnico => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action';
+        item.style.cursor = 'pointer';
+        item.style.transition = 'background-color 0.2s';
+        
+        // Verificar si este técnico está seleccionado
+        const esSeleccionado = tecnicoSeleccionado && 
+                              tecnicoSeleccionado.nombre === tecnico.nombre;
+        
+        if (esSeleccionado) {
+            item.classList.add('active');
+            item.style.backgroundColor = '#0d6efd';
+            item.style.color = 'white';
+        }
+        
+        // Agregar efecto hover solo si no está seleccionado
+        if (!esSeleccionado) {
+            item.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            item.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+        }
+        
+        const badgeSeleccionado = esSeleccionado ? 
+            '<span class="badge bg-light text-dark ms-2"><i class="fas fa-check-circle me-1"></i>Seleccionado</span>' : '';
+        
+        item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1 fw-bold ${esSeleccionado ? 'text-white' : ''}">${tecnico.nombre || 'Sin nombre'}${badgeSeleccionado}</h6>
+                    ${tecnico.especialidad ? `<p class="mb-1 ${esSeleccionado ? 'text-white-50' : 'text-muted'} small"><i class="fas fa-briefcase me-2"></i>${tecnico.especialidad}</p>` : ''}
+                    <div class="d-flex gap-3">
+                        ${tecnico.telefono ? `<small class="${esSeleccionado ? 'text-white-50' : 'text-muted'}"><i class="fas fa-phone me-2"></i>${tecnico.telefono}</small>` : ''}
+                        ${tecnico.email ? `<small class="${esSeleccionado ? 'text-white-50' : 'text-muted'}"><i class="fas fa-envelope me-2"></i>${tecnico.email}</small>` : ''}
+                    </div>
+                    <small class="${esSeleccionado ? 'text-white-50' : 'text-muted'}">
+                        <i class="fas fa-tools me-2"></i>${tecnico.ordenes_asignadas || 0} orden(es) asignada(s)
+                    </small>
+                </div>
+            </div>
+        `;
+        
+        item.addEventListener('click', function() {
+            seleccionarTecnicoModal(tecnico);
+        });
+        
+        listaTecnicos.appendChild(item);
+    });
+}
+
+// Función para buscar técnicos (obsoleta)
+function buscarTecnicosModal(query) {
+    console.log('buscarTecnicosModal() - función obsoleta, usar buscarTecnicosModalTab()');
+}
+
+// Función para buscar técnicos en la pestaña de selección
+function buscarTecnicosModalTab(query) {
+    const listaTecnicos = document.getElementById('lista-tecnicos-modal-tab');
+    
+    if (!listaTecnicos) {
+        console.error('Elemento lista-tecnicos-modal-tab no encontrado');
+        return;
+    }
+    
+    if (!query || query.trim().length === 0) {
+        // Si no hay búsqueda, cargar todos
+        cargarListaTecnicosTab();
+        return;
+    }
+    
+    // Si tiene menos de 2 caracteres, mostrar mensaje
+    if (query.trim().length === 1) {
+        listaTecnicos.innerHTML = '<div class="list-group-item text-center text-muted"><i class="fas fa-search me-2"></i>Escriba al menos 2 caracteres para buscar</div>';
+        return;
+    }
+    
+    // Realizar búsqueda
+    fetch('/api/tecnicos-registrados')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.tecnicos) {
+                const queryLower = query.toLowerCase();
+                const tecnicosFiltrados = data.tecnicos.filter(tecnico => {
+                    const nombre = (tecnico.nombre || '').toLowerCase();
+                    const especialidad = (tecnico.especialidad || '').toLowerCase();
+                    const telefono = (tecnico.telefono || '').toLowerCase();
+                    const email = (tecnico.email || '').toLowerCase();
+                    
+                    return nombre.includes(queryLower) || 
+                           especialidad.includes(queryLower) || 
+                           telefono.includes(queryLower) || 
+                           email.includes(queryLower);
+                });
+                
+                renderizarListaTecnicosTab(tecnicosFiltrados);
+                
+                if (tecnicosFiltrados.length === 0) {
+                    listaTecnicos.innerHTML = `
+                        <div class="list-group-item text-center text-muted">
+                            <i class="fas fa-search me-2"></i>No se encontraron técnicos para "${query}"
+                        </div>
+                    `;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error buscando técnicos:', error);
+            listaTecnicos.innerHTML = '<div class="list-group-item text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error al buscar técnicos</div>';
+        });
+}
+
+// Función para seleccionar un técnico del modal
+function seleccionarTecnicoModal(tecnico) {
+    console.log('DEBUG: Seleccionando técnico:', tecnico);
+    
+    // Guardar técnico seleccionado globalmente
+    tecnicoSeleccionado = tecnico;
+    
+    // Mostrar información del técnico seleccionado en ambas pestañas
+    const nombreTecnicoSeleccionado = document.getElementById('nombre-tecnico-seleccionado');
+    const infoTecnicoSeleccionado = document.getElementById('info-tecnico-seleccionado');
+    const nombreTecnicoSeleccionadoTab = document.getElementById('nombre-tecnico-seleccionado-tab');
+    const infoTecnicoSeleccionadoTab = document.getElementById('info-tecnico-seleccionado-tab');
+    
+    if (nombreTecnicoSeleccionado) nombreTecnicoSeleccionado.textContent = tecnico.nombre;
+    if (infoTecnicoSeleccionado) infoTecnicoSeleccionado.style.display = 'block';
+    if (nombreTecnicoSeleccionadoTab) nombreTecnicoSeleccionadoTab.textContent = tecnico.nombre;
+    if (infoTecnicoSeleccionadoTab) infoTecnicoSeleccionadoTab.style.display = 'block';
+    
+    // Prellenar campos del formulario
+    const nombreInput = document.getElementById('tecnico-nombre');
+    const especialidadInput = document.getElementById('tecnico-especialidad');
+    const telefonoInput = document.getElementById('tecnico-telefono');
+    const emailInput = document.getElementById('tecnico-email');
+    
+    if (nombreInput) {
+        nombreInput.value = tecnico.nombre || '';
+        console.log('DEBUG: Nombre precargado:', nombreInput.value);
+    }
+    if (especialidadInput) especialidadInput.value = tecnico.especialidad || '';
+    if (telefonoInput) telefonoInput.value = tecnico.telefono || '';
+    if (emailInput) emailInput.value = tecnico.email || '';
+    
+    // Re-renderizar la lista para destacar el técnico seleccionado (en ambas pestañas)
+    const listaTecnicos = document.getElementById('lista-tecnicos-modal');
+    const listaTecnicosTab = document.getElementById('lista-tecnicos-modal-tab');
+    
+    if (listaTecnicos) {
+        // Obtener el query actual del campo de búsqueda
+        const busquedaInput = document.getElementById('buscar-tecnico-modal');
+        const query = busquedaInput ? busquedaInput.value.trim() : '';
+        
+        // Si hay búsqueda, mantenerla; si no, recargar todos
+        if (query && query.length >= 2) {
+            buscarTecnicosModal(query);
+        } else {
+            cargarListaTecnicos();
+        }
+    }
+    
+    if (listaTecnicosTab) {
+        const busquedaInputTab = document.getElementById('buscar-tecnico-modal-tab');
+        const queryTab = busquedaInputTab ? busquedaInputTab.value.trim() : '';
+        
+        if (queryTab && queryTab.length >= 2) {
+            buscarTecnicosModalTab(queryTab);
+        } else {
+            cargarListaTecnicosTab();
+        }
+    }
+    
+    // Cambiar a la pestaña de detalles para ver el formulario
+    const tabDetalles = document.getElementById('tab-detalles-tecnico');
+    if (tabDetalles) {
+        const tab = new bootstrap.Tab(tabDetalles);
+        tab.show();
+    }
+    
+    // Mostrar notificación
+    mostrarNotificacion(`Técnico "${tecnico.nombre}" seleccionado`, 'success');
+}
+
+// Función para precargar datos del técnico asignado (si existe)
+function precargarDatosTecnico(ordenId) {
+    // Buscar la orden en la tabla para obtener datos rápidamente
+    const ordenRow = document.querySelector(`.orden-row[data-orden-id="${ordenId}"]`);
+    
+    if (ordenRow) {
+        // Intentar obtener técnico de la tabla
+        const tecnicoCell = ordenRow.querySelector('td:nth-child(5)'); // Ajustar índice según la estructura
+        if (tecnicoCell) {
+            const tecnicoNombre = tecnicoCell.textContent.trim();
+            if (tecnicoNombre && tecnicoNombre !== 'Sin asignar') {
+                const nombreInput = document.getElementById('tecnico-nombre');
+                if (nombreInput) nombreInput.value = tecnicoNombre;
+            }
+        }
+    }
+    
+    // Cargar datos completos desde el servidor
+    fetch(`/api/orden-servicio/${ordenId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.orden) {
+                const orden = data.orden;
+                
+                // Precargar nombre del técnico
+                if (orden.tecnico_asignado) {
+                    const nombreInput = document.getElementById('tecnico-nombre');
+                    if (nombreInput) nombreInput.value = orden.tecnico_asignado;
+                    
+                    // Construir objeto técnico y seleccionarlo
+                    const tecnico_info = orden.tecnico_info || {};
+                    const tecnico = {
+                        nombre: orden.tecnico_asignado,
+                        especialidad: tecnico_info.especialidad || '',
+                        telefono: tecnico_info.telefono || '',
+                        email: tecnico_info.email || ''
+                    };
+                    
+                    // Seleccionar el técnico en la lista si existe
+                    tecnicoSeleccionado = tecnico;
+                    
+                    // Mostrar información del técnico seleccionado
+                    const nombreTecnicoSeleccionado = document.getElementById('nombre-tecnico-seleccionado');
+                    const infoTecnicoSeleccionado = document.getElementById('info-tecnico-seleccionado');
+                    
+                    if (nombreTecnicoSeleccionado) nombreTecnicoSeleccionado.textContent = tecnico.nombre;
+                    if (infoTecnicoSeleccionado) infoTecnicoSeleccionado.style.display = 'block';
+                }
+                
+                // Precargar información adicional del técnico si existe
+                if (orden.tecnico_info) {
+                    const especialidadInput = document.getElementById('tecnico-especialidad');
+                    const telefonoInput = document.getElementById('tecnico-telefono');
+                    const emailInput = document.getElementById('tecnico-email');
+                    
+                    if (especialidadInput && orden.tecnico_info.especialidad) {
+                        especialidadInput.value = orden.tecnico_info.especialidad;
+                    }
+                    if (telefonoInput && orden.tecnico_info.telefono) {
+                        telefonoInput.value = orden.tecnico_info.telefono;
+                    }
+                    if (emailInput && orden.tecnico_info.email) {
+                        emailInput.value = orden.tecnico_info.email;
+                    }
+                }
+                
+                // Re-renderizar la lista para destacar el técnico seleccionado
+                setTimeout(() => {
+                    cargarListaTecnicosTab();
+                }, 200);
+                
+                console.log('DEBUG: Datos del técnico precargados');
+            }
+        })
+        .catch(error => {
+            console.log('DEBUG: No se pudieron precargar datos del técnico (esto es normal si no hay técnico asignado)');
+        });
 }
 </script>
 
@@ -2087,9 +2767,9 @@ function seleccionarClienteModal(cliente) {
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="tab-seleccionar-cliente" data-bs-toggle="tab" data-bs-target="#pestana-seleccionar-cliente" 
+                        <button class="nav-link" id="tab-seleccionar-tecnico" data-bs-toggle="tab" data-bs-target="#pestana-seleccionar-tecnico" 
                                 type="button" role="tab" aria-selected="false">
-                            <i class="fas fa-users me-2"></i>Seleccionar Cliente
+                            <i class="fas fa-user-tie me-2"></i>Seleccionar Técnico
                         </button>
                     </li>
                 </ul>
@@ -2101,9 +2781,19 @@ function seleccionarClienteModal(cliente) {
                         <form id="formAsignarTecnico">
                             <input type="hidden" id="orden-id-tecnico" name="orden_id">
                             
+                            <!-- Técnico Seleccionado -->
+                            <div class="alert alert-info mb-3" id="info-tecnico-seleccionado" style="display: none;">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Técnico seleccionado:</strong> <span id="nombre-tecnico-seleccionado"></span>
+                                <br><small class="text-muted">Para seleccionar otro técnico, ve a la pestaña "Seleccionar Técnico"</small>
+                            </div>
+                            
+                            <h6 class="mb-3"><i class="fas fa-edit me-2"></i>Detalles del Técnico</h6>
+                            <p class="text-muted small mb-3">Complete los datos del técnico o seleccione uno de la lista en la pestaña "Seleccionar Técnico"</p>
+                            
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="tecnico-nombre" class="form-label">Nombre del Técnico</label>
+                                    <label for="tecnico-nombre" class="form-label">Nombre del Técnico <span class="text-danger">*</span></label>
                                     <input type="text" id="tecnico-nombre" name="tecnico_nombre" class="form-control" 
                                            placeholder="Ingrese el nombre completo del técnico" required>
                                 </div>
@@ -2165,27 +2855,35 @@ function seleccionarClienteModal(cliente) {
                         </form>
                     </div>
 
-                    <!-- Pestaña 2: Seleccionar Cliente -->
-                    <div class="tab-pane fade" id="pestana-seleccionar-cliente" role="tabpanel">
-                        <div class="mb-3">
-                            <label for="buscar-cliente-modal" class="form-label">
-                                <i class="fas fa-search me-2"></i>Buscar Cliente
-                            </label>
-                            <input type="text" id="buscar-cliente-modal" class="form-control" 
-                                   placeholder="Escriba para buscar clientes..." 
-                                   onkeyup="buscarClientesModal(this.value)">
-                        </div>
-                        
-                        <div id="lista-clientes-modal" class="list-group" style="max-height: 300px; overflow-y: auto;">
-                            <div class="list-group-item text-center text-muted">
-                                <i class="fas fa-search me-2"></i>
-                                Escriba para buscar clientes existentes
-                            </div>
-                        </div>
-                        
-                        <div class="alert alert-info mt-3" id="info-cliente-seleccionado" style="display: none;">
+                    <!-- Pestaña 2: Seleccionar Técnico -->
+                    <div class="tab-pane fade" id="pestana-seleccionar-tecnico" role="tabpanel">
+                        <!-- Técnico Seleccionado -->
+                        <div class="alert alert-success mb-3" id="info-tecnico-seleccionado-tab" style="display: none;">
                             <i class="fas fa-check-circle me-2"></i>
-                            <strong>Cliente seleccionado:</strong> <span id="nombre-cliente-seleccionado"></span>
+                            <strong>Técnico seleccionado:</strong> <span id="nombre-tecnico-seleccionado-tab"></span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="buscar-tecnico-modal-tab" class="form-label">
+                                <i class="fas fa-search me-2"></i>Buscar Técnico
+                            </label>
+                            <div class="input-group">
+                                <input type="text" id="buscar-tecnico-modal-tab" class="form-control" 
+                                       placeholder="Escriba para filtrar o deje vacío para ver todos..." 
+                                       onkeyup="buscarTecnicosModalTab(this.value)"
+                                       onfocus="if(this.value === '') { buscarTecnicosModalTab(''); }">
+                                <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('buscar-tecnico-modal-tab').value = ''; buscarTecnicosModalTab('');">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Mostrando todos los técnicos registrados en órdenes anteriores. Escriba para filtrar la lista.</small>
+                        </div>
+                        
+                        <div id="lista-tecnicos-modal-tab" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                            <div class="list-group-item text-center text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i>
+                                Cargando técnicos...
+                            </div>
                         </div>
                     </div>
                 </div>

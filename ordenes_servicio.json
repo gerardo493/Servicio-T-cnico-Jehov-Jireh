@@ -1,227 +1,278 @@
 {
-    "OS-20251027010038": {
-        "id": "OS-20251027010038",
-        "numero_orden": "OS-20251027010038",
-        "fecha_recepcion": "2025-10-27",
-        "fecha_entrega_estimada": "2025-11-03",
-        "estado": "en_espera_revision",
-        "es_borrador": false,
+    "OS-PRUEBA-20251102212749": {
+        "id": "OS-PRUEBA-20251102212749",
+        "numero_orden": "OS-PRUEBA-20251102212749",
+        "fecha_recepcion": "2025-11-02",
+        "fecha_entrega_estimada": "2025-11-09",
+        "estado": "entregado",
         "prioridad": "media",
-        "tipo_servicio": "revision",
-        "tecnico_asignado": "angel",
-        "costo_estimado": 0.0,
-        "cliente_id": "cliente_20251027010038",
+        "tipo_servicio": "Reparación",
+        "tecnico_asignado": "Técnico",
+        "costo_estimado": 100.0,
+        "cliente_id": "cliente_20251026173246",
         "cliente": {
-            "id": "cliente_20251027010038",
-            "nombre": "DANIELA CASTRO",
-            "cedula_rif": "26369968",
-            "telefono": "0412-144-7869",
-            "telefono2": "0424-320-6456",
-            "telefono_fijo": "",
+            "nombre": "GERARDO JAIMES",
+            "cedula_rif": "V-12345678",
+            "telefono": "+58+5804121447869",
+            "telefono2": "",
             "email": "gerardojaime72@gmail.com",
-            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
+            "direccion": "Caña De Azucar Sector 2 Vereda 64 Casa 1-A"
         },
         "equipo": {
-            "marca": "Motorola",
-            "modelo": "4845",
-            "imei": "155555555555555",
-            "imei2": "454444564654654",
-            "color": "55",
-            "ano": "",
-            "numero_serie": "456566546545646",
-            "tipo": "tablet"
+            "marca": "Samsung",
+            "modelo": "Galaxy S22",
+            "imei": "123456789012345",
+            "imei2": "",
+            "color": "Negro",
+            "numero_serie": "SN123456",
+            "tipo": "telefono"
         },
-        "problema_reportado": "44",
-        "categoria_problema": "botones",
-        "tipo_problema": "camara_no_funciona",
-        "accesorios_entregados": {
-            "cargador": false,
-            "audifonos": true,
-            "caja": false,
-            "cable": false,
-            "tarjeta_memoria": false,
-            "capacidad_memoria": "",
-            "marca_memoria": "",
-            "tipo_memoria": "",
-            "sim_card": false,
-            "tipo_sim": "",
-            "operadora_sim1": "",
-            "operadora_sim1_doble": "",
-            "operadora_sim2": "",
-            "numero_sim1": "",
-            "numero_sim1_doble": "",
-            "numero_sim2": "",
-            "otros": ""
-        },
-        "condicion_fisica": {
-            "rayones": false,
-            "golpes": false,
-            "pantalla": false,
-            "carcasa": false,
-            "botones": false,
-            "conectores": false,
-            "bateria": false,
-            "audio": false,
-            "agua": false,
-            "sobrecalentamiento": false,
-            "carcasa_suelta": false,
-            "pantalla_parpadea": false,
-            "equipo_enciende": true,
-            "restauracion_fabrica": false,
-            "observaciones": ""
-        },
+        "problema_reportado": "Pantalla rota y batería con fallas",
+        "categoria_problema": "Falla física",
         "diagnostico": {
-            "problema_identificado": "",
-            "solucion_aplicada": "",
-            "piezas_usadas": [],
-            "comentarios_tecnicos": "545",
-            "costo_mano_obra": 0.0,
-            "costo_piezas": 0.0,
-            "total_estimado": 0.0
+            "descripcion_tecnica": "Se requiere cambio de pantalla y batería",
+            "categoria_dano": "Físico",
+            "partes_revisadas": [
+                "Pantalla",
+                "Batería",
+                "Cámara"
+            ],
+            "resultado_diagnostico": "Equipo requiere reparación",
+            "costo_mano_obra": 50.0,
+            "costo_piezas": 90.0,
+            "total_estimado": 140.0,
+            "detalle_repuestos": "Pantalla y batería para Samsung Galaxy S22",
+            "estado_presupuesto": "aprobado",
+            "fecha_diagnostico": "2025-11-02 21:27:49",
+            "fecha_presupuesto": "2025-11-02 21:27:49",
+            "tecnico_diagnostico": "Técnico",
+            "repuestos_seleccionados": "[{\"id\": \"2\", \"nombre\": \"bateria generica\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}, {\"id\": \"3\", \"nombre\": \"M\\u00f3dulo de Pantalla para iPhone 14 / iPhone 15 Pro\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Pantallas\"}, {\"id\": \"4\", \"nombre\": \"Bater\\u00eda para Samsung Galaxy S22 / Galaxy A54\", \"precio\": 50.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}]"
         },
         "historial_estados": [
             {
                 "estado": "en_espera_revision",
-                "fecha": "2025-10-27 01:00:38",
-                "usuario": "administrador",
+                "fecha": "2025-11-02 21:27:49",
+                "usuario": "Sistema",
                 "comentarios": "Orden de servicio creada"
             },
             {
-                "accion": "asignacion_tecnico",
-                "descripcion": "Técnico asignado: angel",
-                "fecha": "2025-10-27 01:02:19",
+                "estado": "en_diagnostico",
+                "fecha": "2025-11-02 21:27:49",
+                "usuario": "Técnico",
+                "comentarios": "Diagnóstico completado"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-02 21:27:49",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto enviado y aprobado"
+            },
+            {
+                "estado": "en_reparacion",
+                "fecha": "2025-11-02 21:27:49",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto aprobado - Iniciando reparación"
+            },
+            {
+                "estado": "en_pruebas",
+                "fecha": "2025-11-02 23:21:07",
                 "usuario": "administrador",
-                "detalles": {
-                    "tecnico_nombre": "angel",
-                    "especialidad": "general",
-                    "telefono": "04121447869",
-                    "email": "gerardojaime72@gmail.com",
-                    "observaciones": "f"
-                }
-            }
-        ],
-        "notificaciones_enviadas": [],
-        "cliente_notificado": false,
-        "whatsapp_enviado": false,
-        "atendido_por": "44",
-        "desbloqueo": {
-            "tipo": "pin",
-            "estado": "activo",
-            "clave": "",
-            "notas": "55"
-        },
-        "fecha_creacion": "2025-10-27 01:00:38",
-        "fecha_actualizacion": "2025-10-27 01:02:19",
-        "nota_entrega_generada": "",
-        "urgente": false,
-        "tecnico_info": {
-            "especialidad": "general",
-            "telefono": "04121447869",
-            "email": "gerardojaime72@gmail.com",
-            "fecha_asignacion": "2025-10-27 01:02:19"
-        }
-    },
-    "OS-20251028003906": {
-        "id": "OS-20251028003906",
-        "numero_orden": "OS-20251028003906",
-        "fecha_recepcion": "2025-10-28",
-        "fecha_entrega_estimada": "2025-11-04",
-        "estado": "en_espera_revision",
-        "es_borrador": false,
-        "prioridad": "media",
-        "tipo_servicio": "diagnostico",
-        "tecnico_asignado": "tecnico1",
-        "costo_estimado": 0.0,
-        "cliente_id": "cliente_20251028003906",
-        "cliente": {
-            "id": "cliente_20251028003906",
-            "nombre": "ESTEFANY TOVAR",
-            "cedula_rif": "V-27489569",
-            "telefono": "04223325684",
-            "telefono2": "",
-            "telefono_fijo": "",
-            "email": "ESTEFANY133@GMAIL.COM",
-            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a\r\nCasa 1_A"
-        },
-        "equipo": {
-            "marca": "Sony",
-            "modelo": "4444PL",
-            "imei": "058565989859989",
-            "imei2": "424242424240000",
-            "color": "56",
-            "ano": "",
-            "numero_serie": "456566546545646",
-            "tipo": "telefono"
-        },
-        "problema_reportado": "HGH",
-        "categoria_problema": "botones",
-        "tipo_problema": "camara_no_funciona",
-        "accesorios_entregados": {
-            "cargador": false,
-            "audifonos": false,
-            "caja": true,
-            "cable": false,
-            "tarjeta_memoria": false,
-            "capacidad_memoria": "",
-            "marca_memoria": "",
-            "tipo_memoria": "",
-            "sim_card": false,
-            "tipo_sim": "",
-            "operadora_sim1": "",
-            "operadora_sim1_doble": "",
-            "operadora_sim2": "",
-            "numero_sim1": "",
-            "numero_sim1_doble": "",
-            "numero_sim2": "",
-            "otros": ""
-        },
-        "condicion_fisica": {
-            "rayones": false,
-            "golpes": false,
-            "pantalla": false,
-            "carcasa": false,
-            "botones": false,
-            "conectores": false,
-            "bateria": false,
-            "audio": false,
-            "agua": false,
-            "sobrecalentamiento": false,
-            "carcasa_suelta": false,
-            "pantalla_parpadea": false,
-            "equipo_enciende": true,
-            "restauracion_fabrica": false,
-            "observaciones": ""
-        },
-        "diagnostico": {
-            "problema_identificado": "",
-            "solucion_aplicada": "",
-            "piezas_usadas": [],
-            "comentarios_tecnicos": "NGHH",
-            "costo_mano_obra": 0.0,
-            "costo_piezas": 0.0,
-            "total_estimado": 0.0
-        },
-        "historial_estados": [
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-02 23:24:33",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "en_pruebas",
+                "fecha": "2025-11-02 23:24:52",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "listo_entrega",
+                "fecha": "2025-11-02 23:25:00",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
             {
                 "estado": "en_espera_revision",
-                "fecha": "2025-10-28 00:39:06",
+                "fecha": "2025-11-02 23:25:18",
                 "usuario": "administrador",
-                "comentarios": "Orden de servicio creada"
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "en_diagnostico",
+                "fecha": "2025-11-02 23:25:26",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-02 23:25:33",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "en_reparacion",
+                "fecha": "2025-11-02 23:36:08",
+                "usuario": "administrador",
+                "comentarios": "es",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "reparado",
+                "fecha": "2025-11-02 23:36:21",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "listo_entrega",
+                "fecha": "2025-11-02 23:36:29",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "en_diagnostico",
+                "fecha": "2025-11-02 23:36:36",
+                "usuario": "administrador",
+                "comentarios": "",
+                "tecnico_asignado": "Técnico",
+                "prioridad": "media",
+                "fecha_entrega_estimada": "2025-11-09"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 00:38:21",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 00:39:55",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 00:42:11",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 00:42:32",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 00:47:33",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 00:48:12",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-03 03:31:12",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a GERARDO JAIMES - Pago: punto de venta"
             }
         ],
-        "notificaciones_enviadas": [],
-        "cliente_notificado": true,
-        "whatsapp_enviado": true,
-        "atendido_por": "HNH",
-        "desbloqueo": {
-            "tipo": "pin",
-            "estado": "activo",
-            "clave": "",
-            "notas": "FFH"
+        "fecha_creacion": "2025-11-02 21:27:49",
+        "fecha_actualizacion": "2025-11-03 03:31:15",
+        "notificaciones_enviadas": [
+            {
+                "tipo": "equipo_recibido",
+                "fecha": "2025-11-02 23:14:45",
+                "mensaje": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola GERARDO JAIMES! 👋\n\n📱 Tu equipo *Samsung Galaxy S22* ha sido recibido exitosamente en nuestro taller.\n\n📋 *Número de Orden:* OS-PRUEBA-20251102212749\n\n⏰ *Próximos pasos:*\n• 🔍 Nuestro técnico revisará tu equipo\n• 📞 Te contactaremos con el diagnóstico\n• 💰 Te enviaremos el presupuesto detallado\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Gracias por confiar en nosotros! 🙏",
+                "usuario": "administrador",
+                "telefono": "585804121447869",
+                "enlace_whatsapp": "https://wa.me/585804121447869?text=%F0%9F%94%A7%20%2ASERVICIO%20T%C3%89CNICO%20JEHOV%C3%81%20JIREH%2A%20%F0%9F%94%A7%0A%0A%C2%A1Hola%20GERARDO%20JAIMES%21%20%F0%9F%91%8B%0A%0A%F0%9F%93%B1%20Tu%20equipo%20%2ASamsung%20Galaxy%20S22%2A%20ha%20sido%20recibido%20exitosamente%20en%20nuestro%20taller.%0A%0A%F0%9F%93%8B%20%2AN%C3%BAmero%20de%20Orden%3A%2A%20OS-PRUEBA-20251102212749%0A%0A%E2%8F%B0%20%2APr%C3%B3ximos%20pasos%3A%2A%0A%E2%80%A2%20%F0%9F%94%8D%20Nuestro%20t%C3%A9cnico%20revisar%C3%A1%20tu%20equipo%0A%E2%80%A2%20%F0%9F%93%9E%20Te%20contactaremos%20con%20el%20diagn%C3%B3stico%0A%E2%80%A2%20%F0%9F%92%B0%20Te%20enviaremos%20el%20presupuesto%20detallado%0A%0A%F0%9F%93%9E%20%2AContacto%3A%2A%0A%E2%80%A2%20%F0%9F%93%B1%20Tel%C3%A9fono%3A%200424-123-4567%0A%E2%80%A2%20%F0%9F%92%AC%20WhatsApp%3A%200424-123-4567%0A%E2%80%A2%20%F0%9F%93%A7%20Email%3A%20info%40jehovajireh.com%0A%0A%F0%9F%93%8D%20%2ADirecci%C3%B3n%3A%2A%0AAv.%20Principal%2C%20Local%2015%2C%20Centro%20Comercial%20Plaza%2C%20Caracas%0A%0A%C2%A1Gracias%20por%20confiar%20en%20nosotros%21%20%F0%9F%99%8F"
+            },
+            {
+                "tipo": "equipo_recibido",
+                "fecha": "2025-11-03 01:41:24",
+                "mensaje": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola GERARDO JAIMES! 👋\n\n📱 Tu equipo *Samsung Galaxy S22* ha sido recibido exitosamente en nuestro taller.\n\n📋 *Número de Orden:* OS-PRUEBA-20251102212749\n\n⏰ *Próximos pasos:*\n• 🔍 Nuestro técnico revisará tu equipo\n• 📞 Te contactaremos con el diagnóstico\n• 💰 Te enviaremos el presupuesto detallado\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Gracias por confiar en nosotros! 🙏",
+                "usuario": "administrador",
+                "metodos_envio": [
+                    "email"
+                ],
+                "resultados": {
+                    "whatsapp": false,
+                    "email": true
+                },
+                "email": "gerardojaime72@gmail.com",
+                "email_enviado": true
+            },
+            {
+                "tipo": "reparacion_completa",
+                "fecha": "2025-11-03 01:42:59",
+                "mensaje": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola GERARDO JAIMES! 👋\n\n🎉 ¡Excelentes noticias! Tu equipo *Samsung Galaxy S22* está listo para recoger.\n\n📋 *Número de Orden:* OS-PRUEBA-20251102212749\n\n✅ *Tu equipo ha sido reparado exitosamente*\n\n⏰ *Horarios de entrega:*\n• 📅 Lunes a Viernes: 8:00 AM - 6:00 PM\n• 📅 Sábados: 8:00 AM - 2:00 PM\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Te esperamos! 🙏",
+                "usuario": "administrador",
+                "metodos_envio": [
+                    "whatsapp",
+                    "email"
+                ],
+                "resultados": {
+                    "whatsapp": true,
+                    "email": true
+                },
+                "telefono": "585804121447869",
+                "enlace_whatsapp": "https://wa.me/585804121447869?text=%F0%9F%94%A7%20%2ASERVICIO%20T%C3%89CNICO%20JEHOV%C3%81%20JIREH%2A%20%F0%9F%94%A7%0A%0A%C2%A1Hola%20GERARDO%20JAIMES%21%20%F0%9F%91%8B%0A%0A%F0%9F%8E%89%20%C2%A1Excelentes%20noticias%21%20Tu%20equipo%20%2ASamsung%20Galaxy%20S22%2A%20est%C3%A1%20listo%20para%20recoger.%0A%0A%F0%9F%93%8B%20%2AN%C3%BAmero%20de%20Orden%3A%2A%20OS-PRUEBA-20251102212749%0A%0A%E2%9C%85%20%2ATu%20equipo%20ha%20sido%20reparado%20exitosamente%2A%0A%0A%E2%8F%B0%20%2AHorarios%20de%20entrega%3A%2A%0A%E2%80%A2%20%F0%9F%93%85%20Lunes%20a%20Viernes%3A%208%3A00%20AM%20-%206%3A00%20PM%0A%E2%80%A2%20%F0%9F%93%85%20S%C3%A1bados%3A%208%3A00%20AM%20-%202%3A00%20PM%0A%0A%F0%9F%93%9E%20%2AContacto%3A%2A%0A%E2%80%A2%20%F0%9F%93%B1%20Tel%C3%A9fono%3A%200424-123-4567%0A%E2%80%A2%20%F0%9F%92%AC%20WhatsApp%3A%200424-123-4567%0A%E2%80%A2%20%F0%9F%93%A7%20Email%3A%20info%40jehovajireh.com%0A%0A%F0%9F%93%8D%20%2ADirecci%C3%B3n%3A%2A%0AAv.%20Principal%2C%20Local%2015%2C%20Centro%20Comercial%20Plaza%2C%20Caracas%0A%0A%C2%A1Te%20esperamos%21%20%F0%9F%99%8F",
+                "email": "gerardojaime72@gmail.com",
+                "email_enviado": true
+            }
+        ],
+        "entrega": {
+            "fecha_entrega": "2025-11-03T00:44",
+            "nombre_retira": "GERARDO JAIMES",
+            "cedula_retira": "V-12345678",
+            "telefono_retira": "+58+5804121447869",
+            "tipo_pago": "punto de venta",
+            "monto_pagado": 140.0,
+            "monto_pendiente": 0.0,
+            "observaciones_entrega": "",
+            "tecnico_entrega": "Técnico",
+            "firma_digital": "data:image/png;base64,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",
+            "fecha_actualizacion": "2025-11-03 03:31:12"
         },
-        "fecha_creacion": "2025-10-28 00:39:06",
-        "fecha_actualizacion": "2025-10-28 00:39:06",
-        "nota_entrega_generada": "",
-        "urgente": false
+        "nota_entrega_generada": "NE-0001"
     }
 }

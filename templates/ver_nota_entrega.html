@@ -658,6 +658,16 @@
                     <i class="fas fa-times"></i>
                     Anular
                 </button>
+                {% elif nota.estado == 'ENTREGADO' %}
+                <a href="{{ url_for('editar_nota_entrega', id=nota.numero) }}" class="neo-button">
+                    <i class="fas fa-edit"></i>
+                    Editar
+                </a>
+                
+                <button type="button" class="neo-button neo-button-danger" onclick="eliminarNota()">
+                    <i class="fas fa-trash"></i>
+                    Eliminar
+                </button>
                 {% endif %}
                 
                 <form method="POST" action="{{ url_for('duplicar_nota_entrega', id=nota.numero) }}" style="display: inline;">
@@ -733,6 +743,28 @@ function marcarEntregada() {
 function anularNota() {
     const modal = new bootstrap.Modal(document.getElementById('modalAnular'));
     modal.show();
+}
+
+function eliminarNota() {
+    if (confirm('¿Está seguro de que desea eliminar esta nota de entrega?\n\nEsta acción restaurará el stock del inventario y no se puede deshacer.')) {
+        // Crear formulario dinámico para enviar POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("eliminar_nota_entrega", id=nota.numero) }}';
+        
+        // Agregar token CSRF si existe
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken.content;
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 {% endblock %}

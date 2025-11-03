@@ -5,13 +5,27 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporte_mejorado.css') }}?v=7.0">
 <style>
-/* Estilos Neomórficos Completos */
+/* Estilos Neomórficos Completos con Colores Neón Verde */
 body {
-    background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%) !important;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%) !important;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     margin: 0 !important;
     padding: 0 !important;
     min-height: 100vh !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+}
+
+* {
+    font-weight: 700 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 800 !important;
+}
+
+p, span, div, a, button, td, th, label {
+    font-weight: 700 !important;
 }
 
 .container-fluid {
@@ -19,217 +33,413 @@ body {
     margin: 0 auto !important;
     padding: 2rem 1rem !important;
     background: transparent !important;
+    color: #fff !important;
 }
 
-/* Cards Neomórficas */
+.container-fluid h1, .container-fluid h2, .container-fluid h3, .container-fluid h4, .container-fluid h5, .container-fluid h6 {
+    color: #00ff88 !important;
+    font-weight: 900 !important;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.6) !important;
+}
+
+.container-fluid p {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 700 !important;
+}
+
+/* Cards Neomórficas con Neón Verde */
 .neo-card {
-    background: #ffffff !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
     border-radius: 20px !important;
     box-shadow: 
-        20px 20px 60px #d1d9e6,
-        -20px -20px 60px #ffffff !important;
-    border: none !important;
+        0 0 20px rgba(0, 255, 136, 0.3),
+        20px 20px 60px rgba(0, 0, 0, 0.8),
+        -20px -20px 60px rgba(0, 255, 136, 0.1) !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
     padding: 2rem !important;
     margin-bottom: 2rem !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    color: #fff !important;
 }
 
 .neo-card:hover {
     transform: translateY(-5px) !important;
     box-shadow: 
-        25px 25px 70px #d1d9e6,
-        -25px -25px 70px #ffffff !important;
+        0 0 40px rgba(0, 255, 136, 0.6),
+        25px 25px 70px rgba(0, 0, 0, 0.9),
+        -25px -25px 70px rgba(0, 255, 136, 0.2) !important;
+    border-color: rgba(0, 255, 136, 0.6) !important;
 }
 
-/* Header con gradiente */
+/* Header con gradiente Neón Verde */
 .header-background {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%) !important;
     border-radius: 25px !important;
     padding: 2rem !important;
     box-shadow: 
-        20px 20px 60px rgba(102, 126, 234, 0.3),
-        -20px -20px 60px rgba(118, 75, 162, 0.3) !important;
+        0 0 30px rgba(0, 255, 136, 0.6),
+        20px 20px 60px rgba(0, 255, 136, 0.4),
+        -20px -20px 60px rgba(0, 204, 106, 0.4),
+        inset 0 0 50px rgba(0, 255, 136, 0.2) !important;
     margin-bottom: 2rem !important;
-    color: white !important;
+    color: #000 !important;
+    border: 2px solid rgba(0, 255, 136, 0.5) !important;
 }
 
-/* Botones neomórficos */
+.header-background h1 {
+    text-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 0 20px rgba(0, 255, 136, 0.6),
+        0 0 30px rgba(0, 255, 136, 0.4) !important;
+    font-weight: 900 !important;
+}
+
+.header-background p {
+    color: #000 !important;
+    font-weight: 700 !important;
+}
+
+/* Botones Mejorados con Neón Verde - Diseño Premium */
 .btn-neo {
-    background: #ffffff !important;
-    border: none !important;
-    border-radius: 15px !important;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.15) 0%, rgba(0, 204, 106, 0.15) 100%) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 2px solid rgba(0, 255, 136, 0.6) !important;
+    border-radius: 12px !important;
     box-shadow: 
-        8px 8px 20px #d1d9e6,
-        -8px -8px 20px #ffffff !important;
-    color: #333 !important;
-    padding: 0.75rem 1.5rem !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        0 4px 15px rgba(0, 255, 136, 0.3),
+        0 0 30px rgba(0, 255, 136, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    color: #00ff88 !important;
+    padding: 0.85rem 2rem !important;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
     text-decoration: none !important;
-    display: inline-block !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 800 !important;
+    font-size: 0.95rem !important;
+    letter-spacing: 1px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5) !important;
+}
+
+.btn-neo::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: -100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.3), transparent) !important;
+    transition: left 0.5s ease !important;
+}
+
+.btn-neo:hover::before {
+    left: 100% !important;
 }
 
 .btn-neo:hover {
-    transform: translateY(-2px) !important;
+    transform: translateY(-3px) scale(1.05) !important;
     box-shadow: 
-        12px 12px 25px #d1d9e6,
-        -12px -12px 25px #ffffff !important;
-    color: #333 !important;
+        0 8px 25px rgba(0, 255, 136, 0.6),
+        0 0 50px rgba(0, 255, 136, 0.4),
+        0 0 80px rgba(0, 255, 136, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(0, 255, 136, 1) !important;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.25) 0%, rgba(0, 204, 106, 0.25) 100%) !important;
+    color: #00ffaa !important;
+    text-shadow: 
+        0 0 15px rgba(0, 255, 136, 0.8),
+        0 0 25px rgba(0, 255, 136, 0.6) !important;
     text-decoration: none !important;
 }
 
 .btn-neo:active {
-    transform: translateY(1px) !important;
+    transform: translateY(-1px) scale(1.02) !important;
     box-shadow: 
-        inset 4px 4px 10px #d1d9e6,
-        inset -4px -4px 10px #ffffff !important;
+        0 4px 15px rgba(0, 255, 136, 0.4),
+        0 0 30px rgba(0, 255, 136, 0.3),
+        inset 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Inputs neomórficos */
+.btn-neo i {
+    filter: drop-shadow(0 0 5px rgba(0, 255, 136, 0.8)) !important;
+    transition: transform 0.3s ease !important;
+}
+
+.btn-neo:hover i {
+    transform: scale(1.2) rotate(5deg) !important;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 136, 1)) !important;
+}
+
+/* Inputs Neomórficos con Neón Verde */
 .input-neo {
-    background: #f0f0f3 !important;
-    border: none !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
     border-radius: 15px !important;
     box-shadow: 
-        inset 8px 8px 20px #d1d9e6,
-        inset -8px -8px 20px #ffffff !important;
+        inset 8px 8px 20px rgba(0, 0, 0, 0.6),
+        inset -8px -8px 20px rgba(0, 255, 136, 0.1),
+        0 0 15px rgba(0, 255, 136, 0.2) !important;
     padding: 0.75rem 1rem !important;
-    color: #333 !important;
+    color: #00ff88 !important;
     width: 100% !important;
+    font-weight: 700 !important;
+}
+
+.input-neo::placeholder {
+    color: rgba(0, 255, 136, 0.5) !important;
+    font-weight: 700 !important;
 }
 
 .input-neo:focus {
     outline: none !important;
     box-shadow: 
-        inset 8px 8px 20px #d1d9e6,
-        inset -8px -8px 20px #ffffff,
-        0 0 0 3px rgba(102, 126, 234, 0.3) !important;
+        inset 8px 8px 20px rgba(0, 0, 0, 0.6),
+        inset -8px -8px 20px rgba(0, 255, 136, 0.2),
+        0 0 0 3px rgba(0, 255, 136, 0.5),
+        0 0 30px rgba(0, 255, 136, 0.4) !important;
+    border-color: rgba(0, 255, 136, 0.8) !important;
+    color: #00ff88 !important;
 }
 
-/* Tabs neomórficas */
+/* Tabs Neomórficas con Neón Verde */
 .nav-tabs {
     border: none !important;
     margin-bottom: 2rem !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
+    border-radius: 20px !important;
+    padding: 0.5rem !important;
+    box-shadow: 
+        inset 5px 5px 10px rgba(0, 0, 0, 0.6),
+        inset -5px -5px 10px rgba(0, 255, 136, 0.1),
+        0 0 20px rgba(0, 255, 136, 0.2) !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
 }
 
 .nav-tabs .nav-link {
-    background: #ffffff !important;
+    background: transparent !important;
     border: none !important;
     border-radius: 15px !important;
-    box-shadow: 
-        8px 8px 20px #d1d9e6,
-        -8px -8px 20px #ffffff !important;
-    margin-right: 1rem !important;
-    padding: 0.75rem 1.5rem !important;
-    color: #555 !important;
+    margin-right: 0.5rem !important;
+    padding: 0.9rem 1.8rem !important;
+    color: rgba(0, 255, 136, 0.7) !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 800 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
 }
 
 .nav-tabs .nav-link:hover {
+    background: rgba(0, 255, 136, 0.2) !important;
+    color: #00ff88 !important;
     transform: translateY(-2px) !important;
-    box-shadow: 
-        12px 12px 25px #d1d9e6,
-        -12px -12px 25px #ffffff !important;
-    color: #333 !important;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.3) !important;
 }
 
 .nav-tabs .nav-link.active {
-    background: linear-gradient(135deg, #667eea, #764ba2) !important;
-    color: white !important;
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%) !important;
+    color: #000 !important;
     box-shadow: 
-        8px 8px 20px rgba(102, 126, 234, 0.3),
-        -8px -8px 20px rgba(118, 75, 162, 0.3) !important;
+        0 0 25px rgba(0, 255, 136, 0.7),
+        8px 8px 20px rgba(0, 0, 0, 0.5),
+        -8px -8px 20px rgba(0, 255, 136, 0.3) !important;
     transform: translateY(-3px) !important;
+    font-weight: 900 !important;
 }
 
-/* Tab content */
+.nav-tabs .nav-link .badge {
+    background: rgba(0, 255, 136, 0.3) !important;
+    color: #00ff88 !important;
+    padding: 0.3rem 0.6rem !important;
+    border-radius: 10px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4) !important;
+    border: 1px solid rgba(0, 255, 136, 0.5) !important;
+}
+
+.nav-tabs .nav-link.active .badge {
+    background: rgba(0, 0, 0, 0.5) !important;
+    color: #00ff88 !important;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.8) !important;
+}
+
+/* Tab content con Neón Verde */
 .tab-content {
-    background: #ffffff !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
     border-radius: 20px !important;
     box-shadow: 
-        20px 20px 60px #d1d9e6,
-        -20px -20px 60px #ffffff !important;
+        0 0 30px rgba(0, 255, 136, 0.3),
+        20px 20px 60px rgba(0, 0, 0, 0.8),
+        -20px -20px 60px rgba(0, 255, 136, 0.1) !important;
     padding: 2rem !important;
-    border: none !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
+    color: #fff !important;
 }
 
-/* Tablas neomórficas */
+/* Tablas Neomórficas con Neón Verde */
 .table-neo {
-    background: #ffffff !important;
-    border-radius: 15px !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
+    border-radius: 20px !important;
     box-shadow: 
-        10px 10px 30px #d1d9e6,
-        -10px -10px 30px #ffffff !important;
+        0 0 25px rgba(0, 255, 136, 0.3),
+        15px 15px 40px rgba(0, 0, 0, 0.7),
+        -15px -15px 40px rgba(0, 255, 136, 0.1) !important;
     overflow: hidden !important;
-    border: none !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
+    margin-top: 1rem !important;
 }
 
 .table-neo thead th {
-    background: linear-gradient(135deg, #667eea, #764ba2) !important;
-    color: white !important;
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%) !important;
+    color: #000 !important;
     border: none !important;
-    padding: 1rem !important;
-    font-weight: 600 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+    padding: 1.2rem 1rem !important;
+    font-weight: 900 !important;
+    text-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 2px 4px rgba(0, 0, 0, 0.5) !important;
+    font-size: 0.95rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4) !important;
 }
 
 .table-neo tbody tr {
-    transition: all 0.2s ease !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     border: none !important;
 }
 
+.table-neo tbody tr:nth-child(even) {
+    background: rgba(0, 255, 136, 0.05) !important;
+}
+
 .table-neo tbody tr:hover {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)) !important;
-    transform: scale(1.02) !important;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 204, 106, 0.2)) !important;
+    transform: scale(1.01) !important;
+    box-shadow: 
+        0 0 20px rgba(0, 255, 136, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.5) !important;
 }
 
 .table-neo tbody td {
     border: none !important;
-    padding: 1rem !important;
-    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+    padding: 1.2rem 1rem !important;
+    border-bottom: 1px solid rgba(0, 255, 136, 0.2) !important;
+    color: #00ff88 !important;
+    font-weight: 700 !important;
 }
 
-/* Estadísticas */
+.table-neo tbody td:first-child {
+    font-weight: 800 !important;
+    color: #fff !important;
+}
+
+/* Estadísticas con Neón Verde */
 .estadistica-card {
-    background: #ffffff !important;
-    border-radius: 20px !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
+    border-radius: 25px !important;
     box-shadow: 
-        20px 20px 60px #d1d9e6,
-        -20px -20px 60px #ffffff !important;
-    padding: 1.5rem !important;
+        0 0 30px rgba(0, 255, 136, 0.4),
+        20px 20px 60px rgba(0, 0, 0, 0.8),
+        -20px -20px 60px rgba(0, 255, 136, 0.1) !important;
+    padding: 2rem 1.5rem !important;
     text-align: center !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
+}
+
+.estadistica-card::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 4px !important;
+    background: linear-gradient(90deg, #00ff88, #00cc6a, #00ff88) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.8) !important;
 }
 
 .estadistica-card:hover {
-    transform: translateY(-5px) !important;
+    transform: translateY(-8px) scale(1.02) !important;
     box-shadow: 
-        25px 25px 70px #d1d9e6,
-        -25px -25px 70px #ffffff !important;
+        0 0 50px rgba(0, 255, 136, 0.7),
+        30px 30px 80px rgba(0, 0, 0, 0.9),
+        -30px -30px 80px rgba(0, 255, 136, 0.2) !important;
+    border-color: rgba(0, 255, 136, 0.8) !important;
+}
+
+.estadistica-icon {
+    font-size: 2.5rem !important;
+    color: #00ff88 !important;
+    margin-bottom: 1rem !important;
+    opacity: 1 !important;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.8)) !important;
+    font-weight: 900 !important;
 }
 
 .estadistica-value {
-    font-size: 2rem !important;
-    font-weight: 700 !important;
-    color: #667eea !important;
+    font-size: 2.5rem !important;
+    font-weight: 900 !important;
+    color: #00ff88 !important;
     margin-bottom: 0.5rem !important;
+    line-height: 1.2 !important;
+    text-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 0 20px rgba(0, 255, 136, 0.6),
+        0 0 30px rgba(0, 255, 136, 0.4) !important;
 }
 
 .estadistica-label {
-    color: #666 !important;
-    font-size: 0.9rem !important;
-    font-weight: 600 !important;
+    color: rgba(0, 255, 136, 0.8) !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5) !important;
 }
 
-/* Gráficos */
+/* Gráficos con Neón Verde */
 .chart-container {
-    background: #ffffff !important;
-    border-radius: 20px !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
+    border-radius: 25px !important;
     box-shadow: 
-        20px 20px 60px #d1d9e6,
-        -20px -20px 60px #ffffff !important;
+        0 0 30px rgba(0, 255, 136, 0.4),
+        20px 20px 60px rgba(0, 0, 0, 0.8),
+        -20px -20px 60px rgba(0, 255, 136, 0.1) !important;
     padding: 2rem !important;
     margin-bottom: 2rem !important;
-    height: 400px !important;
+    height: 450px !important;
+    transition: all 0.3s ease !important;
+    border: 2px solid rgba(0, 255, 136, 0.3) !important;
+}
+
+.chart-container:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 
+        0 0 50px rgba(0, 255, 136, 0.6),
+        25px 25px 70px rgba(0, 0, 0, 0.9),
+        -25px -25px 70px rgba(0, 255, 136, 0.2) !important;
+    border-color: rgba(0, 255, 136, 0.8) !important;
+}
+
+.chart-container h5 {
+    color: #00ff88 !important;
+    font-weight: 900 !important;
+    margin-bottom: 1.5rem !important;
+    font-size: 1.3rem !important;
+    text-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 0 20px rgba(0, 255, 136, 0.6) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
 }
 
 /* Animaciones */
@@ -267,50 +477,81 @@ body {
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
+    <!-- Header Mejorado -->
     <div class="header-background">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <h1 class="mb-0">
-                    <i class="fas fa-chart-line me-3"></i>
-                    Reporte de Inventario Inteligente
+                <h1 class="mb-2" style="font-size: 2.5rem; font-weight: 800;">
+                    <i class="fas fa-chart-pie me-3"></i>
+                    Reporte Inteligente de Inventario
                 </h1>
-                <p class="mb-0 mt-2 opacity-75">
-                    Análisis completo del inventario con diseño neomórfico
+                <p class="mb-0" style="font-size: 1.1rem; color: #000; font-weight: 800;">
+                    <i class="fas fa-calendar-alt me-2"></i>Generado el {{ fecha_actual }}
+                    <span class="mx-3">|</span>
+                    <i class="fas fa-exchange-alt me-2"></i>Tasa BCV: {{ "%.4f"|format(tasa_bcv) }} Bs/USD
                 </p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="{{ url_for('mostrar_inventario') }}" class="btn-neo">
-                    <i class="fas fa-arrow-left me-2"></i>Volver al Inventario
-                </a>
+                <div class="d-flex gap-3 justify-content-end flex-wrap">
+                    <a href="{{ url_for('mostrar_inventario') }}" class="btn-neo">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </a>
+                    <button class="btn-neo" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Imprimir
+                    </button>
+                    <button class="btn-neo" onclick="exportarReporte()">
+                        <i class="fas fa-download me-2"></i>Exportar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Estadísticas Generales -->
-    <div class="row mb-4">
-        <div class="col-md-3">
+    <!-- Buscador Mejorado -->
+    <div class="neo-card mb-4" style="padding: 1.5rem;">
+        <div class="row align-items-center">
+            <div class="col-md-8 mx-auto">
+                    <div class="position-relative">
+                    <i class="fas fa-search position-absolute" style="left: 1.2rem; top: 50%; transform: translateY(-50%); color: #00ff88; z-index: 10; filter: drop-shadow(0 0 5px rgba(0,255,136,0.8));"></i>
+                    <input type="text" 
+                           class="input-neo" 
+                           id="searchInput" 
+                           placeholder="Buscar productos por nombre, categoría o tipo..." 
+                           onkeyup="filtrarProductos(this.value)"
+                           style="padding-left: 3rem; font-size: 1rem;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales Mejoradas -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3 col-sm-6">
             <div class="estadistica-card">
+                <i class="fas fa-boxes estadistica-icon"></i>
                 <div class="estadistica-value">{{ total_productos }}</div>
                 <div class="estadistica-label">Total Productos</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-sm-6">
             <div class="estadistica-card">
+                <i class="fas fa-cubes estadistica-icon"></i>
                 <div class="estadistica-value">{{ total_stock }}</div>
-                <div class="estadistica-label">Total Stock</div>
+                <div class="estadistica-label">Total en Stock</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-sm-6">
             <div class="estadistica-card">
+                <i class="fas fa-dollar-sign estadistica-icon"></i>
                 <div class="estadistica-value">${{ "%.2f"|format(total_valor_usd) }}</div>
                 <div class="estadistica-label">Valor Total USD</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-sm-6">
             <div class="estadistica-card">
+                <i class="fas fa-money-bill-wave estadistica-icon"></i>
                 <div class="estadistica-value">{{ "%.2f"|format(total_valor_bs) }} Bs</div>
-                <div class="estadistica-label">Valor Total BS</div>
+                <div class="estadistica-label">Valor Total Bs</div>
             </div>
         </div>
     </div>
@@ -333,8 +574,8 @@ body {
 
     <!-- Reporte por Tipos -->
     <div class="neo-card">
-        <h3 class="mb-4">
-            <i class="fas fa-list-alt me-2"></i>
+        <h3 class="mb-4" style="color: #00ff88; font-weight: 900; text-shadow: 0 0 15px rgba(0,255,136,0.8);">
+            <i class="fas fa-list-alt me-2" style="filter: drop-shadow(0 0 8px rgba(0,255,136,0.9));"></i>
             Reporte Detallado por Tipo
         </h3>
         
@@ -349,7 +590,7 @@ body {
                         type="button" 
                         role="tab">
                     <i class="{{ datos.icono }} me-2"></i>{{ datos.nombre }}
-                    <span class="badge bg-light text-dark ms-2">{{ datos.total_productos }}</span>
+                    <span class="badge ms-2" style="background: rgba(0,255,136,0.3); color: #00ff88; font-weight: 900; box-shadow: 0 0 10px rgba(0,255,136,0.4); border: 1px solid rgba(0,255,136,0.5);">{{ datos.total_productos }}</span>
                 </button>
             </li>
             {% endfor %}
@@ -366,24 +607,28 @@ body {
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <div class="estadistica-card">
+                            <i class="fas fa-box-open estadistica-icon"></i>
                             <div class="estadistica-value">{{ datos.total_productos }}</div>
                             <div class="estadistica-label">Productos</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="estadistica-card">
+                            <i class="fas fa-cubes estadistica-icon"></i>
                             <div class="estadistica-value">{{ datos.total_stock }}</div>
                             <div class="estadistica-label">Stock Total</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="estadistica-card">
+                            <i class="fas fa-dollar-sign estadistica-icon"></i>
                             <div class="estadistica-value">${{ "%.2f"|format(datos.total_valor_usd) }}</div>
                             <div class="estadistica-label">Valor USD</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="estadistica-card">
+                            <i class="fas fa-money-bill-wave estadistica-icon"></i>
                             <div class="estadistica-value">{{ "%.2f"|format(datos.total_valor_bs) }} Bs</div>
                             <div class="estadistica-label">Valor BS</div>
                         </div>
@@ -393,9 +638,9 @@ body {
                 <!-- Categorías -->
                 {% for categoria, cat_datos in datos.categorias.items() %}
                 <div class="mb-4">
-                    <h5 class="mb-3">
-                        <i class="fas fa-folder me-2"></i>{{ categoria }}
-                        <span class="badge bg-primary ms-2">{{ cat_datos.total_productos }} productos</span>
+                    <h5 class="mb-3" style="color: #00ff88; font-weight: 900; text-shadow: 0 0 10px rgba(0,255,136,0.6);">
+                        <i class="fas fa-folder me-2" style="filter: drop-shadow(0 0 5px rgba(0,255,136,0.8));"></i>{{ categoria }}
+                        <span class="badge ms-2" style="background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; font-weight: 800; box-shadow: 0 0 15px rgba(0,255,136,0.6);">{{ cat_datos.total_productos }} productos</span>
                     </h5>
                     
                     <div class="table-responsive">
@@ -433,11 +678,23 @@ body {
         </div>
     </div>
 
-    <!-- Footer -->
-    <div class="text-center mt-4">
-        <p class="text-muted">
-            Reporte generado el {{ fecha_actual }} | Tasa BCV: {{ "%.4f"|format(tasa_bcv) }} Bs/USD
-        </p>
+    <!-- Footer Mejorado con Neón Verde -->
+    <div class="neo-card mt-4 text-center" style="background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%); color: #000; padding: 1.5rem; box-shadow: 0 0 40px rgba(0,255,136,0.6); border: 2px solid rgba(0,255,136,0.8);">
+        <div class="row align-items-center">
+            <div class="col-md-6 text-md-start">
+                <p class="mb-0" style="font-weight: 900; color: #000;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Reporte Inteligente</strong> - Análisis completo del inventario
+                </p>
+            </div>
+            <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                <p class="mb-0" style="font-weight: 900; color: #000;">
+                    <i class="fas fa-calendar-alt me-2"></i>{{ fecha_actual }}
+                    <span class="mx-2">|</span>
+                    <i class="fas fa-exchange-alt me-2"></i>Tasa BCV: {{ "%.4f"|format(tasa_bcv) }} Bs/USD
+                </p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -470,7 +727,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endfor %}
             ],
             backgroundColor: [
-                '#667eea', '#f093fb', '#4facfe', '#43e97b', '#ffd93d'
+                'rgba(0, 255, 136, 0.9)', 'rgba(0, 204, 106, 0.9)', 'rgba(0, 255, 100, 0.9)', 'rgba(0, 220, 120, 0.9)', 'rgba(100, 255, 180, 0.9)'
             ],
             borderWidth: 0
         }]
@@ -493,8 +750,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             usePointStyle: true,
                             font: {
                                 size: 12,
-                                weight: '600'
-                            }
+                                weight: '700',
+                                family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                            },
+                            color: '#00ff88'
                         }
                     }
                 },
@@ -508,19 +767,46 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Gráfico de tipos creado');
     }
     
-    // Gráfico de categorías (simplificado)
+    // Gráfico de categorías con datos reales desde el backend
     const ctxCategorias = document.getElementById('chartCategorias');
     if (ctxCategorias) {
-        // Datos de ejemplo para categorías
+        // Construir mapa de categorías directamente
+        const categoriasMap = {};
+        {% for tipo, datos in reporte_por_tipo.items() %}
+            {% for categoria, cat_datos in datos.categorias.items() %}
+                {% if cat_datos.total_productos > 0 %}
+                (function() {
+                    const catNombre = {{ categoria|tojson }};
+                    const catCantidad = {{ cat_datos.total_productos }};
+                    if (!categoriasMap[catNombre]) {
+                        categoriasMap[catNombre] = 0;
+                    }
+                    categoriasMap[catNombre] += catCantidad;
+                })();
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+        
+        // Ordenar y obtener top 5
+        const categoriasSorted = Object.entries(categoriasMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+        
         const categoriasData = {
-            labels: ['Categoría 1', 'Categoría 2', 'Categoría 3', 'Categoría 4', 'Categoría 5'],
+            labels: categoriasSorted.length > 0 ? categoriasSorted.map(c => c[0]) : ['Sin categorías disponibles'],
             datasets: [{
                 label: 'Productos',
-                data: [12, 19, 3, 5, 2],
-                backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                borderColor: 'rgba(102, 126, 234, 1)',
+                data: categoriasSorted.length > 0 ? categoriasSorted.map(c => c[1]) : [0],
+                backgroundColor: [
+                    'rgba(0, 255, 136, 0.9)',
+                    'rgba(0, 204, 106, 0.9)',
+                    'rgba(0, 255, 100, 0.9)',
+                    'rgba(0, 220, 120, 0.9)',
+                    'rgba(100, 255, 180, 0.9)'
+                ].slice(0, categoriasSorted.length > 0 ? categoriasSorted.length : 1),
                 borderWidth: 0,
-                borderRadius: 10
+                borderRadius: 12,
+                borderSkipped: false
             }]
         };
         
@@ -539,25 +825,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: 'rgba(0,0,0,0.1)',
+                            color: 'rgba(0, 255, 136, 0.2)',
                             drawBorder: false
+                        },
+                        border: {
+                            color: 'rgba(0, 255, 136, 0.5)'
                         },
                         ticks: {
                             font: {
                                 size: 11,
-                                weight: '600'
-                            }
+                                weight: '700',
+                                family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                            },
+                            color: '#00ff88'
                         }
                     },
                     x: {
                         grid: {
-                            display: false
+                            display: false,
+                            color: 'rgba(0, 255, 136, 0.2)'
+                        },
+                        border: {
+                            color: 'rgba(0, 255, 136, 0.5)'
                         },
                         ticks: {
                             font: {
                                 size: 11,
-                                weight: '600'
-                            }
+                                weight: '700',
+                                family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                            },
+                            color: '#00ff88'
                         }
                     }
                 },
@@ -574,5 +871,102 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Todos los gráficos inicializados');
 });
+
+// Función para filtrar productos en tiempo real
+function filtrarProductos(termino) {
+    const terminoLower = termino.toLowerCase();
+    const tablas = document.querySelectorAll('.table-neo tbody');
+    let resultadosEncontrados = 0;
+    
+    tablas.forEach(tabla => {
+        const filas = tabla.querySelectorAll('tr');
+        let filasVisibles = 0;
+        
+        filas.forEach(fila => {
+            const texto = fila.textContent.toLowerCase();
+            const coincide = texto.includes(terminoLower);
+            
+            if (coincide) {
+                fila.style.display = '';
+                filasVisibles++;
+                resultadosEncontrados++;
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+        
+        // Ocultar categoría si no tiene resultados
+        const categoriaSection = tabla.closest('.mb-4');
+        if (categoriaSection && termino) {
+            if (filasVisibles === 0) {
+                categoriaSection.style.display = 'none';
+            } else {
+                categoriaSection.style.display = 'block';
+            }
+        } else if (categoriaSection && !termino) {
+            categoriaSection.style.display = 'block';
+        }
+    });
+    
+    // Mostrar mensaje si no hay resultados
+    let mensajeBusqueda = document.getElementById('mensajeBusqueda');
+    if (!mensajeBusqueda && termino && resultadosEncontrados === 0) {
+        mensajeBusqueda = document.createElement('div');
+        mensajeBusqueda.id = 'mensajeBusqueda';
+        mensajeBusqueda.className = 'neo-card text-center';
+        mensajeBusqueda.innerHTML = `
+            <i class="fas fa-search" style="font-size: 3rem; color: rgba(0, 255, 136, 0.6); margin-bottom: 1rem; filter: drop-shadow(0 0 10px rgba(0,255,136,0.5));"></i>
+            <h5 style="color: #00ff88; font-weight: 900; text-shadow: 0 0 10px rgba(0,255,136,0.6);">No se encontraron resultados para "${termino}"</h5>
+            <p style="color: rgba(0, 255, 136, 0.8); font-weight: 700;">Intenta con otro término de búsqueda</p>
+        `;
+        document.querySelector('.tab-content').prepend(mensajeBusqueda);
+    } else if (mensajeBusqueda && (resultadosEncontrados > 0 || !termino)) {
+        mensajeBusqueda.remove();
+    }
+}
+
+// Función para exportar reporte
+function exportarReporte() {
+    const reporteData = {
+        fecha: '{{ fecha_actual }}',
+        tasa_bcv: {{ tasa_bcv }},
+        totales: {
+            productos: {{ total_productos }},
+            stock: {{ total_stock }},
+            valor_usd: {{ total_valor_usd }},
+            valor_bs: {{ total_valor_bs }}
+        },
+        tipos: {
+            {% for tipo, datos in reporte_por_tipo.items() %}
+            '{{ tipo }}': {
+                nombre: '{{ datos.nombre }}',
+                total_productos: {{ datos.total_productos }},
+                total_stock: {{ datos.total_stock }},
+                total_valor_usd: {{ datos.total_valor_usd }},
+                total_valor_bs: {{ datos.total_valor_bs }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        }
+    };
+    
+    const dataStr = JSON.stringify(reporteData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reporte_inventario_{{ fecha_actual|replace(' ', '_')|replace('/', '-')|replace(':', '-') }}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    // Mostrar notificación
+    const notificacion = document.createElement('div');
+    notificacion.className = 'alert alert-success position-fixed';
+    notificacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notificacion.innerHTML = '<i class="fas fa-check-circle me-2"></i>Reporte exportado exitosamente';
+    document.body.appendChild(notificacion);
+    setTimeout(() => notificacion.remove(), 3000);
+}
 </script>
 {% endblock %}

@@ -308,8 +308,11 @@
     .producto-nombre {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #2d3748;
-        margin-bottom: 0.5rem;
+        color: #000000 !important;
+        background: #ffffff !important;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
     }
 
     .producto-categoria {
@@ -544,8 +547,27 @@
         box-shadow: inset 2px 2px 4px #d1d9e6, inset -2px -2px 4px #ffffff;
     }
     
+    .neo-header {
+        background: #ffffff !important;
+    }
+    
+    .neo-header h3 {
+        color: #000000 !important;
+        background: transparent !important;
+        -webkit-text-fill-color: #000000 !important;
+        -webkit-background-clip: initial !important;
+        background-clip: initial !important;
+    }
+    
     .neo-header:hover {
         box-shadow: inset 6px 6px 12px #d1d9e6, inset -6px -6px 12px #ffffff;
+        background: #ffffff !important;
+    }
+    
+    .neo-header:hover h3 {
+        color: #000000 !important;
+        background: transparent !important;
+        -webkit-text-fill-color: #000000 !important;
     }
     
     .neo-qr-container:hover {
@@ -699,9 +721,6 @@
 
         <!-- Botones de Acción -->
         <div class="btn-actions" style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-            <a href="{{ url_for('nuevo_producto') }}" class="neo-btn neo-btn-primary">
-                <i class="fas fa-plus me-2"></i>Agregar Producto
-            </a>
             <a href="{{ url_for('reporte_inventario_neomorfico') }}" class="neo-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 10px 10px 20px rgba(102, 126, 234, 0.3), -10px -10px 20px rgba(118, 75, 162, 0.3);">
                 <i class="fas fa-chart-line me-2"></i>Reporte Inteligente
             </a>
@@ -895,15 +914,15 @@ function mostrarQR(productoId) {
             const qrContainer = document.getElementById('qrImageContainer');
             qrContainer.innerHTML = `
                 <div class="qr-label-neo" id="qrLabel" style="background: #f0f0f3; border-radius: 20px; padding: 2rem; text-align: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; max-width: 400px; margin: 0 auto; position: relative; border: 1px solid rgba(255,255,255,0.2); overflow: visible;">
-                    <div class="neo-header" style="background: #f0f0f3; border-radius: 15px; padding: 1rem; margin-bottom: 1.5rem; box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff; border: 1px solid rgba(255,255,255,0.3);">
-                        <h3 style="color: #2d3748; margin: 0; font-size: 1.2rem; font-weight: 700; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">${producto.nombre}</h3>
+                    <div class="neo-header" style="background: #ffffff !important; border-radius: 15px; padding: 1rem; margin-bottom: 1.5rem; box-shadow: 4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff; border: 1px solid rgba(0,0,0,0.05);">
+                        <h3 style="color: #000000 !important; margin: 0; font-size: 1.2rem; font-weight: 700; background: transparent !important; -webkit-text-fill-color: #000000 !important;">${producto.nombre}</h3>
                     </div>
                     <div class="neo-qr-container" style="background: #f0f0f3; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff; border: 1px solid rgba(255,255,255,0.3);">
                         <img src="${qrImage.src}" style="max-width: 180px; height: auto; border-radius: 12px; box-shadow: 4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff;">
                     </div>
                     <div class="neo-info-grid" style="display: grid; gap: 0.8rem; text-align: left;">
                         <div class="neo-info-item" style="background: #f0f0f3; border-radius: 12px; padding: 0.8rem; box-shadow: 4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff; border: 1px solid rgba(255,255,255,0.3);">
-                            <div style="font-size: 0.9rem; color: #667eea; font-weight: 600; margin-bottom: 0.3rem;">Tipo</div>
+                            <div style="font-size: 0.9rem; color:rgb(232, 233, 240); font-weight: 600; margin-bottom: 0.3rem;">Tipo</div>
                             <div style="font-size: 1rem; color: #2d3748; font-weight: 500;">${producto.tipo || 'piezas'}</div>
                         </div>
                         <div class="neo-info-item" style="background: #f0f0f3; border-radius: 12px; padding: 0.8rem; box-shadow: 4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff; border: 1px solid rgba(255,255,255,0.3);">

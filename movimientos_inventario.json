@@ -128,5 +128,16 @@
         "fecha": "2025-10-26 21:43:03",
         "usuario": "Sistema",
         "orden_servicio": "OS-20251026173246"
+    },
+    {
+        "tipo": "ENTRADA",
+        "producto_id": "2",
+        "producto_nombre": "bateria generica",
+        "cantidad": 1,
+        "cantidad_anterior": 39,
+        "cantidad_nueva": 40,
+        "motivo": "Restauración por eliminación de nota de entrega NE-0001",
+        "fecha": "2025-11-03 00:00:00",
+        "usuario": "SISTEMA"
     }
 ]

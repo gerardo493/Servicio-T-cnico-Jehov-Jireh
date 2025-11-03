@@ -5,7 +5,7 @@ x    {% extends "base.html" %}
     {% block content %}
     <style>
         body {
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+            background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
             min-height: 100vh;
         }
         .main-bg-blur {
@@ -14,6 +14,9 @@ x    {% extends "base.html" %}
         .container-fluid.px-4 {
             position: relative;
             z-index: 1;
+            background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+            min-height: 100vh;
+            padding: 2rem !important;
         }
         .stats-card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -48,53 +51,93 @@ x    {% extends "base.html" %}
             color: #2c3e50;
         }
 
+        /* Estilo Neomorfo para Acciones Rápidas */
+        .quick-actions-card {
+            background: #f0f0f3;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
+            overflow: hidden;
+        }
+
+        .quick-actions-card .card-header {
+            background: #f0f0f3;
+            border: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+        }
+
+        .quick-actions-card .card-header h5 {
+            color: #00ff88;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: none;
+        }
+
+        .quick-actions-card .card-body {
+            background: #f0f0f3;
+            padding: 1.5rem;
+        }
+
         .quick-actions .btn {
             border: none;
-            border-radius: 12px;
-            padding: 1rem;
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
-            transition: all 0.3s ease;
+            text-transform: none;
+            letter-spacing: 0.3px;
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
-            font-size: 0.9rem;
-            color: #1a1a1a;
+            font-size: 0.95rem;
+            color: #2d3748;
+            background: #f0f0f3;
         }
-        .quick-actions .btn-primary {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            color: #1a1a1a;
-            border: 2px solid #00ff88;
+
+        .quick-actions .btn-primary,
+        .quick-actions .btn-success,
+        .quick-actions .btn-warning,
+        .quick-actions .btn-info,
+        .quick-actions .btn-danger {
+            background: #f0f0f3;
+            color: #2d3748;
+            border: none;
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
         }
-        .quick-actions .btn-success {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            color: #1a1a1a;
-            border: 2px solid #00ff88;
-        }
-        .quick-actions .btn-warning {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            color: #1a1a1a;
-            border: 2px solid #00ff88;
-        }
-        .quick-actions .btn-info {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            color: #1a1a1a;
-            border: 2px solid #00ff88;
-        }
+
         .quick-actions .btn:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 255, 136, 0.4);
-            background: linear-gradient(135deg, #00ff88 0%, #00e676 100%);
-            filter: brightness(1.1);
+            transform: translateY(-3px);
+            box-shadow: 
+                10px 10px 20px #d1d9e6,
+                -10px -10px 20px #ffffff;
+            background: #f0f0f3;
+            color: #00ff88;
         }
+
+        .quick-actions .btn:active {
+            transform: translateY(-1px);
+            box-shadow: 
+                inset 4px 4px 8px #d1d9e6,
+                inset -4px -4px 8px #ffffff;
+        }
+
         .quick-actions .btn i {
             font-size: 1.2rem;
             margin-right: 0.5rem;
             transition: transform 0.3s;
+            color: #00ff88;
         }
+
         .quick-actions .btn:hover i {
             transform: scale(1.1);
+            color: #00ff88;
         }
         .list-group-item {
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -672,80 +715,48 @@ x    {% extends "base.html" %}
         }
 
         #fecha-hora-actual {
-            background: linear-gradient(145deg, #00ff88, #00cc6a);
+            background: #f0f0f3;
             padding: 1.2rem 2rem;
-            border-radius: 16px;
-            color: #1a1a1a;
+            border-radius: 25px;
+            color: #00ff88;
             font-weight: 700;
             font-size: 1.1rem;
-            border: 2px solid #00ff88;
+            border: none;
             box-shadow: 
-                8px 8px 20px rgba(0, 255, 136, 0.4),
-                -8px -8px 20px rgba(0, 204, 106, 0.3),
-                inset 2px 2px 4px rgba(255, 255, 255, 0.3),
-                inset -2px -2px 4px rgba(0, 0, 0, 0.1),
-                0 0 20px rgba(0, 255, 136, 0.3);
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
             text-align: center;
             margin-left: 0;
             white-space: normal;
             word-break: break-word;
-            backdrop-filter: blur(10px);
             transform: translateY(0) translateZ(0);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
-            perspective: 1000px;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
 
         #fecha-hora-actual::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, 
-                rgba(0, 255, 136, 0) 0%, 
-                rgba(255, 255, 255, 0.4) 50%, 
-                rgba(0, 255, 136, 0) 100%);
-            box-shadow: 0 1px 2px rgba(0, 255, 136, 0.3);
+            display: none;
         }
 
         #fecha-hora-actual::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, 
-                rgba(0, 204, 106, 0) 0%, 
-                rgba(0, 204, 106, 0.4) 50%, 
-                rgba(0, 204, 106, 0) 100%);
-            box-shadow: 0 -1px 2px rgba(0, 204, 106, 0.2);
+            display: none;
         }
 
         #fecha-hora-actual:hover {
-            transform: translateY(-4px) translateZ(20px);
+            transform: translateY(-3px);
             box-shadow: 
-                12px 12px 30px rgba(0, 255, 136, 0.5),
-                -12px -12px 30px rgba(0, 204, 106, 0.4),
-                inset 2px 2px 4px rgba(255, 255, 255, 0.4),
-                inset -2px -2px 4px rgba(0, 0, 0, 0.1),
-                0 0 30px rgba(0, 255, 136, 0.4);
-            color: #1a1a1a;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                25px 25px 70px #d1d9e6,
+                -25px -25px 70px #ffffff;
+            color: #00cc6a;
         }
 
         #fecha-hora-actual:active {
-            transform: translateY(-2px) translateZ(10px);
+            transform: translateY(-1px);
             box-shadow: 
-                6px 6px 15px rgba(0, 255, 136, 0.4),
-                -6px -6px 15px rgba(0, 204, 106, 0.3),
-                inset 1px 1px 2px rgba(255, 255, 255, 0.3),
-                inset -1px -1px 2px rgba(0, 0, 0, 0.1),
-                0 0 15px rgba(0, 255, 136, 0.3);
+                inset 4px 4px 8px #d1d9e6,
+                inset -4px -4px 8px #ffffff;
         }
 
         @media (max-width: 768px) {
@@ -815,25 +826,32 @@ x    {% extends "base.html" %}
         }
 
         .header-container {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
             padding: 2.5rem 0 2rem 0;
             margin: -1.5rem -1.5rem 0 -1.5rem;
             border-radius: 0 0 40px 40px;
-            box-shadow: 0 12px 32px rgba(0, 255, 136, 0.2);
+            box-shadow: 
+                inset 5px 5px 10px #d1d9e6,
+                inset -5px -5px 10px #ffffff;
             position: relative;
             overflow: visible;
-            border-bottom: 3px solid #00ff88;
+            border-bottom: 2px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .header-container .row.g-3 {
+            background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+            padding: 1.5rem;
+            border-radius: 25px;
+            margin-top: 1rem;
+            margin-left: 0;
+            margin-right: 0;
+            box-shadow: 
+                inset 5px 5px 10px #d1d9e6,
+                inset -5px -5px 10px #ffffff;
         }
 
         .header-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
-            opacity: 0.5;
+            display: none;
         }
 
         .header-content {
@@ -900,50 +918,44 @@ x    {% extends "base.html" %}
         }
 
         .welcome-subtext {
-            color: #ffffff;
+            color: #00ff88;
             font-size: 1.3rem;
             font-weight: 500;
             margin-bottom: 0;
             letter-spacing: 0.3px;
             line-height: 1.4;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 8px rgba(0, 255, 136, 0.3), 0 0 20px rgba(0, 255, 136, 0.2);
         }
 
         .main-stats {
             margin-top: 2.5rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #f0f0f3 0%, #e6e6e9 100%);
+            border-radius: 25px;
+            box-shadow: 
+                inset 5px 5px 10px #d1d9e6,
+                inset -5px -5px 10px #ffffff;
         }
         .main-stats .card {
             flex: 1 1 0;
             min-width: 180px;
             max-width: 260px;
             margin: 0;
-            border: 2px solid #00ff88;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.15);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            background: #ffffff;
-            animation: card-float 8s ease-in-out infinite;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #f0f0f3;
         }
 
-        @keyframes card-float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            25% { transform: translateY(-3px) rotate(1deg); }
-            50% { transform: translateY(-6px) rotate(0deg); }
-            75% { transform: translateY(-3px) rotate(-1deg); }
-        }
         .main-stats .card:hover {
-            transform: translateY(-15px) scale(1.08) rotate(3deg);
-            box-shadow: 0 25px 60px rgba(0, 255, 136, 0.5), 0 0 40px rgba(0, 255, 136, 0.3);
-            background: #ffffff;
-            border-color: #00e676;
-            animation: card-dance 1s ease-in-out infinite;
-        }
-
-        @keyframes card-dance {
-            0%, 100% { transform: translateY(-15px) scale(1.08) rotate(3deg); }
-            25% { transform: translateY(-18px) scale(1.1) rotate(5deg); }
-            50% { transform: translateY(-20px) scale(1.12) rotate(3deg); }
-            75% { transform: translateY(-18px) scale(1.1) rotate(1deg); }
+            transform: translateY(-5px);
+            box-shadow: 
+                25px 25px 70px #d1d9e6,
+                -25px -25px 70px #ffffff;
+            background: #f0f0f3;
         }
         .main-stats .icon-container {
             width: 56px;
@@ -954,149 +966,156 @@ x    {% extends "base.html" %}
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 16px rgba(26, 26, 26, 0.2);
-            background: rgba(26, 26, 26, 0.1);
-            border: 1px solid rgba(26, 26, 26, 0.3);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            animation: icon-float 4s ease-in-out infinite;
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
+            background: #f0f0f3;
+            border: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        @keyframes icon-float {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.05) rotate(3deg); }
-            50% { transform: scale(1.1) rotate(0deg); }
-            75% { transform: scale(1.05) rotate(-3deg); }
-        }
         .main-stats .card:hover .icon-container {
-            transform: scale(1.4) rotate(-15deg) translateY(-8px);
-            box-shadow: 0 12px 30px rgba(26, 26, 26, 0.4), 0 0 20px rgba(26, 26, 26, 0.3);
-            background: rgba(26, 26, 26, 0.2);
-            border-color: rgba(26, 26, 26, 0.6);
-            animation: icon-spin 0.8s ease-in-out infinite;
+            transform: scale(1.05);
+            box-shadow: 
+                10px 10px 20px #d1d9e6,
+                -10px -10px 20px #ffffff;
+            background: #f0f0f3;
         }
         .main-stats .stat-title {
             font-size: 1.18rem;
             font-weight: 700;
             margin-bottom: 0.3rem;
             letter-spacing: 0.7px;
-            color: #1a1a1a;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            color: #00ff88;
+            text-shadow: none;
         }
         .main-stats .stat-value {
             font-size: 1.55rem;
             font-weight: 800;
             margin-bottom: 0.1rem;
-            color: #1a1a1a;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            color: #2d3748;
+            text-shadow: none;
         }
         .main-stats .stat-subtitle {
             font-size: 1.13rem;
             font-weight: 600;
-            color: #1a1a1a;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            color: #718096;
+            text-shadow: none;
         }
         .card.clientes .icon-container {
-            background: linear-gradient(135deg, #00ff88 0%, #00e676 100%);
-            color: #ffffff;
+            background: #f0f0f3;
+            color: #00ff88;
             width: 50px;
             height: 50px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
             margin: 0 auto 1rem;
+            border: none;
         }
         .card.inventario .icon-container {
-            background: linear-gradient(135deg, #00ff88 0%, #00e676 100%);
-            color: #ffffff;
+            background: #f0f0f3;
+            color: #00ff88;
             width: 50px;
             height: 50px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
             margin: 0 auto 1rem;
+            border: none;
         }
         .card.facturas .icon-container {
-            background: linear-gradient(135deg, #00ff88 0%, #00e676 100%);
-            color: #ffffff;
+            background: #f0f0f3;
+            color: #00ff88;
             width: 50px;
             height: 50px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
             margin: 0 auto 1rem;
+            border: none;
         }
         .card.tasa-bcv .icon-container {
-            background: linear-gradient(135deg, #00ff88 0%, #00e676 100%);
-            color: #ffffff;
+            background: #f0f0f3;
+            color: #00ff88;
             width: 50px;
             height: 50px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
             margin: 0 auto 1rem;
+            border: none;
         }
         .card.clientes .stat-title {
             color: #00ff88;
             font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
         .card.inventario .stat-title {
             color: #00ff88;
             font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
         .card.facturas .stat-title {
             color: #00ff88;
             font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
         .card.tasa-bcv .stat-title {
             color: #00ff88;
             font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
         .card.clientes .stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
         .card.inventario .stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
         .card.facturas .stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
         .card.tasa-bcv .stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
         .card.clientes .stat-subtitle {
-            color: #6c757d;
+            color: #718096;
             font-weight: 500;
         }
         .card.inventario .stat-subtitle {
-            color: #6c757d;
+            color: #718096;
             font-weight: 500;
         }
         .card.facturas .stat-subtitle {
-            color: #6c757d;
+            color: #718096;
             font-weight: 500;
         }
         .card.tasa-bcv .stat-subtitle {
-            color: #6c757d;
+            color: #718096;
             font-weight: 500;
         }
         .badge {
@@ -1172,10 +1191,12 @@ x    {% extends "base.html" %}
             }
         }
         .header-stat-card {
-            background: #ffffff;
-            border: 2px solid #00ff88;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.15);
+            background: #f0f0f3;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
             padding: 1.5rem;
             height: 100%;
             display: flex;
@@ -1183,69 +1204,43 @@ x    {% extends "base.html" %}
             align-items: flex-start;
             justify-content: center;
             position: relative;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            25% { transform: translateY(-2px) rotate(0.5deg); }
-            50% { transform: translateY(-4px) rotate(0deg); }
-            75% { transform: translateY(-2px) rotate(-0.5deg); }
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-stat-card.cobranza {
-            background: #ffffff;
-            border: 2px solid #00ff88;
+            background: #f0f0f3;
+            border: none;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
         }
 
         .header-stat-card.cobranza::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 255, 136, 0.05) 100%);
-            border-radius: 50%;
-            transform: translate(30%, -30%);
+            display: none;
         }
 
         .header-stat-card.cobranza .icon {
-            color: #1a1a1a;
+            color: #00ff88;
             font-size: 2.6rem;
             margin-bottom: 1.2rem;
-            background: rgba(26, 26, 26, 0.1);
+            background: #f0f0f3;
             padding: 1.2rem;
             border-radius: 20px;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 4px 16px rgba(26, 26, 26, 0.2);
-            border: 1px solid rgba(26, 26, 26, 0.3);
-            animation: icon-bounce 3s ease-in-out infinite;
-        }
-
-        @keyframes icon-bounce {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.05) rotate(2deg); }
-            50% { transform: scale(1.1) rotate(0deg); }
-            75% { transform: scale(1.05) rotate(-2deg); }
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
+            border: none;
         }
 
         .header-stat-card.cobranza:hover .icon {
-            transform: scale(1.3) rotate(-15deg) translateY(-5px);
-            box-shadow: 0 12px 30px rgba(26, 26, 26, 0.4), 0 0 20px rgba(26, 26, 26, 0.3);
-            background: rgba(26, 26, 26, 0.2);
-            border-color: rgba(26, 26, 26, 0.6);
-            animation: icon-spin 0.6s ease-in-out;
-        }
-
-        @keyframes icon-spin {
-            0% { transform: scale(1.3) rotate(-15deg) translateY(-5px); }
-            50% { transform: scale(1.4) rotate(-30deg) translateY(-8px); }
-            100% { transform: scale(1.3) rotate(-15deg) translateY(-5px); }
+            transform: scale(1.08);
+            box-shadow: 
+                10px 10px 20px #d1d9e6,
+                -10px -10px 20px #ffffff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-stat-card.cobranza .header-stat-label {
@@ -1253,15 +1248,15 @@ x    {% extends "base.html" %}
             font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 0.8rem;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
 
         .header-stat-card.cobranza .header-stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-size: 2.2rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
 
         .header-stat-card.cobranza .header-stat-bs {
@@ -1273,57 +1268,48 @@ x    {% extends "base.html" %}
         }
 
         .header-stat-card.cobranza:hover {
-            transform: translateY(-12px) scale(1.05) rotate(2deg);
-            box-shadow: 0 20px 50px rgba(0, 255, 136, 0.5), 0 0 30px rgba(0, 255, 136, 0.3);
-            background: #ffffff;
-            border-color: #00e676;
-            animation: pulse-glow 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 20px 50px rgba(0, 255, 136, 0.5), 0 0 30px rgba(0, 255, 136, 0.3); }
-            50% { box-shadow: 0 25px 60px rgba(0, 255, 136, 0.6), 0 0 40px rgba(0, 255, 136, 0.4); }
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 
+                25px 25px 70px #d1d9e6,
+                -25px -25px 70px #ffffff;
+            background: #f0f0f3;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-stat-card.pagos {
-            background: #ffffff;
-            border: 2px solid #00ff88;
+            background: #f0f0f3;
+            border: none;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
         }
 
         .header-stat-card.pagos::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 255, 136, 0.05) 100%);
-            border-radius: 50%;
-            transform: translate(30%, -30%);
+            display: none;
         }
 
         .header-stat-card.pagos .icon {
-            color: #1a1a1a;
+            color: #00ff88;
             font-size: 2.6rem;
             margin-bottom: 1.2rem;
-            background: rgba(26, 26, 26, 0.1);
+            background: #f0f0f3;
             padding: 1.2rem;
             border-radius: 20px;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 4px 16px rgba(26, 26, 26, 0.2);
-            border: 1px solid rgba(26, 26, 26, 0.3);
-            animation: icon-bounce 3.2s ease-in-out infinite;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
+            border: none;
         }
 
         .header-stat-card.pagos:hover .icon {
-            transform: scale(1.3) rotate(15deg) translateY(-5px);
-            box-shadow: 0 12px 30px rgba(26, 26, 26, 0.4), 0 0 20px rgba(26, 26, 26, 0.3);
-            background: rgba(26, 26, 26, 0.2);
-            border-color: rgba(26, 26, 26, 0.6);
-            animation: icon-spin 0.6s ease-in-out;
+            transform: scale(1.08);
+            box-shadow: 
+                10px 10px 20px #d1d9e6,
+                -10px -10px 20px #ffffff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-stat-card.pagos .header-stat-label {
@@ -1331,15 +1317,15 @@ x    {% extends "base.html" %}
             font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 0.8rem;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
 
         .header-stat-card.pagos .header-stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-size: 2.2rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
 
         .header-stat-card.pagos .header-stat-bs {
@@ -1351,50 +1337,57 @@ x    {% extends "base.html" %}
         }
 
         .header-stat-card.pagos:hover {
-            transform: translateY(-12px) scale(1.05) rotate(-2deg);
-            box-shadow: 0 20px 50px rgba(0, 255, 136, 0.5), 0 0 30px rgba(0, 255, 136, 0.3);
-            background: #ffffff;
-            border-color: #00e676;
-            animation: pulse-glow 1.5s ease-in-out infinite;
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 
+                25px 25px 70px #d1d9e6,
+                -25px -25px 70px #ffffff;
+            background: #f0f0f3;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-stat-card.facturado {
-            background: #ffffff;
-            border: 2px solid #00ff88;
+            background: #f0f0f3;
+            border: none;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                20px 20px 60px #d1d9e6,
+                -20px -20px 60px #ffffff;
         }
 
         .header-stat-card.facturado::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(0, 255, 136, 0.05) 100%);
-            border-radius: 50%;
-            transform: translate(30%, -30%);
+            display: none;
         }
 
         .header-stat-card.facturado .icon {
-            color: #1a1a1a;
+            color: #00ff88;
             font-size: 2.6rem;
             margin-bottom: 1.2rem;
-            background: rgba(26, 26, 26, 0.1);
+            background: #f0f0f3;
             padding: 1.2rem;
             border-radius: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 16px rgba(26, 26, 26, 0.2);
-            border: 1px solid rgba(26, 26, 26, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                8px 8px 16px #d1d9e6,
+                -8px -8px 16px #ffffff;
+            border: none;
         }
 
         .header-stat-card.facturado:hover .icon {
-            transform: scale(1.1) rotate(-5deg);
-            box-shadow: 0 8px 24px rgba(26, 26, 26, 0.3);
-            background: rgba(26, 26, 26, 0.15);
-            border-color: rgba(26, 26, 26, 0.5);
+            transform: scale(1.08);
+            box-shadow: 
+                10px 10px 20px #d1d9e6,
+                -10px -10px 20px #ffffff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .header-stat-card.facturado:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 
+                25px 25px 70px #d1d9e6,
+                -25px -25px 70px #ffffff;
+            background: #f0f0f3;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .header-stat-card.facturado .header-stat-label {
@@ -1402,15 +1395,15 @@ x    {% extends "base.html" %}
             font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 0.8rem;
-            text-shadow: 0 2px 4px rgba(0, 255, 136, 0.3);
+            text-shadow: none;
         }
 
         .header-stat-card.facturado .header-stat-value {
-            color: #1a1a1a;
+            color: #2d3748;
             font-size: 2.2rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-shadow: none;
         }
 
         .header-stat-card.facturado .header-stat-bs {
@@ -1419,14 +1412,6 @@ x    {% extends "base.html" %}
             color: #6c757d;
             margin-top: 0.3rem;
             opacity: 0.8;
-        }
-
-        .header-stat-card.facturado:hover {
-            transform: translateY(-12px) scale(1.05) rotate(1deg);
-            box-shadow: 0 20px 50px rgba(0, 255, 136, 0.5), 0 0 30px rgba(0, 255, 136, 0.3);
-            background: #ffffff;
-            border-color: #00e676;
-            animation: pulse-glow 1.5s ease-in-out infinite;
         }
 
         .header-stat-card.promedio {
@@ -2361,8 +2346,8 @@ x    {% extends "base.html" %}
                                             </ul>
                                         </div>
                                     </div>
-                                    <div class="icon-container mb-2" style="width: 50px; height: 50px; background: linear-gradient(135deg, #00ff88 0%, #00e676 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);">
-                                        <i class="fas fa-hand-holding-usd" style="font-size: 1.5rem; color: white;"></i>
+                                    <div class="icon-container mb-2" style="width: 50px; height: 50px; background: #f0f0f3; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; border: none;">
+                                        <i class="fas fa-hand-holding-usd" style="font-size: 1.5rem; color: #00ff88;"></i>
                                     </div>
                                     <i class="fas fa-sync-alt header-stat-refresh" id="refresh-cobranza" title="Actualizando datos..."></i>
                                     <div class="header-stat-label">Cuentas por Cobrar</div>
@@ -2412,8 +2397,8 @@ x    {% extends "base.html" %}
                                             </ul>
                                         </div>
                                     </div>
-                                    <div class="icon-container mb-2" style="width: 50px; height: 50px; background: linear-gradient(135deg, #00ff88 0%, #00e676 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);">
-                                        <i class="fas fa-money-check-alt" style="font-size: 1.5rem; color: white;"></i>
+                                    <div class="icon-container mb-2" style="width: 50px; height: 50px; background: #f0f0f3; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; border: none;">
+                                        <i class="fas fa-money-check-alt" style="font-size: 1.5rem; color: #00ff88;"></i>
                                     </div>
                                     <i class="fas fa-sync-alt header-stat-refresh" id="refresh-pagos" title="Actualizando datos..."></i>
                                     <div class="header-stat-label">Pagos Recibidos</div>
@@ -2463,8 +2448,8 @@ x    {% extends "base.html" %}
                                             </ul>
                                         </div>
                                     </div>
-                                    <div class="icon-container mb-2" style="width: 50px; height: 50px; background: linear-gradient(135deg, #00ff88 0%, #00e676 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);">
-                                        <i class="fas fa-file-invoice-dollar" style="font-size: 1.5rem; color: white;"></i>
+                                    <div class="icon-container mb-2" style="width: 50px; height: 50px; background: #f0f0f3; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; border: none;">
+                                        <i class="fas fa-file-invoice-dollar" style="font-size: 1.5rem; color: #00ff88;"></i>
                                     </div>
                                     <div class="header-stat-label">Nota de Entrega</div>
                                     <div class="header-stat-value" id="valor-facturado">${{ total_facturado_usd|float|es_number }}</div>
@@ -2593,23 +2578,52 @@ x    {% extends "base.html" %}
     <!-- Quick Actions -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card">
+            <div class="card quick-actions-card">
                 <div class="card-header">
-                    <h5 class="mb-0">Acciones Rápidas</h5>
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Acciones Rápidas</h5>
                 </div>
                 <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-12 col-sm-6 col-md-3">
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                             <a href="/clientes/nuevo" class="btn btn-primary w-100">
-                                    <i class="fas fa-user-plus"></i>Nuevo Cliente
+                                <i class="fas fa-user-plus"></i>Nuevo Cliente
                             </a>
                         </div>
-                            <div class="col-12 col-sm-6 col-md-3">
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                             <a href="/inventario/nuevo" class="btn btn-success w-100">
-                                    <i class="fas fa-plus-circle"></i>Nuevo Producto
+                                <i class="fas fa-plus-circle"></i>Nuevo Producto
                             </a>
                         </div>
-                            <!-- Módulo de Notas de Entrega eliminado -->
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <a href="/pagos-recibidos/nuevo" class="btn btn-info w-100">
+                                <i class="fas fa-money-check-alt"></i>Nuevo Pago
+                            </a>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <a href="/cuentas-por-cobrar" class="btn btn-warning w-100">
+                                <i class="fas fa-hand-holding-usd"></i>Cuentas por Cobrar
+                            </a>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <a href="/pagos-recibidos" class="btn btn-success w-100">
+                                <i class="fas fa-receipt"></i>Pagos Recibidos
+                            </a>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <a href="/inventario" class="btn btn-info w-100">
+                                <i class="fas fa-warehouse"></i>Inventario
+                            </a>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <a href="/clientes" class="btn btn-primary w-100">
+                                <i class="fas fa-users"></i>Lista de Clientes
+                            </a>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <a href="/servicio-tecnico" class="btn btn-danger w-100">
+                                <i class="fas fa-tools"></i>Servicio Técnico
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2677,6 +2691,92 @@ x    {% extends "base.html" %}
             
             <div class="col-12 col-lg-6">
                 <div class="row g-3">
+                    <!-- WIDGET DE ALERTAS DEL SISTEMA -->
+                    {% if alertas_activas and alertas_activas|length > 0 %}
+                    <div class="col-12">
+                        <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);">
+                            <div class="card-header bg-transparent border-bottom border-danger border-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-bell text-danger me-2"></i>
+                                        <span class="fw-bold">Alertas del Sistema</span>
+                                        <span class="badge bg-danger ms-2">{{ total_alertas }}</span>
+                                    </h5>
+                                    <button class="btn btn-sm btn-link text-danger p-0" onclick="actualizarAlertas()" title="Actualizar alertas">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush" id="alertas-widget-list">
+                                    {% for alerta in alertas_activas[:5] %}
+                                    <div class="list-group-item border-0 px-3 py-2 alerta-item alerta-{{ alerta.tipo }}" 
+                                         style="{% if alerta.tipo == 'danger' %}background: rgba(220, 53, 69, 0.1);{% elif alerta.tipo == 'warning' %}background: rgba(255, 193, 7, 0.1);{% elif alerta.tipo == 'info' %}background: rgba(13, 202, 240, 0.1);{% else %}background: rgba(25, 135, 84, 0.1);{% endif %}">
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3 mt-1">
+                                                <i class="{{ alerta.icono }} fa-lg {% if alerta.tipo == 'danger' %}text-danger{% elif alerta.tipo == 'warning' %}text-warning{% elif alerta.tipo == 'info' %}text-info{% else %}text-success{% endif %}"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1 fw-bold {% if alerta.tipo == 'danger' %}text-danger{% elif alerta.tipo == 'warning' %}text-warning{% elif alerta.tipo == 'info' %}text-info{% else %}text-success{% endif %}">
+                                                    {{ alerta.titulo }}
+                                                </h6>
+                                                <p class="mb-1 text-dark small">{{ alerta.mensaje }}</p>
+                                                {% if alerta.total %}
+                                                <small class="text-muted">
+                                                    <i class="fas fa-dollar-sign"></i> Total: ${{ "%.2f"|format(alerta.total) }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-{% if alerta.tipo == 'danger' %}danger{% elif alerta.tipo == 'warning' %}warning{% elif alerta.tipo == 'info' %}info{% else %}success{% endif %}">
+                                                    {{ alerta.cantidad }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {% if alerta.detalles and alerta.detalles|length > 0 %}
+                                        <div class="mt-2 ms-4">
+                                            <small class="text-muted d-block mb-1">Detalles:</small>
+                                            <div class="small">
+                                                {% for detalle in alerta.detalles[:3] %}
+                                                <div class="text-truncate" title="{% if detalle.nombre %}{{ detalle.nombre }}{% elif detalle.cliente %}{{ detalle.cliente }}{% endif %}">
+                                                    <i class="fas fa-circle" style="font-size: 0.4rem;"></i>
+                                                    {% if detalle.nombre %}{{ detalle.nombre }}{% elif detalle.cliente %}{{ detalle.cliente }}{% endif %}
+                                                    {% if detalle.stock is defined %}
+                                                        (Stock: {{ detalle.stock }})
+                                                    {% endif %}
+                                                    {% if detalle.dias_restantes is defined %}
+                                                        ({{ detalle.dias_restantes }} días)
+                                                    {% endif %}
+                                                </div>
+                                                {% endfor %}
+                                                {% if alerta.detalles|length > 3 %}
+                                                <div class="text-muted small">
+                                                    <i class="fas fa-ellipsis-h"></i> y {{ alerta.detalles|length - 3 }} más...
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if alertas_activas|length > 5 %}
+                            <div class="card-footer bg-transparent text-center border-top border-danger border-1">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> Mostrando 5 de {{ total_alertas }} alertas activas
+                                </small>
+                            </div>
+                            {% endif %}
+                            <div class="card-footer bg-transparent text-center border-top">
+                                <a href="{{ url_for('configuracion_sistema') }}#tab-alertas" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-cog me-1"></i> Configurar Alertas
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="col-12">
                         <div class="card h-100">
                             <div class="card-header">
@@ -3490,6 +3590,40 @@ x    {% extends "base.html" %}
         }, 4000);
     }
     
+    // Función para actualizar alertas
+    function actualizarAlertas() {
+        const btnSync = document.querySelector('[onclick="actualizarAlertas()"]');
+        if (btnSync) {
+            btnSync.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
+        fetch('/api/alertas')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const alertasList = document.getElementById('alertas-widget-list');
+                    if (alertasList && data.alertas.length > 0) {
+                        // Recargar la página para mostrar alertas actualizadas
+                        window.location.reload();
+                    } else {
+                        // Si no hay alertas, ocultar el widget
+                        const widget = alertasList?.closest('.col-12');
+                        if (widget) {
+                            widget.style.display = 'none';
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error actualizando alertas:', error);
+            })
+            .finally(() => {
+                if (btnSync) {
+                    btnSync.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                }
+            });
+    }
+
     // Actualizar tarjeta individual
     function actualizarTarjetaIndividual(tarjeta, tipo, valor = null) {
         const card = document.getElementById(`card-${tarjeta}`);

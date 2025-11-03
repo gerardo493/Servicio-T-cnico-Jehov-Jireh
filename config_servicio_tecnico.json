@@ -5,42 +5,64 @@
       "descripcion": "El equipo ha sido recibido pero aún no ha sido diagnosticado",
       "color": "#ffc107",
       "icono": "fas fa-clock",
-      "siguiente_estado": "en_diagnostico"
+      "siguiente_estado": "en_diagnostico",
+      "tiempo_maximo": 24
     },
     "en_diagnostico": {
       "nombre": "En Diagnóstico",
       "descripcion": "El técnico está evaluando el problema",
       "color": "#17a2b8",
       "icono": "fas fa-search",
-      "siguiente_estado": "presupuesto_enviado"
+      "siguiente_estado": "presupuesto_enviado",
+      "tiempo_maximo": 48
     },
     "presupuesto_enviado": {
       "nombre": "Presupuesto Enviado",
       "descripcion": "Se le ha enviado al cliente la cotización",
       "color": "#6f42c1",
       "icono": "fas fa-file-invoice",
-      "siguiente_estado": "aprobado_por_cliente"
+      "siguiente_estado": "aprobado_por_cliente",
+      "tiempo_maximo": 72
     },
     "aprobado_por_cliente": {
       "nombre": "Aprobado por el Cliente",
       "descripcion": "El cliente ha aceptado el presupuesto",
       "color": "#28a745",
       "icono": "fas fa-check-circle",
-      "siguiente_estado": "en_reparacion"
+      "siguiente_estado": "en_reparacion",
+      "tiempo_maximo": 24
     },
     "en_reparacion": {
       "nombre": "En Reparación",
       "descripcion": "El técnico está trabajando en el equipo",
       "color": "#fd7e14",
       "icono": "fas fa-tools",
-      "siguiente_estado": "reparado"
+      "siguiente_estado": "reparado",
+      "tiempo_maximo": 120
     },
     "reparado": {
       "nombre": "Reparado",
       "descripcion": "El equipo está listo para ser entregado",
       "color": "#20c997",
       "icono": "fas fa-check-double",
-      "siguiente_estado": "entregado"
+      "siguiente_estado": "entregado",
+      "tiempo_maximo": 48
+    },
+    "listo_entrega": {
+      "nombre": "Listo para Entrega",
+      "descripcion": "El equipo está reparado y listo para ser entregado",
+      "color": "#20c997",
+      "icono": "fas fa-check-double",
+      "siguiente_estado": "entregado",
+      "tiempo_maximo": 48
+    },
+    "en_pruebas": {
+      "nombre": "En Pruebas",
+      "descripcion": "El equipo está siendo probado después de la reparación",
+      "color": "#17a2b8",
+      "icono": "fas fa-vial",
+      "siguiente_estado": "reparado",
+      "tiempo_maximo": 24
     },
     "entregado": {
       "nombre": "Entregado",

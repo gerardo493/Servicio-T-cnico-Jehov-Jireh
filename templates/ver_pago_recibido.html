@@ -333,22 +333,39 @@
                 <h3><i class="fas fa-user me-2"></i>Información del Cliente</h3>
                 <div class="info-item">
                     <span class="info-label">Cliente:</span>
-                    <span class="info-value">{{ pago.cliente }}</span>
+                    <span class="info-value">{{ pago.get('cliente', 'No especificado') }}</span>
                 </div>
-                {% if pago.numero_nota %}
+                {% if pago.get('numero_nota') %}
                 <div class="info-item">
                     <span class="info-label">Nota Asociada:</span>
                     <span class="info-value">NE-{{ pago.numero_nota }}</span>
                 </div>
                 {% endif %}
+                {% if pago.get('orden_servicio') %}
+                <div class="info-item">
+                    <span class="info-label">Orden de Servicio:</span>
+                    <span class="info-value">
+                        <a href="/servicio-tecnico/orden/{{ pago.orden_servicio }}" class="text-decoration-none">
+                            {{ pago.orden_servicio }}
+                        </a>
+                    </span>
+                </div>
+                {% elif pago.get('numero_referencia') and pago.numero_referencia.startswith('ST-') %}
+                <div class="info-item">
+                    <span class="info-label">Referencia de Orden:</span>
+                    <span class="info-value">{{ pago.numero_referencia }}</span>
+                </div>
+                {% endif %}
                 <div class="info-item">
                     <span class="info-label">Fecha:</span>
-                    <span class="info-value">{{ pago.fecha }}</span>
+                    <span class="info-value">{{ pago.get('fecha', 'No especificada') }}</span>
                 </div>
+                {% if pago.get('hora') %}
                 <div class="info-item">
                     <span class="info-label">Hora:</span>
                     <span class="info-value">{{ pago.hora }}</span>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Información del Pago -->
@@ -357,27 +374,33 @@
                 <div class="info-item">
                     <span class="info-label">Método:</span>
                     <span class="info-value">
+                        {% if pago.get('metodo_pago') %}
                         <span class="metodo-badge metodo-{{ pago.metodo_pago.lower().replace(' ', '-') }}">
                             {{ pago.metodo_pago }}
                         </span>
+                        {% else %}
+                        No especificado
+                        {% endif %}
                     </span>
                 </div>
-                {% if pago.numero_referencia %}
+                {% if pago.get('numero_referencia') %}
                 <div class="info-item">
                     <span class="info-label">Referencia:</span>
                     <span class="info-value">{{ pago.numero_referencia }}</span>
                 </div>
                 {% endif %}
-                {% if pago.banco %}
+                {% if pago.get('banco') %}
                 <div class="info-item">
                     <span class="info-label">Banco:</span>
                     <span class="info-value">{{ pago.banco }}</span>
                 </div>
                 {% endif %}
+                {% if pago.get('tasa_bcv') %}
                 <div class="info-item">
                     <span class="info-label">Tasa BCV:</span>
                     <span class="info-value">{{ "%.2f"|format(pago.tasa_bcv) }} Bs/USD</span>
                 </div>
+                {% endif %}
             </div>
         </div>
 
@@ -388,23 +411,28 @@
                 <div class="col-md-6">
                     <div class="monto-destacado">
                         <h4><i class="fas fa-dollar-sign me-2"></i>Monto en USD</h4>
-                        <p>${{ "%.2f"|format(pago.monto_usd) }}</p>
+                        <p>${{ "%.2f"|format(pago.get('monto_usd', 0) or 0) }}</p>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="monto-destacado">
                         <h4><i class="fas fa-coins me-2"></i>Monto en Bs</h4>
-                        <p>Bs {{ "%.2f"|format(pago.monto_bs) }}</p>
+                        <p>Bs {{ "%.2f"|format(pago.get('monto_bs', 0) or 0) }}</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Observaciones -->
-        {% if pago.observaciones %}
+        {% if pago.get('observaciones') %}
         <div class="observaciones">
             <h5><i class="fas fa-comment me-2"></i>Observaciones</h5>
             <p>{{ pago.observaciones }}</p>
+        </div>
+        {% elif pago.get('concepto') %}
+        <div class="observaciones">
+            <h5><i class="fas fa-comment me-2"></i>Concepto</h5>
+            <p>{{ pago.concepto }}</p>
         </div>
         {% else %}
         <div class="observaciones">
@@ -420,17 +448,25 @@
                 <div class="col-md-6">
                     <div class="info-item">
                         <span class="info-label">ID del Pago:</span>
-                        <span class="info-value">{{ pago.id }}</span>
+                        <span class="info-value">{{ pago.get('id', 'N/A') }}</span>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="info-item">
                         <span class="info-label">Registrado por:</span>
-                        <span class="info-value">{{ pago.usuario }}</span>
+                        <span class="info-value">{{ pago.get('usuario_registro') or pago.get('usuario', 'Sistema') }}</span>
                     </div>
                 </div>
+                {% if pago.get('fecha_registro') %}
+                <div class="col-md-6">
+                    <div class="info-item">
+                        <span class="info-label">Fecha de Registro:</span>
+                        <span class="info-value">{{ pago.fecha_registro }}</span>
+                    </div>
+                </div>
+                {% endif %}
             </div>
-            {% if pago.fecha_modificacion %}
+            {% if pago.get('fecha_modificacion') %}
             <div class="info-item">
                 <span class="info-label">Última modificación:</span>
                 <span class="info-value">{{ pago.fecha_modificacion }}</span>
@@ -459,6 +495,8 @@
     </div>
 </div>
 {% endblock %}
+
+
 
 
 
