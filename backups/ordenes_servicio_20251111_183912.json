@@ -1,0 +1,423 @@
+{
+    "OS-20251110224721": {
+        "id": "OS-20251110224721",
+        "numero_orden": "OS-20251110224721",
+        "fecha_recepcion": "2025-11-10",
+        "fecha_entrega_estimada": "2025-11-17",
+        "estado": "entregado",
+        "es_borrador": false,
+        "prioridad": "media",
+        "tipo_servicio": "revision",
+        "tecnico_asignado": "",
+        "costo_estimado": 0.0,
+        "cliente_id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+        "cliente": {
+            "id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+            "nombre": "angel jaimes",
+            "cedula_rif": "V-26369968",
+            "telefono": "4121447869",
+            "telefono2": "02432838262",
+            "telefono_fijo": "",
+            "email": "angelrobertojaimes50@gmail.com",
+            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a",
+            "fecha_creacion": "2025-11-10T22:47:21.740792"
+        },
+        "equipo": {
+            "marca": "Samsung",
+            "modelo": "A17 5g",
+            "imei": "655656566666666",
+            "imei2": "656656666668989",
+            "color": "negro",
+            "ano": "",
+            "numero_serie": "569999999999999",
+            "tipo": "telefono"
+        },
+        "problema_reportado": "reparar",
+        "categoria_problema": "conectividad",
+        "tipo_problema": "no_conecta",
+        "accesorios_entregados": {
+            "cargador": true,
+            "audifonos": true,
+            "caja": true,
+            "cable": false,
+            "tarjeta_memoria": false,
+            "capacidad_memoria": "",
+            "marca_memoria": "",
+            "tipo_memoria": "",
+            "sim_card": false,
+            "tipo_sim": "",
+            "operadora_sim1": "",
+            "operadora_sim1_doble": "",
+            "operadora_sim2": "",
+            "numero_sim1": "",
+            "numero_sim1_doble": "",
+            "numero_sim2": "",
+            "otros": ""
+        },
+        "condicion_fisica": {
+            "rayones": false,
+            "golpes": false,
+            "pantalla": false,
+            "carcasa": false,
+            "botones": false,
+            "conectores": false,
+            "bateria": false,
+            "audio": false,
+            "agua": false,
+            "sobrecalentamiento": false,
+            "carcasa_suelta": false,
+            "pantalla_parpadea": false,
+            "equipo_enciende": true,
+            "restauracion_fabrica": false,
+            "observaciones": ""
+        },
+        "diagnostico": {
+            "problema_identificado": "",
+            "solucion_aplicada": "",
+            "piezas_usadas": [],
+            "comentarios_tecnicos": "reparar",
+            "costo_mano_obra": 0.0,
+            "costo_piezas": 90.0,
+            "total_estimado": 90.0,
+            "descripcion_tecnica": "reparable",
+            "categoria_dano": "software",
+            "partes_revisadas": [
+                "pantalla",
+                "bateria",
+                "cargador",
+                "botones",
+                "camara",
+                "altavoz",
+                "microfono",
+                "wifi"
+            ],
+            "resultado_diagnostico": "reparable",
+            "detalle_repuestos": "bateria generica (x1) - $20.00\r\nMódulo de Pantalla para iPhone 14 / iPhone 15 Pro (x1) - $20.00\r\nBatería para Samsung Galaxy S22 / Galaxy A54 (x1) - $50.00",
+            "estado_presupuesto": "enviado",
+            "fecha_diagnostico": "2025-11-10 22:49:46",
+            "tecnico_diagnostico": "administrador",
+            "repuestos_seleccionados": "[{\"id\": \"2\", \"nombre\": \"bateria generica\", \"precio\": 20, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}, {\"id\": \"3\", \"nombre\": \"M\\u00f3dulo de Pantalla para iPhone 14 / iPhone 15 Pro\", \"precio\": 20, \"cantidad\": 1, \"categoria\": \"Pantallas\"}, {\"id\": \"4\", \"nombre\": \"Bater\\u00eda para Samsung Galaxy S22 / Galaxy A54\", \"precio\": 50, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}]",
+            "fecha_presupuesto": "2025-11-10 22:50:57"
+        },
+        "historial_estados": [
+            {
+                "estado": "en_espera_revision",
+                "fecha": "2025-11-10 22:47:21",
+                "usuario": "administrador",
+                "comentarios": "Orden de servicio creada"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-10 22:49:46",
+                "usuario": "administrador",
+                "comentarios": "Diagnóstico completado - Resultado: reparable"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-10 22:55:43",
+                "usuario": "administrador",
+                "comentarios": "Reparación actualizada - Estado: Presupuesto Enviado - 3 repuesto(s) utilizado(s)"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-10 22:55:49",
+                "usuario": "administrador",
+                "comentarios": "Reparación actualizada - Estado: Presupuesto Enviado - 3 repuesto(s) utilizado(s)"
+            },
+            {
+                "estado": "reparado",
+                "fecha": "2025-11-10 22:56:12",
+                "usuario": "administrador",
+                "comentarios": "Reparación actualizada - Estado: Reparado - 3 repuesto(s) utilizado(s)"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-10 22:57:41",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a angel jaimes - Pago: efectivo"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-10 23:53:13",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a angel jaimes - Pago: efectivo"
+            }
+        ],
+        "notificaciones_enviadas": [
+            {
+                "tipo": "diagnostico_completo",
+                "fecha": "2025-11-10 22:52:45",
+                "mensaje": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola angel jaimes! 👋\n\n✅ El diagnóstico de tu equipo *Samsung A17 5g* está completo.\n\n📋 *Número de Orden:* OS-20251110224721\n\n📧 *Revisa tu correo* para obtener:\n• 🔍 Diagnóstico detallado del problema\n• 💰 Presupuesto de reparación\n• ⏰ Tiempo estimado de entrega\n\n📞 *¿Tienes dudas?* Contáctanos:\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Esperamos tu respuesta! 🙏",
+                "usuario": "administrador",
+                "metodos_envio": [
+                    "email"
+                ],
+                "resultados": {
+                    "whatsapp": false,
+                    "email": true
+                },
+                "email": "angelrobertojaimes50@gmail.com",
+                "email_enviado": true
+            },
+            {
+                "tipo": "reparacion_completa",
+                "fecha": "2025-11-10 22:58:36",
+                "mensaje": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola angel jaimes! 👋\n\n🎉 ¡Excelentes noticias! Tu equipo *Samsung A17 5g* está listo para recoger.\n\n📋 *Número de Orden:* OS-20251110224721\n\n✅ *Tu equipo ha sido reparado exitosamente*\n\n⏰ *Horarios de entrega:*\n• 📅 Lunes a Viernes: 8:00 AM - 6:00 PM\n• 📅 Sábados: 8:00 AM - 2:00 PM\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Te esperamos! 🙏",
+                "usuario": "administrador",
+                "metodos_envio": [
+                    "email"
+                ],
+                "resultados": {
+                    "whatsapp": false,
+                    "email": true
+                },
+                "email": "angelrobertojaimes50@gmail.com",
+                "email_enviado": true
+            }
+        ],
+        "cliente_notificado": false,
+        "whatsapp_enviado": false,
+        "atendido_por": "",
+        "desbloqueo": {
+            "tipo": "patron",
+            "estado": "activo",
+            "clave": "00-01-02-11-20-21-22-10-12",
+            "notas": ""
+        },
+        "fecha_creacion": "2025-11-10 22:47:21",
+        "fecha_actualizacion": "2025-11-10 23:53:13",
+        "nota_entrega_generada": "NE-0001",
+        "urgente": false,
+        "observaciones_internas": "",
+        "reparacion": {
+            "acciones_realizadas": "dad",
+            "resultado_pruebas": "funcional",
+            "observaciones_finales": "sdsad",
+            "tecnico_responsable": "Técnico",
+            "fecha_inicio": "",
+            "fecha_fin": "",
+            "fecha_actualizacion": "2025-11-10 22:56:12",
+            "repuestos_usados": [
+                {
+                    "id": "2",
+                    "nombre": "bateria generica",
+                    "cantidad": 1,
+                    "costo_unitario": 20.0,
+                    "subtotal": 20.0
+                },
+                {
+                    "id": "3",
+                    "nombre": "Módulo de Pantalla para iPhone 14 / iPhone 15 Pro",
+                    "cantidad": 1,
+                    "costo_unitario": 20.0,
+                    "subtotal": 20.0
+                },
+                {
+                    "id": "4",
+                    "nombre": "Batería para Samsung Galaxy S22 / Galaxy A54",
+                    "cantidad": 1,
+                    "costo_unitario": 50.0,
+                    "subtotal": 50.0
+                }
+            ],
+            "total_repuestos": 90.0
+        },
+        "entrega": {
+            "fecha_entrega": "2025-11-10T22:57",
+            "nombre_retira": "angel jaimes",
+            "cedula_retira": "V-26369968",
+            "telefono_retira": "4121447869",
+            "tipo_pago": "efectivo",
+            "monto_pagado": 117.0,
+            "monto_pendiente": 0.0,
+            "observaciones_entrega": "",
+            "tecnico_entrega": "Técnico",
+            "firma_digital": "data:image/png;base64,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",
+            "fecha_actualizacion": "2025-11-10 23:53:13"
+        }
+    },
+    "OS-PRUEBA-20251110232504": {
+        "id": "OS-PRUEBA-20251110232504",
+        "numero_orden": "OS-PRUEBA-20251110232504",
+        "fecha_recepcion": "2025-11-10",
+        "fecha_entrega_estimada": "2025-11-17",
+        "estado": "entregado",
+        "prioridad": "media",
+        "tipo_servicio": "",
+        "tecnico_asignado": "Técnico",
+        "costo_estimado": 100.0,
+        "cliente_id": "6e10fe7c-006f-4f08-97d3-3357c9d6031c",
+        "cliente": {
+            "nombre": "armandi guizepe",
+            "cedula_rif": "V-3211345",
+            "telefono": "4121-447-869",
+            "telefono2": "",
+            "email": "admin@kisvic1045.com",
+            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
+        },
+        "equipo": {
+            "marca": "Samsung",
+            "modelo": "Galaxy S22",
+            "imei": "123456789012345",
+            "imei2": "",
+            "color": "Negro",
+            "numero_serie": "SN123456",
+            "tipo": "telefono"
+        },
+        "problema_reportado": "Pantalla rota y batería con fallas",
+        "categoria_problema": "Falla física",
+        "diagnostico": {
+            "descripcion_tecnica": "Se requiere cambio de pantalla y batería",
+            "categoria_dano": "Físico",
+            "partes_revisadas": [
+                "Pantalla",
+                "Batería",
+                "Cámara"
+            ],
+            "resultado_diagnostico": "Equipo requiere reparación",
+            "costo_mano_obra": 50.0,
+            "costo_piezas": 90.0,
+            "total_estimado": 140.0,
+            "detalle_repuestos": "Pantalla y batería para Samsung Galaxy S22",
+            "estado_presupuesto": "aprobado",
+            "fecha_diagnostico": "2025-11-10 23:25:04",
+            "fecha_presupuesto": "2025-11-10 23:25:04",
+            "tecnico_diagnostico": "Técnico",
+            "repuestos_seleccionados": "[{\"id\": \"2\", \"nombre\": \"bateria generica\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}, {\"id\": \"3\", \"nombre\": \"M\\u00f3dulo de Pantalla para iPhone 14 / iPhone 15 Pro\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Pantallas\"}, {\"id\": \"4\", \"nombre\": \"Bater\\u00eda para Samsung Galaxy S22 / Galaxy A54\", \"precio\": 50.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}]"
+        },
+        "historial_estados": [
+            {
+                "estado": "en_espera_revision",
+                "fecha": "2025-11-10 23:25:04",
+                "usuario": "Sistema",
+                "comentarios": "Orden de servicio creada"
+            },
+            {
+                "estado": "en_diagnostico",
+                "fecha": "2025-11-10 23:25:04",
+                "usuario": "Técnico",
+                "comentarios": "Diagnóstico completado"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-10 23:25:04",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto enviado y aprobado"
+            },
+            {
+                "estado": "en_reparacion",
+                "fecha": "2025-11-10 23:25:04",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto aprobado - Iniciando reparación"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-10 23:58:30",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a armandi guizepe - Pago: transferencia"
+            }
+        ],
+        "fecha_creacion": "2025-11-10 23:25:04",
+        "fecha_actualizacion": "2025-11-10 23:58:30",
+        "observaciones_internas": "",
+        "cliente_notificado": false,
+        "atendido_por": "",
+        "desbloqueo": {
+            "tipo": "patron",
+            "estado": "activo",
+            "clave": "00-01-02-11-20-21-22",
+            "notas": ""
+        },
+        "entrega": {
+            "fecha_entrega": "2025-11-10T23:58",
+            "nombre_retira": "armandi guizepe",
+            "cedula_retira": "V-3211345",
+            "telefono_retira": "4121-447-869",
+            "tipo_pago": "transferencia",
+            "monto_pagado": 140.0,
+            "monto_pendiente": 0.0,
+            "observaciones_entrega": "",
+            "tecnico_entrega": "Técnico",
+            "firma_digital": "data:image/png;base64,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",
+            "fecha_actualizacion": "2025-11-10 23:58:30"
+        }
+    },
+    "OS-PRUEBA-20251111183707": {
+        "id": "OS-PRUEBA-20251111183707",
+        "numero_orden": "OS-PRUEBA-20251111183707",
+        "fecha_recepcion": "2025-11-11",
+        "fecha_entrega_estimada": "2025-11-18",
+        "estado": "en_reparacion",
+        "prioridad": "media",
+        "tipo_servicio": "Reparación",
+        "tecnico_asignado": "Técnico",
+        "costo_estimado": 100.0,
+        "cliente_id": "6e10fe7c-006f-4f08-97d3-3357c9d6031c",
+        "cliente": {
+            "nombre": "armandi guizepe",
+            "cedula_rif": "V-3211345",
+            "telefono": "4121-447-869",
+            "telefono2": "",
+            "email": "admin@kisvic1045.com",
+            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
+        },
+        "equipo": {
+            "marca": "Samsung",
+            "modelo": "Galaxy S22",
+            "imei": "123456789012345",
+            "imei2": "",
+            "color": "Negro",
+            "numero_serie": "SN123456",
+            "tipo": "telefono"
+        },
+        "problema_reportado": "Pantalla rota y batería con fallas",
+        "categoria_problema": "Falla física",
+        "diagnostico": {
+            "descripcion_tecnica": "Se requiere cambio de pantalla y batería",
+            "categoria_dano": "Físico",
+            "partes_revisadas": [
+                "Pantalla",
+                "Batería",
+                "Cámara"
+            ],
+            "resultado_diagnostico": "Equipo requiere reparación",
+            "costo_mano_obra": 50.0,
+            "costo_piezas": 90.0,
+            "total_estimado": 140.0,
+            "detalle_repuestos": "Pantalla y batería para Samsung Galaxy S22",
+            "estado_presupuesto": "aprobado",
+            "fecha_diagnostico": "2025-11-11 18:37:07",
+            "fecha_presupuesto": "2025-11-11 18:37:07",
+            "tecnico_diagnostico": "Técnico",
+            "repuestos_seleccionados": "[{\"id\": \"2\", \"nombre\": \"bateria generica\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}, {\"id\": \"3\", \"nombre\": \"M\\u00f3dulo de Pantalla para iPhone 14 / iPhone 15 Pro\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Pantallas\"}, {\"id\": \"4\", \"nombre\": \"Bater\\u00eda para Samsung Galaxy S22 / Galaxy A54\", \"precio\": 50.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}]"
+        },
+        "historial_estados": [
+            {
+                "estado": "en_espera_revision",
+                "fecha": "2025-11-11 18:37:07",
+                "usuario": "Sistema",
+                "comentarios": "Orden de servicio creada"
+            },
+            {
+                "estado": "en_diagnostico",
+                "fecha": "2025-11-11 18:37:07",
+                "usuario": "Técnico",
+                "comentarios": "Diagnóstico completado"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-11 18:37:07",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto enviado y aprobado"
+            },
+            {
+                "estado": "en_reparacion",
+                "fecha": "2025-11-11 18:37:07",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto aprobado - Iniciando reparación"
+            }
+        ],
+        "fecha_creacion": "2025-11-11 18:37:07",
+        "fecha_actualizacion": "2025-11-11 18:37:07"
+    }
+}

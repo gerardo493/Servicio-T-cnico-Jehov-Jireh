@@ -292,11 +292,9 @@
                         <label for="metodo_pago" class="form-label">Método de Pago</label>
                         <select class="form-select" id="metodo_pago" name="metodo_pago" required>
                             <option value="">Seleccionar método</option>
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Transferencia">Transferencia</option>
-                            <option value="Pago Móvil">Pago Móvil</option>
-                            <option value="Cheque">Cheque</option>
-                            <option value="Otro">Otro</option>
+                            {% for metodo in metodos_pago %}
+                            <option value="{{ metodo }}">{{ metodo }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">

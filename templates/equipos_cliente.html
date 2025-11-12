@@ -204,7 +204,7 @@
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
                             <h4><i class="fas fa-mobile-alt me-2"></i>{{ equipo.marca }} {{ equipo.modelo }}</h4>
-                            <p class="text-muted mb-0">{{ equipo.estado }}</p>
+                            <p class="text-muted mb-0">{{ equipo.estado or 'N/A' }}</p>
                         </div>
                         <div class="dropdown">
                             <button class="btn btn-sm" onclick="mostrarMenuAcciones({{ loop.index0 }})">
@@ -212,38 +212,55 @@
                             </button>
                         </div>
                     </div>
-                    <div class="row mb-2">
-                        <div class="col-6">
-                            <small class="text-muted d-block">IMEI:</small>
-                            <p class="mb-0">{{ equipo.imei or 'N/A' }}</p>
-                        </div>
-                        <div class="col-6">
-                            <small class="text-muted d-block">Fecha Entrega:</small>
-                            <p class="mb-0">{{ equipo.fecha_entrega or 'N/A' }}</p>
-                        </div>
-                    </div>
-                    {% if equipo.color or equipo.numero_serie or equipo.capacidad_almacenamiento %}
-                    <div class="row mb-2">
+                    
+                    <!-- Información completa del equipo en formato texto -->
+                    <div style="color: #2d3748; font-size: 14px; line-height: 1.8;">
+                        <div><strong>Marca:</strong> {{ equipo.marca or 'N/A' }}</div>
+                        <div><strong>Modelo:</strong> {{ equipo.modelo or 'N/A' }}</div>
                         {% if equipo.color %}
-                        <div class="col-6">
-                            <small class="text-muted d-block">Color:</small>
-                            <p class="mb-0">{{ equipo.color }}</p>
-                        </div>
+                        <div><strong>Color:</strong> {{ equipo.color }}</div>
+                        {% endif %}
+                        {% if equipo.imei %}
+                        <div><strong>IMEI 1:</strong> {{ equipo.imei }}</div>
+                        {% endif %}
+                        {% if equipo.imei2 %}
+                        <div><strong>IMEI 2:</strong> {{ equipo.imei2 }}</div>
                         {% endif %}
                         {% if equipo.numero_serie %}
-                        <div class="col-6">
-                            <small class="text-muted d-block">Serie:</small>
-                            <p class="mb-0">{{ equipo.numero_serie }}</p>
+                        <div><strong>Número de Serie:</strong> {{ equipo.numero_serie }}</div>
+                        {% endif %}
+                        {% if equipo.capacidad_almacenamiento %}
+                        <div><strong>Capacidad:</strong> {{ equipo.capacidad_almacenamiento }}</div>
+                        {% endif %}
+                        {% if equipo.version_sistema %}
+                        <div><strong>Versión del Sistema:</strong> {{ equipo.version_sistema }}</div>
+                        {% endif %}
+                        {% if equipo.numero_telefono %}
+                        <div><strong>Número de Teléfono:</strong> {{ equipo.numero_telefono }}</div>
+                        {% endif %}
+                        {% if equipo.estado %}
+                        <div><strong>Estado:</strong> {{ equipo.estado }}</div>
+                        {% endif %}
+                        {% if equipo.condicion_fisica %}
+                        <div><strong>Condición Física:</strong> {{ equipo.condicion_fisica }}</div>
+                        {% endif %}
+                        {% if equipo.fecha_entrega %}
+                        <div><strong>Fecha de Entrega:</strong> {{ equipo.fecha_entrega }}</div>
+                        {% endif %}
+                        {% if equipo.fecha_creacion %}
+                        <div><strong>Fecha de Registro:</strong> {{ equipo.fecha_creacion }}</div>
+                        {% endif %}
+                        {% if equipo.orden_asociada %}
+                        <div><strong>Orden Asociada:</strong> {{ equipo.orden_asociada }}</div>
+                        {% endif %}
+                        {% if equipo.observaciones %}
+                        <div class="mt-2" style="border-top: 1px solid rgba(74, 85, 104, 0.2); padding-top: 8px;">
+                            <strong>Observaciones:</strong><br>
+                            <span style="color: #4a5568;">{{ equipo.observaciones }}</span>
                         </div>
                         {% endif %}
                     </div>
-                    {% endif %}
-                    {% if equipo.observaciones %}
-                    <div class="mt-3">
-                        <small class="text-muted">Observaciones:</small>
-                        <p class="mb-0">{{ equipo.observaciones }}</p>
-                    </div>
-                    {% endif %}
+                    
                     <div class="mt-3 d-none acciones-equipo" id="acciones-{{ loop.index0 }}">
                         <button class="btn-action btn-success btn-sm me-2" onclick="editarEquipo({{ loop.index0 }})">
                             <i class="fas fa-edit"></i> Editar

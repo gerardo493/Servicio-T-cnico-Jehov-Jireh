@@ -806,11 +806,11 @@
                                 Ver Nota
                             </a>
                             {% if cuenta.estado != 'cobrada' %}
-                            <a href="#" class="action-btn action-btn-success" onclick="alert('Funcionalidad en desarrollo')">
+                            <a href="{{ url_for('nuevo_pago_recibido') }}?nota={{ cuenta.numero }}&cliente={{ cuenta.cliente_id }}" class="action-btn action-btn-success">
                                 <i class="fas fa-credit-card"></i>
                                 Registrar Pago
                             </a>
-                            <a href="#" class="action-btn action-btn-warning" onclick="enviarRecordatorio('{{ cuenta.numero }}')">
+                            <a href="#" class="action-btn action-btn-warning" onclick="enviarRecordatorio('{{ cuenta.cliente_id }}', '{{ cuenta.cliente_nombre }}')">
                                 <i class="fas fa-bell"></i>
                                 Recordatorio
                             </a>
@@ -1008,15 +1008,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Función para enviar recordatorios
-function enviarRecordatorio(notaId) {
-    if (confirm('¿Desea enviar un recordatorio por WhatsApp para esta cuenta?')) {
+function enviarRecordatorio(clienteId, clienteNombre) {
+    if (confirm(`¿Desea enviar un recordatorio por WhatsApp a ${clienteNombre}?`)) {
         fetch('/cuentas-por-cobrar/enviar_recordatorio_whatsapp', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                cliente_id: notaId
+                cliente_id: clienteId
             })
         })
         .then(response => response.json())

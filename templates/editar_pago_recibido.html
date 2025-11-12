@@ -393,9 +393,13 @@
                         <label class="form-label">Nota de Entrega Asociada</label>
                         <select name="numero_nota" class="neo-input">
                             <option value="">Sin nota asociada</option>
+                            {% if notas and notas is mapping %}
                             {% for numero, nota in notas.items() %}
+                            {% if nota and nota is mapping %}
                             <option value="{{ numero }}" {% if pago.numero_nota == numero %}selected{% endif %}>NE-{{ numero }} - {{ nota.cliente }} - ${{ "%.2f"|format(nota.total_usd) }}</option>
+                            {% endif %}
                             {% endfor %}
+                            {% endif %}
                         </select>
                         <div class="form-text">Opcional: Asociar este pago a una nota de entrega específica</div>
                     </div>
@@ -411,9 +415,16 @@
                         <label class="form-label">Método de Pago <span class="required">*</span></label>
                         <select name="metodo_pago" class="neo-input" required>
                             <option value="">Seleccionar método...</option>
+                            {% if metodos_pago and metodos_pago is iterable and metodos_pago is not string %}
                             {% for metodo in metodos_pago %}
                             <option value="{{ metodo }}" {% if pago.metodo_pago == metodo %}selected{% endif %}>{{ metodo }}</option>
                             {% endfor %}
+                            {% else %}
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Pago Móvil">Pago Móvil</option>
+                            <option value="Zelle">Zelle</option>
+                            {% endif %}
                         </select>
                     </div>
 

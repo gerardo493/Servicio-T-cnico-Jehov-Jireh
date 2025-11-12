@@ -1,31 +1,4 @@
 {
-    "cliente_20251026173246": {
-        "id": "cliente_20251026173246",
-        "rif": "",
-        "tipo_identificacion": "",
-        "numero_identificacion": "",
-        "digito_verificador": "",
-        "nombre": "GERARDO JAIMES",
-        "email": "gerardojaime72@gmail.com",
-        "telefono": "+58+5804121447869",
-        "direccion": "Caña De Azucar Sector 2 Vereda 64 Casa 1-A",
-        "fecha_creacion": "2025-10-27T00:59:14.150982",
-        "usuario_creacion": "SISTEMA",
-        "fecha_ultima_actualizacion": "2025-11-01T22:34:28.985446",
-        "usuario_ultima_actualizacion": "administrador",
-        "activo": true,
-        "validado_seniat": true
-    },
-    "cliente_20251028003906": {
-        "id": "cliente_20251028003906",
-        "nombre": "ESTEFANY TOVAR",
-        "cedula_rif": "V-27489569",
-        "telefono": "04223325684",
-        "telefono2": "",
-        "telefono_fijo": "",
-        "email": "ESTEFANY133@GMAIL.COM",
-        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a\r\nCasa 1_A"
-    },
     "6e10fe7c-006f-4f08-97d3-3357c9d6031c": {
         "id": "6e10fe7c-006f-4f08-97d3-3357c9d6031c",
         "cedula_rif": "V-3211345",
@@ -66,31 +39,42 @@
         "email": "administrador@gmail.com",
         "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
     },
-    "cliente_20251102202016": {
-        "id": "cliente_20251102202016",
-        "nombre": "ESTEFANY TOVAR",
-        "telefono": "04223325684",
-        "email": "ESTEFANY133@GMAIL.COM",
-        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a\r\nCasa 1_A",
+    "c09f49e2-0974-48a7-9e6d-d676d535dffe": {
+        "id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+        "nombre": "angel jaimes",
+        "cedula_rif": "V-26369968",
+        "telefono": "4121447869",
+        "telefono2": "02432838262",
+        "telefono_fijo": "",
+        "email": "angelrobertojaimes50@gmail.com",
+        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a",
+        "fecha_creacion": "2025-11-10T22:47:21.740792"
+    },
+    "cliente_4": {
+        "id": "cliente_4",
+        "nombre": "armandi guizepe",
+        "telefono": "4121-447-869",
+        "email": "admin@kisvic1045.com",
+        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a",
         "rif": "",
-        "fecha_registro": "2025-11-02"
+        "fecha_registro": "2025-11-11"
+    },
+    "cliente_5": {
+        "id": "cliente_5",
+        "nombre": "armandi guizepe",
+        "telefono": "4121-447-869",
+        "email": "admin@kisvic1045.com",
+        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a",
+        "rif": "",
+        "fecha_registro": "2025-11-11"
     },
     "cliente_6": {
         "id": "cliente_6",
-        "nombre": "GERARDO JAIMES",
-        "telefono": "+58+5804121447869",
-        "email": "gerardojaime72@gmail.com",
-        "direccion": "Caña De Azucar Sector 2 Vereda 64 Casa 1-A",
+        "nombre": "armandi guizepe",
+        "telefono": "4121-447-869",
+        "email": "admin@kisvic1045.com",
+        "direccion": "caña de azucar sector 2 vereda 64 casa 1-a",
         "rif": "",
-        "fecha_registro": "2025-11-03"
-    },
-    "cliente_7": {
-        "id": "cliente_7",
-        "nombre": "GERARDO JAIMES",
-        "telefono": "+58+5804121447869",
-        "email": "gerardojaime72@gmail.com",
-        "direccion": "Caña De Azucar Sector 2 Vereda 64 Casa 1-A",
-        "rif": "",
-        "fecha_registro": "2025-11-03"
+        "fecha_registro": "2025-11-11"
     }
 }

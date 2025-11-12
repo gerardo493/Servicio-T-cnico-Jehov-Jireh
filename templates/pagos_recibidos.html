@@ -538,67 +538,189 @@
 
         <!-- Contenido de Pestaña: Todos los Pagos -->
         <div id="tab-todos" class="tab-content active">
-            <!-- Estadísticas -->
+            <!-- Dashboard de Estadísticas -->
             <div class="stats-grid">
-            <div class="stat-card">
-                <i class="fas fa-receipt stat-icon"></i>
-                <div class="stat-number">{{ pagos|length }}</div>
-                <div class="stat-label">Total Pagos</div>
+                <div class="stat-card">
+                    <i class="fas fa-calendar-day stat-icon"></i>
+                    <div class="stat-number">${{ "%.2f"|format(total_hoy|default(0)) }}</div>
+                    <div class="stat-label">Hoy</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-calendar-week stat-icon"></i>
+                    <div class="stat-number">${{ "%.2f"|format(total_semana|default(0)) }}</div>
+                    <div class="stat-label">Esta Semana</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-calendar-alt stat-icon"></i>
+                    <div class="stat-number">${{ "%.2f"|format(total_mes|default(0)) }}</div>
+                    <div class="stat-label">Este Mes</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-receipt stat-icon"></i>
+                    <div class="stat-number">{{ total_pagos|default(0) }}</div>
+                    <div class="stat-label">Total Pagos (Filtrados)</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-dollar-sign stat-icon"></i>
+                    <div class="stat-number">${{ "%.2f"|format(total_usd|default(0)) }}</div>
+                    <div class="stat-label">Total USD (Filtrado)</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-coins stat-icon"></i>
+                    <div class="stat-number">Bs {{ "%.2f"|format(total_bs|default(0)) }}</div>
+                    <div class="stat-label">Total Bs (Filtrado)</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <i class="fas fa-dollar-sign stat-icon"></i>
-                <div class="stat-number">${{ (pagos.values()|sum(attribute='monto_usd')|default(0))|money }}</div>
-                <div class="stat-label">Total USD</div>
-            </div>
-            <div class="stat-card">
-                <i class="fas fa-coins stat-icon"></i>
-                <div class="stat-number">Bs {{ (pagos.values()|sum(attribute='monto_bs')|default(0))|money }}</div>
-                <div class="stat-label">Total Bs</div>
-            </div>
-        </div>
 
-        <!-- Filtros -->
+        <!-- Filtros Avanzados -->
         <div class="filters-section">
-            <form method="GET" class="row g-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros de Búsqueda</h5>
+                <button type="button" class="btn btn-sm btn-link" onclick="toggleAdvancedFilters()">
+                    <i class="fas fa-chevron-down" id="toggle-icon"></i> Filtros Avanzados
+                </button>
+            </div>
+            <form method="GET" id="filtros-form" class="row g-3">
+                <!-- Filtros Básicos -->
                 <div class="col-md-3">
+                    <label class="form-label"><i class="fas fa-search me-1"></i> Búsqueda Rápida</label>
+                    <input type="text" name="busqueda" class="form-control neo-input" 
+                           placeholder="Cliente, referencia, nota..." value="{{ busqueda_texto|default('') }}">
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">Método de Pago</label>
                     <select name="metodo" class="form-control neo-input">
-                        <option value="">Todos los métodos</option>
+                        <option value="">Todos</option>
+                        {% if metodos_pago and metodos_pago is iterable and metodos_pago is not string %}
                         {% for metodo in metodos_pago %}
                         <option value="{{ metodo }}" {% if metodo_filtro == metodo %}selected{% endif %}>{{ metodo }}</option>
                         {% endfor %}
+                        {% endif %}
                     </select>
-            </div>
-                <div class="col-md-3">
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">Cliente</label>
                     <select name="cliente" class="form-control neo-input">
-                        <option value="">Todos los clientes</option>
+                        <option value="">Todos</option>
+                        {% if clientes and clientes is mapping %}
                         {% for id, cliente in clientes.items() %}
+                        {% if cliente and cliente is mapping %}
                         <option value="{{ cliente.nombre }}" {% if cliente_filtro == cliente.nombre %}selected{% endif %}>{{ cliente.nombre }}</option>
+                        {% endif %}
                         {% endfor %}
+                        {% endif %}
                     </select>
-                            </div>
+                </div>
                 <div class="col-md-2">
                     <label class="form-label">Fecha Desde</label>
-                    <input type="date" name="fecha_desde" class="form-control neo-input" value="{{ fecha_desde }}">
-                            </div>
+                    <input type="date" name="fecha_desde" class="form-control neo-input" value="{{ fecha_desde|default('') }}">
+                </div>
                 <div class="col-md-2">
                     <label class="form-label">Fecha Hasta</label>
-                    <input type="date" name="fecha_hasta" class="form-control neo-input" value="{{ fecha_hasta }}">
-                            </div>
-                <div class="col-md-2">
-                    <label class="form-label">&nbsp;</label>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="neo-button neo-button-primary">
-                            <i class="fas fa-search"></i>
-                        </button>
-                        <a href="/pagos-recibidos" class="neo-button neo-button-secondary">
-                            <i class="fas fa-times"></i>
-                        </a>
-                            </div>
-                        </div>
-            </form>
+                    <input type="date" name="fecha_hasta" class="form-control neo-input" value="{{ fecha_hasta|default('') }}">
                 </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn neo-button neo-button-primary w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                
+                <!-- Filtros Avanzados (Ocultos por defecto) -->
+                <div id="advanced-filters" style="display: none;" class="col-12 mt-3 border-top pt-3">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Monto Mínimo (USD)</label>
+                            <input type="number" name="monto_min_usd" class="form-control neo-input" 
+                                   step="0.01" min="0" placeholder="0.00" value="{{ monto_min_usd|default('') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Monto Máximo (USD)</label>
+                            <input type="number" name="monto_max_usd" class="form-control neo-input" 
+                                   step="0.01" min="0" placeholder="0.00" value="{{ monto_max_usd|default('') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Nota de Entrega</label>
+                            <input type="text" name="nota" class="form-control neo-input" 
+                                   placeholder="Número de nota" value="{{ nota_filtro|default('') }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Resultados por Página</label>
+                            <select name="per_page" class="form-control neo-input">
+                                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                                <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Preservar parámetros de paginación y ordenamiento -->
+                <input type="hidden" name="page" value="1" id="hidden-page">
+                <input type="hidden" name="sort" value="{{ sort_by|default('fecha') }}" id="hidden-sort">
+                <input type="hidden" name="order" value="{{ sort_order|default('desc') }}" id="hidden-order">
+                
+                <div class="col-12">
+                    <div class="d-flex gap-2 justify-content-between">
+                        <div>
+                            <button type="submit" class="neo-button neo-button-primary">
+                                <i class="fas fa-search me-2"></i>
+                                Aplicar Filtros
+                            </button>
+                            <a href="/pagos-recibidos" class="neo-button neo-button-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                Limpiar
+                            </a>
+                        </div>
+                        <div class="text-muted align-self-center">
+                            Mostrando {{ pagos|length }} de {{ total_pagos|default(0) }} pagos
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Controles de Ordenamiento -->
+        <div class="neo-card mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <label class="form-label me-2">Ordenar por:</label>
+                    <select class="form-control neo-input d-inline-block" style="width: auto;" id="sort-select" onchange="changeSort()">
+                        <option value="fecha" {% if sort_by == 'fecha' %}selected{% endif %}>Fecha</option>
+                        <option value="monto_usd" {% if sort_by == 'monto_usd' %}selected{% endif %}>Monto USD</option>
+                        <option value="cliente" {% if sort_by == 'cliente' %}selected{% endif %}>Cliente</option>
+                        <option value="metodo" {% if sort_by == 'metodo' %}selected{% endif %}>Método</option>
+                    </select>
+                    <button class="btn btn-sm neo-button ms-2" onclick="toggleSortOrder()" title="Cambiar orden">
+                        <i class="fas fa-sort-amount-{% if sort_order == 'desc' %}down{% else %}up{% endif %}"></i>
+                    </button>
+                </div>
+                <div>
+                    <a href="/pagos-recibidos/exportar?{{ request.query_string.decode() if request.query_string else '' }}" class="neo-button neo-button-secondary">
+                        <i class="fas fa-download me-2"></i>
+                        Exportar
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Estadísticas por Método de Pago -->
+        {% if estadisticas_metodo %}
+        <div class="neo-card mb-3">
+            <h5><i class="fas fa-chart-pie me-2"></i>Distribución por Método de Pago</h5>
+            <div class="row">
+                {% for metodo, stats in estadisticas_metodo.items() %}
+                <div class="col-md-3 mb-2">
+                    <div class="d-flex justify-content-between align-items-center p-2" style="background: #f8f9fa; border-radius: 10px;">
+                        <span><strong>{{ metodo }}</strong></span>
+                        <span class="text-success">${{ "%.2f"|format(stats.total_usd) }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
                 
         <!-- Tabla de Pagos -->
         {% if pagos %}
@@ -619,7 +741,9 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% if pagos and pagos is mapping %}
                         {% for id, pago in pagos.items() %}
+                        {% if pago and pago is mapping %}
                         <tr>
                             <td>{{ pago.id[:8] }}...</td>
                             <td>{{ pago.cliente }}</td>
@@ -656,11 +780,76 @@
                                 </button>
                             </td>
                         </tr>
+                        {% endif %}
                         {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
-                    </div>
+            </div>
+        </div>
+        
+        <!-- Paginación -->
+        {% if total_pages > 1 %}
+        <div class="neo-card mt-3">
+            <nav aria-label="Paginación de pagos">
+                <ul class="pagination justify-content-center mb-0">
+                    <!-- Primera página -->
+                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link" href="#" onclick="updatePage(1); return false;" {% if page == 1 %}tabindex="-1" aria-disabled="true"{% endif %}>
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <!-- Página anterior -->
+                    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                        <a class="page-link" href="#" onclick="updatePage({{ page - 1 }}); return false;" {% if page == 1 %}tabindex="-1" aria-disabled="true"{% endif %}>
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    
+                    <!-- Páginas -->
+                    {% set start_page = [1, page - 2]|max %}
+                    {% set end_page = [total_pages, page + 2]|min %}
+                    
+                    {% if start_page > 1 %}
+                    <li class="page-item"><a class="page-link" href="#" onclick="updatePage(1); return false;">1</a></li>
+                    {% if start_page > 2 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                    {% endif %}
+                    
+                    {% for p in range(start_page, end_page + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="#" onclick="updatePage({{ p }}); return false;">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if end_page < total_pages %}
+                    {% if end_page < total_pages - 1 %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                    <li class="page-item"><a class="page-link" href="#" onclick="updatePage({{ total_pages }}); return false;">{{ total_pages }}</a></li>
+                    {% endif %}
+                    
+                    <!-- Página siguiente -->
+                    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="#" onclick="updatePage({{ page + 1 }}); return false;" {% if page == total_pages %}tabindex="-1" aria-disabled="true"{% endif %}>
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <!-- Última página -->
+                    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="#" onclick="updatePage({{ total_pages }}); return false;" {% if page == total_pages %}tabindex="-1" aria-disabled="true"{% endif %}>
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                </ul>
+                <div class="text-center mt-2 text-muted">
+                    Página {{ page }} de {{ total_pages }} ({{ total_pagos }} pagos en total)
                 </div>
+            </nav>
+        </div>
+        {% endif %}
+        
         {% else %}
         <div class="neo-card">
             <div class="empty-state">
@@ -695,8 +884,10 @@
                             </tr>
                         </thead>
                         <tbody>
+                            {% if pagos_pendientes and pagos_pendientes is mapping %}
                             {% for cliente_id, pendiente in pagos_pendientes.items() %}
-                            {% set cliente = clientes.get(cliente_id, {}) %}
+                            {% if pendiente and pendiente is mapping %}
+                            {% set cliente = clientes.get(cliente_id, {}) if clientes and clientes is mapping else {} %}
                             <tr>
                                 <td><strong>{{ cliente.get('nombre', 'Cliente no encontrado') }}</strong></td>
                                 <td>${{ pendiente.total_usd|money }}</td>
@@ -708,7 +899,9 @@
                                     </a>
                                 </td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
@@ -731,9 +924,71 @@
 </form>
 
 <script>
+    // Funciones para paginación y ordenamiento
+    function updatePage(page) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('page', page);
+        window.location.search = urlParams.toString();
+    }
+    
+    function buildUrlWithParams(params) {
+        const urlParams = new URLSearchParams(window.location.search);
+        for (const [key, value] of Object.entries(params)) {
+            if (value) {
+                urlParams.set(key, value);
+            } else {
+                urlParams.delete(key);
+            }
+        }
+        return '?' + urlParams.toString();
+    }
+    
+    function changeSort() {
+        const select = document.getElementById('sort-select');
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('sort', select.value);
+        urlParams.set('page', '1'); // Resetear a página 1 al cambiar orden
+        window.location.search = urlParams.toString();
+    }
+    
+    function toggleSortOrder() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentOrder = urlParams.get('order') || 'desc';
+        const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+        urlParams.set('order', newOrder);
+        urlParams.set('page', '1'); // Resetear a página 1 al cambiar orden
+        window.location.search = urlParams.toString();
+    }
+    
+    function toggleAdvancedFilters() {
+        const advancedFilters = document.getElementById('advanced-filters');
+        const toggleIcon = document.getElementById('toggle-icon');
+        if (advancedFilters.style.display === 'none') {
+            advancedFilters.style.display = 'block';
+            toggleIcon.classList.remove('fa-chevron-down');
+            toggleIcon.classList.add('fa-chevron-up');
+        } else {
+            advancedFilters.style.display = 'none';
+            toggleIcon.classList.remove('fa-chevron-up');
+            toggleIcon.classList.add('fa-chevron-down');
+        }
+    }
+    
+    // Preservar filtros avanzados si hay valores
+    document.addEventListener('DOMContentLoaded', function() {
+        const montoMin = document.querySelector('input[name="monto_min_usd"]');
+        const montoMax = document.querySelector('input[name="monto_max_usd"]');
+        const nota = document.querySelector('input[name="nota"]');
+        
+        if ((montoMin && montoMin.value) || (montoMax && montoMax.value) || (nota && nota.value)) {
+            toggleAdvancedFilters();
+        }
+    });
+    
     // Auto-submit del formulario de filtros
     document.querySelectorAll('select[name="metodo"], select[name="cliente"]').forEach(select => {
         select.addEventListener('change', function() {
+            document.getElementById('hidden-page').value = '1';
             this.form.submit();
         });
     });

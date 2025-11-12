@@ -1,0 +1,44 @@
+{
+    "NE-0001": {
+        "numero": "NE-0001",
+        "numero_secuencial": 1,
+        "fecha": "2025-11-10",
+        "hora": "22:57:57",
+        "timestamp_creacion": "2025-11-10T22:57:57.986310",
+        "cliente_id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+        "modalidad_pago": "contado",
+        "productos": [
+            "Servicio de Reparación - Samsung A17 5g",
+            "bateria generica",
+            "Módulo de Pantalla para iPhone 14 / iPhone 15 Pro",
+            "Batería para Samsung Galaxy S22 / Galaxy A54"
+        ],
+        "cantidades": [
+            "1",
+            "1",
+            "1",
+            "1"
+        ],
+        "precios": [
+            "0.0",
+            "20",
+            "20",
+            "50"
+        ],
+        "subtotal_usd": 90.0,
+        "total_usd": 90.0,
+        "tasa_bcv": 231.05,
+        "fecha_tasa_bcv": "2025-11-10",
+        "total_bs": 20794.5,
+        "estado": "PENDIENTE_ENTREGA",
+        "usuario_creacion": "administrador",
+        "observaciones": "Nota de entrega generada desde orden de servicio OS-20251110224721",
+        "orden_servicio_id": "OS-20251110224721",
+        "firma_recibido": false,
+        "fecha_entrega": null,
+        "hora_entrega": null,
+        "entregado_por": null,
+        "recibido_por": null,
+        "documento_identidad": null
+    }
+}

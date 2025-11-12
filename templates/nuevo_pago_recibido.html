@@ -335,14 +335,21 @@
                         <label class="form-label">Cliente <span class="required">*</span></label>
                         <select name="cliente" id="cliente_select" class="neo-input" required>
                             <option value="">Seleccionar cliente...</option>
+                            {% if clientes and clientes is mapping %}
                             {% for id, cliente in clientes.items() %}
-                            <option value="{{ cliente.nombre }}" data-cliente-id="{{ id }}" data-pendiente-usd="{{ pagos_pendientes.get(id, {}).get('total_usd', 0) }}" data-pendiente-bs="{{ pagos_pendientes.get(id, {}).get('total_bs', 0) }}">
-                                {{ cliente.nombre }}
-                                {% if pagos_pendientes.get(id) %}
-                                    (Pendiente: ${{ "%.2f"|format(pagos_pendientes[id].total_usd) }})
+                            {% if cliente and cliente is mapping and cliente.get('nombre') %}
+                            {% set pendiente_info = pagos_pendientes.get(id, {}) if pagos_pendientes and pagos_pendientes is mapping else {} %}
+                            {% set pendiente_usd = (pendiente_info.get('total_usd', 0) or 0)|float %}
+                            {% set pendiente_bs = (pendiente_info.get('total_bs', 0) or 0)|float %}
+                            <option value="{{ cliente.get('nombre', '') }}" data-cliente-id="{{ id }}" data-pendiente-usd="{{ pendiente_usd }}" data-pendiente-bs="{{ pendiente_bs }}" {% if cliente_seleccionado and id == cliente_seleccionado %}selected{% endif %}>
+                                {{ cliente.get('nombre', 'Cliente sin nombre') }}
+                                {% if pendiente_usd > 0 %}
+                                    (Pendiente: ${{ "%.2f"|format(pendiente_usd) }})
                                 {% endif %}
                             </option>
+                            {% endif %}
                             {% endfor %}
+                            {% endif %}
                         </select>
                         <div class="form-text">Seleccione el cliente que realizó el pago</div>
                         <div id="info-pago-pendiente" class="alert alert-info mt-2" style="display: none; border-left: 4px solid #0d6efd; background: #e7f5ff;">
@@ -357,11 +364,19 @@
                         <label class="form-label">Nota de Entrega Asociada</label>
                         <select name="numero_nota" id="numero_nota_select" class="neo-input">
                             <option value="">Sin nota asociada</option>
+                            {% if notas and notas is mapping %}
                             {% for numero, nota in notas.items() %}
-                            <option value="{{ numero }}" data-cliente-id="{{ nota.cliente_id }}" style="display: none;">
-                                NE-{{ numero }} - ${{ "%.2f"|format(nota.total_usd) }} - {{ nota.get('estado', 'PENDIENTE').replace('_', ' ') }}
+                            {% if nota and nota is mapping %}
+                            {% set total_usd = (nota.get('total_usd', 0) or 0)|float %}
+                            {% set total_abonado = (nota.get('total_abonado', 0) or 0)|float %}
+                            {% set diferencia = total_usd - total_abonado %}
+                            {% set saldo = diferencia if diferencia > 0 else 0 %}
+                            <option value="{{ numero }}" data-cliente-id="{{ nota.get('cliente_id', '') }}" data-total-usd="{{ total_usd }}" data-total-abonado="{{ total_abonado }}" data-saldo-pendiente="{{ saldo }}" style="display: none;" {% if nota_seleccionada and numero == nota_seleccionada %}selected{% endif %}>
+                                NE-{{ numero }} - ${{ "%.2f"|format(total_usd) }} - {{ nota.get('estado', 'PENDIENTE').replace('_', ' ') }}
                             </option>
+                            {% endif %}
                             {% endfor %}
+                            {% endif %}
                         </select>
                         <div class="form-text">Opcional: Asociar este pago a una nota de entrega específica del cliente seleccionado</div>
                         <div id="notas-cargadas" style="font-size: 0.85rem; color: #667eea; margin-top: 0.5rem;"></div>
@@ -378,9 +393,16 @@
                         <label class="form-label">Método de Pago <span class="required">*</span></label>
                         <select name="metodo_pago" class="neo-input" required>
                             <option value="">Seleccionar método...</option>
+                            {% if metodos_pago and metodos_pago is iterable and metodos_pago is not string %}
                             {% for metodo in metodos_pago %}
                             <option value="{{ metodo }}">{{ metodo }}</option>
                             {% endfor %}
+                            {% else %}
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Pago Móvil">Pago Móvil</option>
+                            <option value="Zelle">Zelle</option>
+                            {% endif %}
                         </select>
                     </div>
 
@@ -405,7 +427,8 @@
                     <div class="row">
                         <div class="col-md-6">
                             <label class="form-label">Monto en USD</label>
-                            <input type="number" name="monto_usd" id="monto_usd" class="neo-input" step="0.01" min="0" placeholder="0.00">
+                            {% set saldo_pendiente_float = (saldo_pendiente|default(0)|float) %}
+                            <input type="number" name="monto_usd" id="monto_usd" class="neo-input" step="0.01" min="0" placeholder="0.00" {% if saldo_pendiente_float > 0 %}value="{{ "%.2f"|format(saldo_pendiente_float) }}"{% endif %}>
                             <div class="form-text">Ingrese el monto en dólares</div>
                         </div>
                         <div class="col-md-6">
@@ -641,6 +664,44 @@
             notasCargadas.innerHTML = '';
         }
     });
+    
+    // Cuando se selecciona una nota, actualizar el monto con el saldo pendiente
+    document.getElementById('numero_nota_select').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value && selectedOption.value !== '') {
+            const saldoPendiente = parseFloat(selectedOption.getAttribute('data-saldo-pendiente') || 0);
+            if (saldoPendiente > 0) {
+                document.getElementById('monto_usd').value = saldoPendiente.toFixed(2);
+                // Disparar evento para calcular conversión
+                document.getElementById('monto_usd').dispatchEvent(new Event('input'));
+            }
+        }
+    });
+    
+    // Inicializar campos si vienen desde cuentas por cobrar
+    {% if cliente_seleccionado %}
+    setTimeout(function() {
+        const clienteSelect = document.getElementById('cliente_select');
+        if (clienteSelect) {
+            clienteSelect.dispatchEvent(new Event('change'));
+        }
+    }, 100);
+    {% endif %}
+    
+    {% if nota_seleccionada %}
+    setTimeout(function() {
+        const notaSelect = document.getElementById('numero_nota_select');
+        if (notaSelect) {
+            // Mostrar la nota seleccionada
+            const selectedOption = notaSelect.querySelector(`option[value="{{ nota_seleccionada }}"]`);
+            if (selectedOption) {
+                selectedOption.style.display = 'block';
+                notaSelect.value = '{{ nota_seleccionada }}';
+                notaSelect.dispatchEvent(new Event('change'));
+            }
+        }
+    }, 200);
+    {% endif %}
 </script>
 {% endblock %}
 

@@ -20,12 +20,12 @@
         "intervalo_actualizacion": 3600,
         "tasa_usd_defecto": 216.37,
         "tasa_eur_defecto": 235.0,
-        "tasa_actual_usd": 223.96,
-        "tasa_actual_eur": 258.15,
+        "tasa_actual_usd": 233.05,
+        "tasa_actual_eur": 270.26,
         "moneda_sistema": "USD",
         "fuente_tasa": "bcv",
         "notificar_cambios": true,
-        "ultima_actualizacion": "2025-11-03 03:35:43"
+        "ultima_actualizacion": "2025-11-12 07:26:47"
     },
     "notificaciones": {
         "whatsapp_habilitado": true,

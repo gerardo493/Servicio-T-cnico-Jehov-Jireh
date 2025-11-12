@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reporte de Notas de Entrega</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -315,7 +316,7 @@
                 Período: Todos los registros
                 {% endif %}
             </h2>
-            <p>Reporte generado el {{ moment().strftime('%d/%m/%Y %H:%M') }}</p>
+            <p>Reporte generado el {{ fecha_generacion }}</p>
         </div>
 
         <!-- Estadísticas -->
@@ -410,7 +411,7 @@
         <!-- Footer -->
         <div class="footer">
             <p class="empresa">Servicio Técnico Jehová Jireh</p>
-            <p>Documento generado el {{ moment().strftime('%d/%m/%Y %H:%M') }}</p>
+            <p>Documento generado el {{ fecha_generacion }}</p>
             <p><strong>Documento generado por el Sistema de Gestión Comercial – Servicio Técnico Jehová Jireh</strong></p>
         </div>
     </div>

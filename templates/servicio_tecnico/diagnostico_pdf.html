@@ -339,12 +339,24 @@
                         <img src="/static/logo.png" alt="Logo Empresa">
                     </div>
                     <div class="company-info">
-                        <div class="company-name">SERVICIO TÉCNICO JEHOVÁ JIREH</div>
+                        <div class="company-name">{{ empresa.nombre or 'SERVICIO TÉCNICO JEHOVÁ JIREH' }}</div>
                         <div class="company-details">
+                            {% if empresa.descripcion %}
+                            {{ empresa.descripcion }}<br>
+                            {% else %}
                             Servicio Técnico Especializado<br>
                             Reparación de Equipos Electrónicos<br>
-                            RIF: J-000000000 | Tel: 0000-0000000<br>
+                            {% endif %}
+                            {% if empresa.rif %}
+                            RIF: {{ empresa.rif }}{% if empresa.telefono %} | Tel: {{ empresa.telefono }}{% endif %}<br>
+                            {% else %}
+                            RIF: J-000000000{% if empresa.telefono %} | Tel: {{ empresa.telefono }}{% else %} | Tel: 0000-0000000{% endif %}<br>
+                            {% endif %}
+                            {% if empresa.direccion %}
+                            Dirección: {{ empresa.direccion }}{% if empresa.ciudad %}, {{ empresa.ciudad }}{% endif %}{% if empresa.estado %}, {{ empresa.estado }}{% endif %}
+                            {% else %}
                             Dirección: Dirección de la empresa
+                            {% endif %}
                         </div>
                     </div>
                 </div>

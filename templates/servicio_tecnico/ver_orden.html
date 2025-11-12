@@ -12,7 +12,7 @@
 }
 
 .neo-card {
-    background: #e0e5ec;
+    background: #e0e5ec !important;
     border-radius: 20px;
     box-shadow: 
         9px 9px 16px #a3b1c6,
@@ -20,6 +20,12 @@
     border: none;
     transition: all 0.3s ease;
     margin-bottom: 20px;
+    opacity: 1 !important;
+}
+
+.neo-card .card-body {
+    background: transparent !important;
+    opacity: 1 !important;
 }
 
 .neo-card:hover {
@@ -79,9 +85,10 @@
 }
 
 .neo-title {
-    color: #2d3748;
+    color: #1a202c !important;
     font-weight: 700;
     margin-bottom: 0;
+    opacity: 1 !important;
 }
 
 .neo-subtitle {
@@ -537,8 +544,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
+    padding: 12px 0;
     border-bottom: 1px solid rgba(74, 85, 104, 0.1);
+    opacity: 1 !important;
 }
 
 .info-item:last-child {
@@ -547,14 +555,17 @@
 
 .info-label {
     font-weight: 600;
-    color: #4a5568;
+    color: #2d3748 !important;
     flex: 1;
+    opacity: 1 !important;
 }
 
 .info-value {
-    color: #2d3748;
+    color: #1a202c !important;
     flex: 2;
     text-align: right;
+    opacity: 1 !important;
+    font-weight: 500;
 }
 
 .timeline {
@@ -812,101 +823,109 @@
                     </div>
 
                     <!-- Configuración de Desbloqueo -->
-                    {% if orden.get('desbloqueo') and (orden.get('desbloqueo', {}).get('tipo') or orden.get('desbloqueo', {}).get('estado') or orden.get('desbloqueo', {}).get('clave') or orden.get('desbloqueo', {}).get('notas')) %}
-                    <div class="neo-card">
-                        <div class="card-body p-4">
-                            <h5 class="neo-title mb-4">
-                                <i class="fas fa-lock neo-icon me-2"></i>Configuración de Desbloqueo
-                            </h5>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    {% if orden.get('desbloqueo', {}).get('tipo') %}
-                                    <div class="info-item">
-                                        <span class="info-label">Tipo de Desbloqueo:</span>
-                                        <span class="info-value">
-                                            {% if orden.get('desbloqueo', {}).get('tipo') == 'patron' %}
-                                                <i class="fas fa-draw-polygon me-1"></i>Patrón
-                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'pin' %}
-                                                <i class="fas fa-key me-1"></i>PIN
-                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'password' %}
-                                                <i class="fas fa-lock me-1"></i>Contraseña
-                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'huella' %}
-                                                <i class="fas fa-fingerprint me-1"></i>Huella Dactilar
-                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'reconocimiento' %}
-                                                <i class="fas fa-eye me-1"></i>Reconocimiento Facial
-                                            {% elif orden.get('desbloqueo', {}).get('tipo') == 'ninguno' %}
-                                                <i class="fas fa-times me-1"></i>Sin desbloqueo
-                                            {% else %}
-                                                {{ orden.get('desbloqueo', {}).get('tipo') }}
-                                            {% endif %}
-                                        </span>
+                    {% set desbloqueo = orden.get('desbloqueo', {}) %}
+                    {% if desbloqueo %}
+                        {% set tipo_desbloqueo = desbloqueo.get('tipo', '') or '' %}
+                        {% set estado_desbloqueo = desbloqueo.get('estado', '') or '' %}
+                        {% set clave_desbloqueo = desbloqueo.get('clave', '') or '' %}
+                        {% set notas_desbloqueo = desbloqueo.get('notas', '') or '' %}
+                        
+                        {% if tipo_desbloqueo or estado_desbloqueo or clave_desbloqueo or notas_desbloqueo %}
+                        <div class="neo-card" style="background: #e0e5ec; opacity: 1;">
+                            <div class="card-body p-4" style="background: transparent; opacity: 1;">
+                                <h5 class="neo-title mb-4" style="color: #1a202c; font-weight: 700; opacity: 1;">
+                                    <i class="fas fa-lock" style="color: #00ff88; margin-right: 8px;"></i>Configuración de Desbloqueo
+                                </h5>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {% if tipo_desbloqueo %}
+                                        <div class="info-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(74, 85, 104, 0.1); opacity: 1;">
+                                            <span class="info-label" style="font-weight: 600; color: #2d3748; flex: 1; opacity: 1;">Tipo de Desbloqueo:</span>
+                                            <span class="info-value" style="color: #1a202c; flex: 2; text-align: right; opacity: 1; font-weight: 500;">
+                                                {% if tipo_desbloqueo == 'patron' %}
+                                                    <i class="fas fa-draw-polygon me-1"></i>Patrón
+                                                {% elif tipo_desbloqueo == 'pin' %}
+                                                    <i class="fas fa-key me-1"></i>PIN
+                                                {% elif tipo_desbloqueo == 'password' %}
+                                                    <i class="fas fa-lock me-1"></i>Contraseña
+                                                {% elif tipo_desbloqueo == 'huella' %}
+                                                    <i class="fas fa-fingerprint me-1"></i>Huella Dactilar
+                                                {% elif tipo_desbloqueo == 'reconocimiento' %}
+                                                    <i class="fas fa-eye me-1"></i>Reconocimiento Facial
+                                                {% elif tipo_desbloqueo == 'ninguno' %}
+                                                    <i class="fas fa-times me-1"></i>Sin desbloqueo
+                                                {% else %}
+                                                    {{ tipo_desbloqueo }}
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if estado_desbloqueo %}
+                                        <div class="info-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(74, 85, 104, 0.1); opacity: 1;">
+                                            <span class="info-label" style="font-weight: 600; color: #2d3748; flex: 1; opacity: 1;">Estado:</span>
+                                            <span class="info-value" style="color: #1a202c; flex: 2; text-align: right; opacity: 1; font-weight: 500;">
+                                                {% if estado_desbloqueo == 'activo' %}
+                                                    <span class="badge bg-success" style="background-color: #10b981 !important; color: white; padding: 6px 12px; border-radius: 6px;">
+                                                        <i class="fas fa-check me-1"></i>Activo
+                                                    </span>
+                                                {% elif estado_desbloqueo == 'desactivado' %}
+                                                    <span class="badge bg-warning" style="background-color: #f59e0b !important; color: white; padding: 6px 12px; border-radius: 6px;">
+                                                        <i class="fas fa-pause me-1"></i>Desactivado
+                                                    </span>
+                                                {% elif estado_desbloqueo == 'bloqueado' %}
+                                                    <span class="badge bg-danger" style="background-color: #ef4444 !important; color: white; padding: 6px 12px; border-radius: 6px;">
+                                                        <i class="fas fa-ban me-1"></i>Bloqueado
+                                                    </span>
+                                                {% else %}
+                                                    {{ estado_desbloqueo }}
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        {% endif %}
                                     </div>
-                                    {% endif %}
                                     
-                                    {% if orden.get('desbloqueo', {}).get('estado') %}
-                                    <div class="info-item">
-                                        <span class="info-label">Estado:</span>
-                                        <span class="info-value">
-                                            {% if orden.get('desbloqueo', {}).get('estado') == 'activo' %}
-                                                <span class="badge bg-success">
-                                                    <i class="fas fa-check me-1"></i>Activo
-                                                </span>
-                                            {% elif orden.get('desbloqueo', {}).get('estado') == 'desactivado' %}
-                                                <span class="badge bg-warning">
-                                                    <i class="fas fa-pause me-1"></i>Desactivado
-                                                </span>
-                                            {% elif orden.get('desbloqueo', {}).get('estado') == 'bloqueado' %}
-                                                <span class="badge bg-danger">
-                                                    <i class="fas fa-ban me-1"></i>Bloqueado
-                                                </span>
-                                            {% else %}
-                                                {{ orden.get('desbloqueo', {}).get('estado') }}
-                                            {% endif %}
-                                        </span>
+                                    <div class="col-md-6">
+                                        {% if clave_desbloqueo %}
+                                        <div class="info-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(74, 85, 104, 0.1); opacity: 1;">
+                                            <span class="info-label" style="font-weight: 600; color: #2d3748; flex: 1; opacity: 1;">Clave/Patrón:</span>
+                                            <span class="info-value" style="color: #1a202c; flex: 2; text-align: right; opacity: 1; font-weight: 500;">
+                                                {% if tipo_desbloqueo == 'patron' %}
+                                                    <div class="d-flex align-items-center flex-wrap justify-content-end">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary me-2 btn-ver-patron" data-patron="{{ clave_desbloqueo }}" style="border: 2px solid #3b82f6; color: #3b82f6; background: transparent; padding: 6px 12px; border-radius: 6px; font-weight: 600;">
+                                                            <i class="fas fa-eye me-1"></i>Ver Patrón
+                                                        </button>
+                                                        <span class="font-monospace" style="font-family: 'Courier New', monospace; color: #1a202c;">{{ clave_desbloqueo }}</span>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="d-flex align-items-center flex-wrap justify-content-end">
+                                                        <span class="font-monospace" style="font-family: 'Courier New', monospace; color: #1a202c;">{{ clave_desbloqueo }}</span>
+                                                    </div>
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        {% endif %}
                                     </div>
-                                    {% endif %}
                                 </div>
                                 
-                                <div class="col-md-6">
-                                    {% if orden.get('desbloqueo', {}).get('clave') %}
-                                    <div class="info-item">
-                                        <span class="info-label">Clave/Patrón:</span>
-                                        <span class="info-value">
-                                            {% if orden.get('desbloqueo', {}).get('tipo') == 'patron' %}
-                                                <div class="d-flex align-items-center flex-wrap">
-                                                    <button class="btn btn-sm btn-outline-primary me-2" data-patron="{{ orden.get('desbloqueo', {}).get('clave', '') }}" onclick="mostrarPatron(this.dataset.patron)">
-                                                        <i class="fas fa-eye me-1"></i>Ver Patrón
-                                                    </button>
-                                                    <span class="font-monospace">{{ orden.get('desbloqueo', {}).get('clave') }}</span>
+                                {% if notas_desbloqueo %}
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="info-item" style="display: block; padding: 12px 0; opacity: 1;">
+                                            <span class="info-label" style="font-weight: 600; color: #2d3748; display: block; margin-bottom: 8px; opacity: 1;">Notas Adicionales:</span>
+                                            <div class="info-value" style="color: #1a202c; opacity: 1; font-weight: 500;">
+                                                <div class="neo-card-inset p-3" style="background: #e0e5ec; border-radius: 15px; box-shadow: inset 6px 6px 12px #a3b1c6, inset -6px -6px 12px #ffffff; opacity: 1;">
+                                                    <i class="fas fa-sticky-note me-2" style="color: #00ff88;"></i><span style="color: #1a202c;">{{ notas_desbloqueo }}</span>
                                                 </div>
-                                            {% else %}
-                                                <div class="d-flex align-items-center flex-wrap">
-                                                    <span class="font-monospace">{{ orden.get('desbloqueo', {}).get('clave') }}</span>
-                                                </div>
-                                            {% endif %}
-                                        </span>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            {% if orden.get('desbloqueo', {}).get('notas') %}
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="info-item">
-                                        <span class="info-label">Notas Adicionales:</span>
-                                        <div class="info-value">
-                                            <div class="neo-card-inset p-3">
-                                                <i class="fas fa-sticky-note me-2"></i>{{ orden.get('desbloqueo', {}).get('notas') }}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                                {% endif %}
                             </div>
-                            {% endif %}
                         </div>
-                    </div>
+                        {% endif %}
                     {% endif %}
 
                     <!-- Problema Reportado -->
@@ -1559,25 +1578,40 @@ function probarWhatsApp() {
 }
 
 // Funciones para mostrar configuración de desbloqueo
-function mostrarPatron(patronString) {
-    const modal = new bootstrap.Modal(document.getElementById('modalPatron'));
-    const canvas = document.getElementById('canvasPatron');
-    const ctx = canvas.getContext('2d');
+function dibujarPatronEnCanvas(patronString) {
+    console.log('dibujarPatronEnCanvas llamado con:', patronString);
     
-    // Limpiar canvas
+    const canvas = document.getElementById('canvasPatron');
+    if (!canvas) {
+        console.error('Canvas de patrón no encontrado');
+        return false;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('No se pudo obtener el contexto 2D del canvas');
+        return false;
+    }
+    
+    // Limpiar canvas completamente
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Dibujar grilla de puntos
+    // Dibujar fondo del canvas
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Dibujar grilla de puntos (3x3)
     const dotSize = 15;
     const spacing = 80;
     const startX = 50;
     const startY = 50;
     
+    // Estilo para puntos base
     ctx.fillStyle = '#00ff88';
     ctx.strokeStyle = '#00cc6a';
     ctx.lineWidth = 3;
     
-    // Dibujar todos los puntos
+    // Dibujar todos los puntos de la grilla
     for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 3; col++) {
             const x = startX + col * spacing;
@@ -1590,49 +1624,166 @@ function mostrarPatron(patronString) {
         }
     }
     
-    // Dibujar el patrón
-    if (patronString) {
-        const puntos = patronString.split('-');
-        const coordenadas = [];
-        
-        puntos.forEach(punto => {
-            const row = parseInt(punto[0]);
-            const col = parseInt(punto[1]);
-            const x = startX + col * spacing;
-            const y = startY + row * spacing;
-            coordenadas.push({x, y, row, col});
-        });
-        
-        // Dibujar líneas conectando los puntos
-        if (coordenadas.length > 1) {
-            ctx.strokeStyle = '#ff6b6b';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+    // Dibujar el patrón si existe
+    if (patronString && patronString.trim() !== '') {
+        try {
+            // Limpiar espacios y dividir por guiones
+            const patronLimpio = patronString.trim();
+            console.log('Patrón limpio:', patronLimpio);
             
-            ctx.beginPath();
-            ctx.moveTo(coordenadas[0].x, coordenadas[0].y);
+            const puntos = patronLimpio.split('-').filter(p => p.trim() !== '');
+            console.log('Puntos extraídos:', puntos);
             
-            for (let i = 1; i < coordenadas.length; i++) {
-                ctx.lineTo(coordenadas[i].x, coordenadas[i].y);
+            if (puntos.length === 0) {
+                console.warn('Patrón vacío después de procesar');
+                return false;
             }
-            ctx.stroke();
-        }
-        
-        // Resaltar puntos del patrón
-        coordenadas.forEach(punto => {
-            ctx.fillStyle = '#ff6b6b';
-            ctx.strokeStyle = '#ff5252';
-            ctx.lineWidth = 4;
             
-            ctx.beginPath();
-            ctx.arc(punto.x, punto.y, dotSize, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.stroke();
-        });
+            const coordenadas = [];
+            
+            // Procesar cada punto del patrón
+            puntos.forEach((punto, index) => {
+                const puntoLimpio = punto.trim();
+                
+                // Validar formato (debe tener al menos 2 caracteres: fila y columna)
+                if (puntoLimpio.length < 2) {
+                    console.warn(`Punto inválido en posición ${index}: ${puntoLimpio}`);
+                    return;
+                }
+                
+                const row = parseInt(puntoLimpio[0]);
+                const col = parseInt(puntoLimpio[1]);
+                
+                console.log(`Punto ${index}: "${puntoLimpio}" -> row=${row}, col=${col}`);
+                
+                // Validar que las coordenadas estén en el rango válido (0-2)
+                if (isNaN(row) || isNaN(col) || row < 0 || row > 2 || col < 0 || col > 2) {
+                    console.warn(`Coordenadas inválidas en posición ${index}: row=${row}, col=${col}`);
+                    return;
+                }
+                
+                const x = startX + col * spacing;
+                const y = startY + row * spacing;
+                coordenadas.push({x, y, row, col});
+            });
+            
+            console.log('Coordenadas válidas:', coordenadas);
+            
+            if (coordenadas.length === 0) {
+                console.error('No se pudieron procesar coordenadas válidas del patrón');
+                return false;
+            }
+            
+            // Dibujar líneas conectando los puntos (primero las líneas, luego los puntos resaltados)
+            if (coordenadas.length > 1) {
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                ctx.beginPath();
+                ctx.moveTo(coordenadas[0].x, coordenadas[0].y);
+                
+                for (let i = 1; i < coordenadas.length; i++) {
+                    ctx.lineTo(coordenadas[i].x, coordenadas[i].y);
+                }
+                ctx.stroke();
+                console.log('Líneas dibujadas');
+            }
+            
+            // Resaltar puntos del patrón (dibujar encima de los puntos base)
+            coordenadas.forEach((punto, index) => {
+                // Círculo exterior más grande (rojo)
+                ctx.fillStyle = '#ff6b6b';
+                ctx.strokeStyle = '#ff5252';
+                ctx.lineWidth = 4;
+                
+                ctx.beginPath();
+                ctx.arc(punto.x, punto.y, dotSize + 3, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Círculo interior más pequeño para mejor visibilidad (blanco)
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(punto.x, punto.y, dotSize - 2, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                console.log(`Punto ${index} dibujado en (${punto.x}, ${punto.y})`);
+            });
+            
+            console.log('Patrón dibujado exitosamente');
+            return true;
+        } catch (error) {
+            console.error('Error al dibujar patrón:', error);
+            console.error('Stack trace:', error.stack);
+            return false;
+        }
     }
     
-    modal.show();
+    return true;
+}
+
+function mostrarPatron(patronString) {
+    console.log('mostrarPatron llamado con:', patronString);
+    
+    // Validar que el patrón existe
+    if (!patronString || patronString.trim() === '') {
+        alert('No hay patrón configurado para mostrar');
+        console.warn('Patrón vacío o inválido');
+        return;
+    }
+    
+    // Verificar que Bootstrap está disponible
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap no está cargado');
+        alert('Error: Bootstrap no está disponible. Recargue la página.');
+        return;
+    }
+    
+    const modalElement = document.getElementById('modalPatron');
+    if (!modalElement) {
+        console.error('Modal de patrón no encontrado en el DOM');
+        alert('Error: No se encontró el modal de patrón. Verifique la consola.');
+        return;
+    }
+    
+    try {
+        // Obtener o crear instancia del modal
+        let modal = bootstrap.Modal.getInstance(modalElement);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalElement);
+        }
+        
+        // Dibujar el patrón en el canvas ANTES de mostrar el modal
+        const dibujado = dibujarPatronEnCanvas(patronString);
+        
+        if (!dibujado) {
+            console.error('Error al dibujar el patrón');
+            alert('Error al dibujar el patrón. Verifique la consola para más detalles.');
+            return;
+        }
+        
+        // Mostrar el modal
+        modal.show();
+        console.log('Modal mostrado');
+        
+        // Asegurar que el canvas se redibuje después de que el modal se muestre completamente
+        const redibujarAlMostrar = function() {
+            console.log('Redibujando patrón después de mostrar modal');
+            setTimeout(() => {
+                dibujarPatronEnCanvas(patronString);
+            }, 100);
+        };
+        
+        // Remover listener anterior si existe y agregar uno nuevo
+        modalElement.removeEventListener('shown.bs.modal', redibujarAlMostrar);
+        modalElement.addEventListener('shown.bs.modal', redibujarAlMostrar, { once: true });
+        
+    } catch (error) {
+        console.error('Error en mostrarPatron:', error);
+        alert('Error al mostrar el patrón: ' + error.message);
+    }
 }
 
 function mostrarClave(clave) {
@@ -1640,6 +1791,26 @@ function mostrarClave(clave) {
     document.getElementById('claveTexto').textContent = clave;
     modal.show();
 }
+
+// Event listeners para botones de ver patrón
+document.addEventListener('DOMContentLoaded', function() {
+    // Agregar event listener a todos los botones de ver patrón
+    const botonesPatron = document.querySelectorAll('.btn-ver-patron');
+    botonesPatron.forEach(boton => {
+        boton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const patronString = this.getAttribute('data-patron');
+            console.log('Botón clickeado, patrón:', patronString);
+            if (patronString) {
+                mostrarPatron(patronString);
+            } else {
+                alert('No se encontró el patrón en el botón');
+            }
+        });
+    });
+    
+    console.log('Event listeners agregados para', botonesPatron.length, 'botones de patrón');
+});
 </script>
 
 <!-- Modal para mostrar patrón -->
