@@ -286,17 +286,29 @@
         }
 
         .qr-code {
-            width: 50px;
-            height: 50px;
+            width: 120px;
+            height: 120px;
             border: 2px solid #000;
-            font-size: 8px;
             background: white;
-            color: #000;
             border-radius: 6px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin: 0 auto 10px;
-            font-weight: 700;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+        }
+        
+        .qr-code img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .qr-code-placeholder {
+            font-size: 8px;
+            font-weight: 700;
+            color: #000;
             align-items: center;
             justify-content: center;
         }
@@ -447,8 +459,11 @@
             }
             
             .qr-code {
-                width: 40px;
-                height: 40px;
+                width: 100px;
+                height: 100px;
+            }
+            
+            .qr-code-placeholder {
                 font-size: 7px;
             }
         }
@@ -569,10 +584,17 @@
 
         <!-- Footer -->
         <div class="footer">
+            {% if qr_base64 %}
             <div class="qr-code">
-                QR
+                <img src="{{ qr_base64 }}" alt="Código QR de verificación">
             </div>
             <p style="font-size: 8px; color: #000; font-weight: 700; margin-top: 5px;">Escanee para verificar</p>
+            {% else %}
+            <div class="qr-code">
+                <div class="qr-code-placeholder">QR</div>
+            </div>
+            <p style="font-size: 8px; color: #000; font-weight: 700; margin-top: 5px;">Escanee para verificar</p>
+            {% endif %}
             <p><strong>Documento generado por el Sistema de Gestión Comercial – Servicio Técnico Jehová Jireh</strong></p>
             <p>Generado el {{ moment().strftime('%d/%m/%Y a las %H:%M:%S') }}</p>
         </div>

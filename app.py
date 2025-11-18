@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import sys
 import urllib3
 import urllib.parse
 import requests
@@ -46,11 +47,35 @@ import copy
 # --- Inicializar la Aplicación Flask ---
 app = Flask(__name__)
 
+# --- Definir BASE_DIR primero (antes de configurar_logging) ---
+# Detectar si estamos ejecutando desde PyInstaller
+if getattr(sys, 'frozen', False):
+    # Si está empaquetado con PyInstaller
+    BASE_DIR = os.path.dirname(sys.executable)
+    # Para templates y static, usar la ruta de PyInstaller
+    if hasattr(sys, '_MEIPASS'):
+        TEMPLATE_FOLDER = os.path.join(sys._MEIPASS, 'templates')
+        STATIC_FOLDER = os.path.join(sys._MEIPASS, 'static')
+        # Actualizar Flask para usar estas rutas
+        app.template_folder = TEMPLATE_FOLDER
+        app.static_folder = STATIC_FOLDER
+    else:
+        TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
+        STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
+        app.template_folder = TEMPLATE_FOLDER
+        app.static_folder = STATIC_FOLDER
+else:
+    # Modo desarrollo normal
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
+    STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
+
 # --- Configuración de Logging Profesional ---
 def configurar_logging():
     """Configura el sistema de logging profesional"""
-    # Crear directorio de logs si no existe
-    os.makedirs('logs', exist_ok=True)
+    # Crear directorio de logs si no existe (en BASE_DIR, no en el empaquetado)
+    logs_dir = os.path.join(BASE_DIR, 'logs')
+    os.makedirs(logs_dir, exist_ok=True)
     
     # Configurar formato de logging
     log_format = logging.Formatter(
@@ -59,8 +84,10 @@ def configurar_logging():
     )
     
     # Handler para archivo con rotación (máximo 10MB, mantener 5 archivos)
+    logs_dir = os.path.join(BASE_DIR, 'logs')
+    os.makedirs(logs_dir, exist_ok=True)
     file_handler = RotatingFileHandler(
-        'logs/app.log',
+        os.path.join(logs_dir, 'app.log'),
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5,
         encoding='utf-8'
@@ -70,7 +97,7 @@ def configurar_logging():
     
     # Handler para errores en archivo separado
     error_handler = RotatingFileHandler(
-        'logs/errors.log',
+        os.path.join(logs_dir, 'errors.log'),
         maxBytes=10*1024*1024,
         backupCount=5,
         encoding='utf-8'
@@ -326,18 +353,22 @@ def get_csrf_token():
     return None
 
 # --- Constantes ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# (BASE_DIR ya está definido arriba, antes de configurar_logging)
+
+# Rutas de archivos (relativas al directorio de ejecución, no al empaquetado)
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 IMAGENES_PRODUCTOS_FOLDER = os.path.join(BASE_DIR, 'static', 'imagenes_productos')
-ARCHIVO_CLIENTES = 'clientes.json'
-ARCHIVO_INVENTARIO = 'inventario.json'
-ARCHIVO_FACTURAS = 'facturas_json/facturas.json'
-ARCHIVO_CUENTAS = 'cuentas_por_cobrar.json'
-ARCHIVO_NOTAS_ENTREGA = 'notas_entrega.json'
-ARCHIVO_PAGOS_RECIBIDOS = 'pagos_recibidos.json'
-ULTIMA_TASA_BCV_FILE = 'ultima_tasa_bcv.json'
+
+# Archivos JSON (se guardan en el directorio de ejecución, no en el empaquetado)
+ARCHIVO_CLIENTES = os.path.join(BASE_DIR, 'clientes.json')
+ARCHIVO_INVENTARIO = os.path.join(BASE_DIR, 'inventario.json')
+ARCHIVO_FACTURAS = os.path.join(BASE_DIR, 'facturas_json', 'facturas.json')
+ARCHIVO_CUENTAS = os.path.join(BASE_DIR, 'cuentas_por_cobrar.json')
+ARCHIVO_NOTAS_ENTREGA = os.path.join(BASE_DIR, 'notas_entrega.json')
+ARCHIVO_PAGOS_RECIBIDOS = os.path.join(BASE_DIR, 'pagos_recibidos.json')
+ULTIMA_TASA_BCV_FILE = os.path.join(BASE_DIR, 'ultima_tasa_bcv.json')
 ALLOWED_EXTENSIONS = {'csv', 'jpg', 'jpeg', 'png', 'gif', 'pdf'}
-BITACORA_FILE = 'bitacora.log'
+BITACORA_FILE = os.path.join(BASE_DIR, 'bitacora.log')
 
 # --- Funciones de Utilidad ---
 
@@ -1346,7 +1377,7 @@ def guardar_token_recuperacion(username, token):
     """Guarda un token de recuperación de contraseña"""
     try:
         # Cargar tokens existentes
-        tokens_file = 'tokens_recuperacion.json'
+        tokens_file = os.path.join(BASE_DIR, 'tokens_recuperacion.json')
         if os.path.exists(tokens_file):
             with open(tokens_file, 'r', encoding='utf-8') as f:
                 tokens = json.load(f)
@@ -1385,7 +1416,7 @@ def guardar_token_recuperacion(username, token):
 def verificar_token_recuperacion(token):
     """Verifica si un token de recuperación es válido"""
     try:
-        tokens_file = 'tokens_recuperacion.json'
+        tokens_file = os.path.join(BASE_DIR, 'tokens_recuperacion.json')
         if not os.path.exists(tokens_file):
             return None
         
@@ -1417,7 +1448,7 @@ def verificar_token_recuperacion(token):
 def marcar_token_usado(token):
     """Marca un token de recuperación como usado"""
     try:
-        tokens_file = 'tokens_recuperacion.json'
+        tokens_file = os.path.join(BASE_DIR, 'tokens_recuperacion.json')
         if not os.path.exists(tokens_file):
             return
         
@@ -5412,7 +5443,7 @@ def mostrar_pagos_recibidos():
                         print(f"⚠️ Error calculando monto_bs para {id_pago}: {e}")
         
         # Cargar órdenes de servicio para verificar estado de pago
-        ordenes_servicio = cargar_datos('ordenes_servicio.json')
+        ordenes_servicio = cargar_datos(ARCHIVO_ORDENES_SERVICIO)
         if not isinstance(ordenes_servicio, dict):
             ordenes_servicio = {}
         
@@ -5615,7 +5646,7 @@ def mostrar_pagos_recibidos():
             notas = {}
         
         # Cargar órdenes de servicio para calcular pendientes
-        ordenes_servicio = cargar_datos('ordenes_servicio.json')
+        ordenes_servicio = cargar_datos(ARCHIVO_ORDENES_SERVICIO)
         if not isinstance(ordenes_servicio, dict):
             ordenes_servicio = {}
         
@@ -6282,9 +6313,30 @@ def comprobante_pago(id):
             flash('Pago no encontrado', 'error')
             return redirect(url_for('mostrar_pagos_recibidos'))
         
-        return render_template('pdf_comprobante_pago.html', pago=pago)
+        # Generar QR con la URL para verificar el comprobante
+        try:
+            # Obtener la URL base del request
+            base_url = request.url_root.rstrip('/')
+            qr_url = f"{base_url}/pagos-recibidos/{id}/comprobante"
+            
+            # Generar el código QR
+            qr_base64 = generar_qr_base64(qr_url)
+            if qr_base64:
+                print(f"✅ QR generado exitosamente para comprobante {id}")
+            else:
+                print(f"⚠️ Error generando QR para comprobante")
+                qr_base64 = None
+        except Exception as e:
+            print(f"⚠️ Error generando QR: {e}")
+            import traceback
+            traceback.print_exc()
+            qr_base64 = None
+        
+        return render_template('pdf_comprobante_pago.html', pago=pago, qr_base64=qr_base64, qr_url=qr_url if 'qr_url' in locals() else '')
     except Exception as e:
         print(f"Error en comprobante_pago: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error generando el comprobante', 'error')
         return redirect(url_for('mostrar_pagos_recibidos'))
 
@@ -6990,7 +7042,7 @@ def ver_cliente(id):
             ultima_nota = facturas_ordenadas[0].get('fecha') if facturas_ordenadas else None
         
         # Obtener órdenes de servicio del cliente
-        ordenes_servicio = cargar_datos('ordenes_servicio.json')
+        ordenes_servicio = cargar_datos(ARCHIVO_ORDENES_SERVICIO)
         if ordenes_servicio is None:
             ordenes_servicio = {}
         
@@ -17138,7 +17190,7 @@ def test_post():
 
 # ===== SISTEMA DE ROLES Y PERMISOS =====
 
-ARCHIVO_ROLES = 'roles_usuarios.json'
+ARCHIVO_ROLES = os.path.join(BASE_DIR, 'roles_usuarios.json')
 
 def cargar_roles():
     """Carga los roles de usuarios"""
@@ -17294,7 +17346,7 @@ def es_administrador_principal(username):
 
 # ===== MÓDULO DE CONFIGURACIÓN DEL SISTEMA =====
 
-ARCHIVO_CONFIG_SISTEMA = 'config_sistema.json'
+ARCHIVO_CONFIG_SISTEMA = os.path.join(BASE_DIR, 'config_sistema.json')
 
 def cargar_configuracion():
     """Carga la configuración del sistema"""
@@ -18008,7 +18060,7 @@ def sincronizar_con_nube():
             
             # Aquí iría la lógica específica de cada proveedor
             # Por ahora, solo guardamos el backup localmente
-            backup_dir = 'backups_nube'
+            backup_dir = os.path.join(BASE_DIR, 'backups_nube')
             os.makedirs(backup_dir, exist_ok=True)
             destino_local = os.path.join(backup_dir, zip_filename)
             shutil.copy2(zip_path, destino_local)
@@ -18133,7 +18185,7 @@ def exportar_a_contabilidad(tipo_documento, datos):
         
         # Aquí iría la lógica específica de cada sistema
         # Por ahora, guardamos los datos en un archivo para exportación manual
-        export_dir = 'exportaciones_contabilidad'
+        export_dir = os.path.join(BASE_DIR, 'exportaciones_contabilidad')
         os.makedirs(export_dir, exist_ok=True)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -21455,37 +21507,65 @@ def reporte_productos_rentables():
         return redirect(url_for('mostrar_inventario'))
 
 if __name__ == '__main__':
-    # Crear directorios necesarios
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(IMAGENES_PRODUCTOS_FOLDER, exist_ok=True)
-    os.makedirs('facturas_json', exist_ok=True)
-    os.makedirs('cotizaciones_json', exist_ok=True)
-    os.makedirs('cotizaciones_pdf', exist_ok=True)
-    os.makedirs('facturas_pdf', exist_ok=True)
-    os.makedirs('documentos_fiscales', exist_ok=True)
-    os.makedirs('exportaciones_seniat', exist_ok=True)
-    os.makedirs('reportes_clientes', exist_ok=True)
-    os.makedirs('reportes_cuentas', exist_ok=True)
-    os.makedirs('logs', exist_ok=True)
-    
-    # Mostrar todas las rutas registradas
-    print("Rutas disponibles:")
-    for rule in app.url_map.iter_rules():
-        print(f"  {rule.rule} -> {rule.endpoint}")
-    print("Aplicacion iniciada correctamente")
-    
-    # Configuración para desarrollo local y producción en Render
-    is_production = os.environ.get('FLASK_ENV') == 'production'
-    
-    if is_production:
-        # Configuración para Render (producción)
-        port = int(os.environ.get('PORT', 10000))
-        host = '0.0.0.0'
-        debug = False
-        print(f"Iniciando servidor web en puerto {port} (Render)")
-        app.run(host=host, port=port, debug=debug)
-    else:
-        # Configuración para desarrollo local
-        print("Iniciando servidor web en http://127.0.0.1:5000")
-        print("Presiona CTRL+C para detener el servidor")
-        app.run(debug=True, host='127.0.0.1', port=5000)
+    # Manejo de errores para PyInstaller
+    try:
+        # Crear directorios necesarios
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(IMAGENES_PRODUCTOS_FOLDER, exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'facturas_json'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'cotizaciones_json'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'cotizaciones_pdf'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'facturas_pdf'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'documentos_fiscales'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'exportaciones_seniat'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'reportes_clientes'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'reportes_cuentas'), exist_ok=True)
+        os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
+        
+        # Mostrar todas las rutas registradas
+        print("Rutas disponibles:")
+        for rule in app.url_map.iter_rules():
+            print(f"  {rule.rule} -> {rule.endpoint}")
+        print("Aplicacion iniciada correctamente")
+        
+        # Configuración para desarrollo local y producción en Render
+        is_production = os.environ.get('FLASK_ENV') == 'production'
+        
+        if is_production:
+            # Configuración para Render (producción)
+            port = int(os.environ.get('PORT', 10000))
+            host = '0.0.0.0'
+            debug = False
+            print(f"Iniciando servidor web en puerto {port} (Render)")
+            app.run(host=host, port=port, debug=debug)
+        else:
+            # Configuración para desarrollo local
+            # Si está empaquetado, usar configuración especial
+            if getattr(sys, 'frozen', False):
+                print("\n🚀 Iniciando aplicación empaquetada...")
+                print(f"📁 Directorio base: {BASE_DIR}")
+                print(f"📂 Templates: {TEMPLATE_FOLDER}")
+                print(f"📂 Static: {STATIC_FOLDER}")
+                # Abrir navegador automáticamente después de un delay
+                import threading
+                import webbrowser
+                def abrir_navegador():
+                    import time
+                    time.sleep(2)  # Esperar 2 segundos para que el servidor inicie
+                    webbrowser.open('http://127.0.0.1:5000')
+                threading.Thread(target=abrir_navegador, daemon=True).start()
+            print("Iniciando servidor web en http://127.0.0.1:5000")
+            print("Presiona CTRL+C para detener el servidor")
+            app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
+    except Exception as e:
+        print(f"\n❌ ERROR CRÍTICO AL INICIAR LA APLICACIÓN:")
+        print(f"Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("\n⚠️ Presiona Enter para cerrar...")
+        if getattr(sys, 'frozen', False):
+            try:
+                input()  # Esperar input solo si está empaquetado
+            except:
+                pass
+        sys.exit(1)
