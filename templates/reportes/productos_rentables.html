@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Productos Más Rentables{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h2 class="mb-1">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Análisis de Productos Rentables
+                </h2>
+                <p class="text-muted mb-0">Margen, rotación y ROI de productos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>{{ total_productos }}</h3>
+                <p class="text-muted mb-0">Total Productos</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>{{ productos_con_ventas }}</h3>
+                <p class="text-muted mb-0">Con Ventas</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>${{ "%.2f"|format(utilidad_total) }}</h3>
+                <p class="text-muted mb-0">Utilidad Total</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>{{ "%.1f"|format(margen_promedio) }}%</h3>
+                <p class="text-muted mb-0">Margen Promedio</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Rentables -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5 class="mb-3">Top 20 Productos Más Rentables</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Stock</th>
+                                <th>Vendidos (90d)</th>
+                                <th>Ingresos</th>
+                                <th>Utilidad</th>
+                                <th>Margen %</th>
+                                <th>Rotación</th>
+                                <th>ROI %</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in top_rentables %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><strong>{{ producto.nombre }}</strong></td>
+                                <td>{{ producto.categoria }}</td>
+                                <td>{{ producto.stock_actual|int }}</td>
+                                <td>{{ producto.cantidad_vendida|int }}</td>
+                                <td>${{ "%.2f"|format(producto.ingresos_totales) }}</td>
+                                <td><strong class="text-success">${{ "%.2f"|format(producto.utilidad_bruta) }}</strong></td>
+                                <td>
+                                    <span class="badge {% if producto.margen_ganancia > 50 %}bg-success{% elif producto.margen_ganancia > 30 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(producto.margen_ganancia) }}%
+                                    </span>
+                                </td>
+                                <td>{{ "%.2f"|format(producto.rotacion) }}</td>
+                                <td>{{ "%.1f"|format(producto.roi) }}%</td>
+                                <td>
+                                    <span class="badge bg-primary">{{ "%.1f"|format(producto.score_rentabilidad) }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top por Margen y Rotación -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="neo-card">
+                <h5 class="mb-3">Top 10 por Margen de Ganancia</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Margen %</th>
+                                <th>Utilidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in top_margen %}
+                            <tr>
+                                <td>{{ producto.nombre }}</td>
+                                <td><span class="badge bg-success">{{ "%.1f"|format(producto.margen_ganancia) }}%</span></td>
+                                <td>${{ "%.2f"|format(producto.utilidad_bruta) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="neo-card">
+                <h5 class="mb-3">Top 10 por Rotación</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Rotación</th>
+                                <th>Vendidos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in top_rotacion %}
+                            <tr>
+                                <td>{{ producto.nombre }}</td>
+                                <td><span class="badge bg-info">{{ "%.2f"|format(producto.rotacion) }}</span></td>
+                                <td>{{ producto.cantidad_vendida|int }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

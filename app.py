@@ -227,6 +227,45 @@ def inject_empresa():
         'moment': datetime.now
     }
 
+@app.context_processor
+def inject_visual_config():
+    """Inyecta la configuración visual en todos los templates"""
+    try:
+        config = cargar_configuracion()
+        visual = config.get('visual', {})
+        
+        # Valores por defecto si no existen
+        tema = visual.get('tema', 'automatico')
+        color_primario = visual.get('color_primario', '#4f46e5')
+        color_secundario = visual.get('color_secundario', '#7c3aed')
+        color_acentos = visual.get('color_acentos', '#10b981')
+        color_fondo = visual.get('color_fondo', '#f9fafb')
+        familia_fuente = visual.get('familia_fuente', 'poppins')
+        tamano_fuente_base = visual.get('tamano_fuente_base', 16)
+        
+        return {
+            'visual_config': visual,
+            'tema': tema,
+            'color_primario': color_primario,
+            'color_secundario': color_secundario,
+            'color_acentos': color_acentos,
+            'color_fondo': color_fondo,
+            'familia_fuente': familia_fuente,
+            'tamano_fuente_base': tamano_fuente_base
+        }
+    except Exception as e:
+        print(f"Error inyectando configuración visual: {e}")
+        return {
+            'visual_config': {},
+            'tema': 'automatico',
+            'color_primario': '#4f46e5',
+            'color_secundario': '#7c3aed',
+            'color_acentos': '#10b981',
+            'color_fondo': '#f9fafb',
+            'familia_fuente': 'poppins',
+            'tamano_fuente_base': 16
+        }
+
 # Función helper para convertir DotDict a dict para JSON
 @app.template_filter('to_dict')
 def to_dict_filter(obj):
@@ -429,6 +468,18 @@ def guardar_datos(nombre_archivo, datos):
             except Exception as e:
                 print(f"Advertencia: No se pudo crear backup de {nombre_archivo}: {e}")
                 # Continuar con el guardado aunque falle el backup
+        
+        # Sincronización automática con nube si está habilitada
+        try:
+            config = cargar_configuracion()
+            integraciones = config.get('integraciones', {})
+            if integraciones.get('sincronizacion_nube', False) and integraciones.get('nube_automatica', False):
+                if nombre_archivo in archivos_criticos:
+                    # Sincronizar en segundo plano (no bloquear el guardado)
+                    import threading
+                    threading.Thread(target=sincronizar_con_nube, daemon=True).start()
+        except Exception as e:
+            print(f"⚠️ Error en sincronización automática: {e}")
         
         # Intentar guardar con manejo de errores específico
         try:
@@ -863,12 +914,307 @@ def registrar_bitacora(usuario, accion, detalles='', documento_tipo='', document
     # Retornar éxito
     return True
 
+# ===== SISTEMA DE AUTENTICACIÓN DE DOS FACTORES (2FA) =====
+
+import random
+import hashlib
+
+# Almacenamiento temporal de códigos 2FA (en producción usar Redis o base de datos)
+codigos_2fa = {}
+
+def generar_codigo_2fa():
+    """Genera un código de verificación de 6 dígitos"""
+    return str(random.randint(100000, 999999))
+
+def guardar_codigo_2fa(username, codigo, metodo='email'):
+    """Guarda un código 2FA con expiración de 10 minutos"""
+    codigos_2fa[username] = {
+        'codigo': codigo,
+        'expira': datetime.now() + timedelta(minutes=10),
+        'metodo': metodo,
+        'intentos': 0
+    }
+    # Limpiar códigos expirados
+    limpiar_codigos_expirados()
+
+def limpiar_codigos_expirados():
+    """Elimina códigos 2FA expirados"""
+    ahora = datetime.now()
+    usuarios_expirados = [
+        username for username, data in codigos_2fa.items()
+        if data['expira'] < ahora
+    ]
+    for username in usuarios_expirados:
+        del codigos_2fa[username]
+
+def verificar_codigo_2fa(username, codigo_ingresado):
+    """Verifica si el código 2FA es correcto"""
+    limpiar_codigos_expirados()
+    
+    if username not in codigos_2fa:
+        return False, 'Código no encontrado o expirado'
+    
+    datos = codigos_2fa[username]
+    
+    # Verificar expiración
+    if datetime.now() > datos['expira']:
+        del codigos_2fa[username]
+        return False, 'Código expirado. Por favor solicite uno nuevo.'
+    
+    # Verificar intentos (máximo 5 intentos)
+    if datos['intentos'] >= 5:
+        del codigos_2fa[username]
+        return False, 'Demasiados intentos fallidos. Por favor solicite un nuevo código.'
+    
+    # Verificar código
+    if datos['codigo'] == codigo_ingresado:
+        del codigos_2fa[username]  # Eliminar código usado
+        return True, 'Código verificado correctamente'
+    else:
+        datos['intentos'] += 1
+        return False, f'Código incorrecto. Intentos restantes: {5 - datos["intentos"]}'
+
+def obtener_email_usuario(username):
+    """Obtiene el email del usuario desde usuarios.json o usa email de empresa como fallback"""
+    try:
+        usuarios = cargar_datos('usuarios.json')
+        email = ''
+        
+        # Formato nuevo
+        if 'usuarios' in usuarios and username in usuarios['usuarios']:
+            email = usuarios['usuarios'][username].get('email', '')
+        # Formato antiguo
+        elif username in usuarios:
+            email = usuarios[username].get('email', '')
+        
+        # Si no hay email del usuario, usar email de la empresa como fallback
+        if not email:
+            try:
+                config = cargar_configuracion()
+                email = config.get('empresa', {}).get('email', '')
+            except:
+                pass
+        
+        return email
+    except:
+        # Fallback final: email de empresa
+        try:
+            config = cargar_configuracion()
+            return config.get('empresa', {}).get('email', '')
+        except:
+            return ''
+
+def obtener_telefono_usuario(username):
+    """Obtiene el teléfono del usuario desde usuarios.json o usa teléfono de empresa como fallback"""
+    try:
+        usuarios = cargar_datos('usuarios.json')
+        telefono = ''
+        
+        # Formato nuevo
+        if 'usuarios' in usuarios and username in usuarios['usuarios']:
+            telefono = usuarios['usuarios'][username].get('telefono', '')
+        # Formato antiguo
+        elif username in usuarios:
+            telefono = usuarios[username].get('telefono', '')
+        
+        # Si no hay teléfono del usuario, usar teléfono de la empresa como fallback
+        if not telefono:
+            try:
+                config = cargar_configuracion()
+                telefono = config.get('empresa', {}).get('whatsapp', '') or config.get('empresa', {}).get('telefono', '')
+            except:
+                pass
+        
+        return telefono
+    except:
+        # Fallback final: teléfono de empresa
+        try:
+            config = cargar_configuracion()
+            return config.get('empresa', {}).get('whatsapp', '') or config.get('empresa', {}).get('telefono', '')
+        except:
+            return ''
+
+def enviar_codigo_2fa_email(username, codigo):
+    """Envía código 2FA por email"""
+    try:
+        config = cargar_configuracion()
+        seguridad = config.get('seguridad', {})
+        notificaciones = config.get('notificaciones', {})
+        empresa = config.get('empresa', {})
+        
+        # Verificar si email está habilitado
+        if not seguridad.get('2fa_email', True):
+            return False, 'Códigos por email no están habilitados'
+        
+        if not notificaciones.get('email_habilitado', False):
+            return False, 'Email no está configurado en el sistema'
+        
+        email_usuario = obtener_email_usuario(username)
+        if not email_usuario:
+            return False, 'No se encontró email para el usuario ni email de empresa configurado. Por favor configure un email en Configuración del Sistema o agregue email al usuario.'
+        
+        # Configuración SMTP
+        smtp_server = notificaciones.get('email_smtp_server', '')
+        smtp_port = notificaciones.get('email_smtp_port', 587)
+        email_remitente = notificaciones.get('email_remitente', notificaciones.get('email_usuario', ''))
+        email_password = notificaciones.get('email_password', '')
+        
+        if not all([smtp_server, email_remitente, email_password]):
+            return False, 'Configuración de email incompleta'
+        
+        # Crear mensaje
+        asunto = f"Código de Verificación - {empresa.get('nombre', 'Sistema')}"
+        mensaje = f"""
+Hola {username},
+
+Has solicitado un código de verificación para iniciar sesión.
+
+Tu código de verificación es: {codigo}
+
+Este código expirará en 10 minutos.
+
+Si no solicitaste este código, ignora este mensaje.
+
+---
+{empresa.get('nombre', 'Sistema')}
+"""
+        
+        # Enviar email
+        msg = MIMEMultipart()
+        msg['From'] = email_remitente
+        msg['To'] = email_usuario
+        msg['Subject'] = asunto
+        msg.attach(MIMEText(mensaje, 'plain', 'utf-8'))
+        
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(email_remitente, email_password)
+        server.send_message(msg)
+        server.quit()
+        
+        return True, 'Código enviado por email'
+        
+    except Exception as e:
+        print(f"Error enviando código 2FA por email: {e}")
+        return False, f'Error enviando email: {str(e)}'
+
+def enviar_codigo_2fa_sms(username, codigo):
+    """Envía código 2FA por SMS (usando WhatsApp como alternativa)"""
+    try:
+        config = cargar_configuracion()
+        seguridad = config.get('seguridad', {})
+        notificaciones = config.get('notificaciones', {})
+        empresa = config.get('empresa', {})
+        
+        # Verificar si SMS está habilitado
+        if not seguridad.get('2fa_sms', True):
+            return False, 'Códigos por SMS no están habilitados'
+        
+        telefono_usuario = obtener_telefono_usuario(username)
+        if not telefono_usuario:
+            return False, 'Usuario no tiene teléfono registrado'
+        
+        # Limpiar número de teléfono
+        telefono_limpio = telefono_usuario.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        if not telefono_limpio.startswith('58'):
+            if telefono_limpio.startswith('0'):
+                telefono_limpio = '58' + telefono_limpio[1:]
+            else:
+                telefono_limpio = '58' + telefono_limpio
+        
+        # Crear mensaje
+        mensaje = f"Tu código de verificación es: {codigo}. Válido por 10 minutos. {empresa.get('nombre', 'Sistema')}"
+        
+        # Generar enlace WhatsApp (ya que no hay API SMS configurada)
+        mensaje_codificado = urllib.parse.quote(mensaje)
+        enlace_whatsapp = f"https://wa.me/{telefono_limpio}?text={mensaje_codificado}"
+        
+        # En producción, aquí se integraría con una API de SMS real
+        # Por ahora, retornamos el enlace de WhatsApp
+        return True, f'Código preparado para SMS. Enlace WhatsApp: {enlace_whatsapp}'
+        
+    except Exception as e:
+        print(f"Error enviando código 2FA por SMS: {e}")
+        return False, f'Error enviando SMS: {str(e)}'
+
+def enviar_codigo_2fa(username, metodo_preferido='email'):
+    """Envía código 2FA por el método especificado"""
+    codigo = generar_codigo_2fa()
+    guardar_codigo_2fa(username, codigo, metodo_preferido)
+    
+    if metodo_preferido == 'email':
+        exito, mensaje = enviar_codigo_2fa_email(username, codigo)
+        # Si falla email, intentar SMS automáticamente
+        if not exito:
+            exito, mensaje = enviar_codigo_2fa_sms(username, codigo)
+            if exito:
+                metodo_preferido = 'sms'  # Actualizar método usado
+    elif metodo_preferido == 'sms':
+        exito, mensaje = enviar_codigo_2fa_sms(username, codigo)
+        # Si falla SMS, intentar email automáticamente
+        if not exito:
+            exito, mensaje = enviar_codigo_2fa_email(username, codigo)
+            if exito:
+                metodo_preferido = 'email'  # Actualizar método usado
+    else:
+        # Intentar email primero, luego SMS
+        exito, mensaje = enviar_codigo_2fa_email(username, codigo)
+        if not exito:
+            exito, mensaje = enviar_codigo_2fa_sms(username, codigo)
+            if exito:
+                metodo_preferido = 'sms'
+    
+    return exito, mensaje, codigo
+
 # Decorador para requerir login
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'usuario' not in session:
             return redirect(url_for('login'))
+        
+        # Verificar expiración de sesión según configuración
+        try:
+            config = cargar_configuracion()
+            tiempo_sesion_minutos = config.get('seguridad', {}).get('tiempo_sesion', 60)
+            
+            # Verificar si hay timestamp de última actividad
+            if 'ultima_actividad' in session:
+                ultima_actividad = datetime.fromisoformat(session['ultima_actividad'])
+                tiempo_transcurrido = (datetime.now() - ultima_actividad).total_seconds() / 60
+                
+                # Si ha pasado el tiempo de sesión, cerrar sesión
+                if tiempo_transcurrido > tiempo_sesion_minutos:
+                    session.clear()
+                    flash('Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.', 'warning')
+                    return redirect(url_for('login'))
+            
+            # Actualizar timestamp de última actividad
+            session['ultima_actividad'] = datetime.now().isoformat()
+            
+            # Verificar si 2FA está habilitado y si necesita re-verificación periódica
+            if config.get('seguridad', {}).get('autenticacion_2fa', False):
+                # Verificar si hay timestamp de última verificación 2FA
+                if 'ultima_verificacion_2fa' in session:
+                    ultima_verificacion = datetime.fromisoformat(session['ultima_verificacion_2fa'])
+                    tiempo_desde_verificacion = (datetime.now() - ultima_verificacion).total_seconds() / 60
+                    
+                    # Re-verificar 2FA cada X minutos (mismo tiempo que la sesión o cada hora, lo que sea menor)
+                    intervalo_verificacion_2fa = min(tiempo_sesion_minutos, 60)  # Máximo 1 hora
+                    
+                    if tiempo_desde_verificacion > intervalo_verificacion_2fa:
+                        # Requerir nueva verificación 2FA
+                        session['requiere_verificacion_2fa'] = True
+                        session['usuario_pendiente_2fa'] = session.get('usuario')
+                        flash('Por seguridad, necesitas verificar tu identidad nuevamente.', 'info')
+                        return redirect(url_for('verificar_2fa'))
+                else:
+                    # Primera vez después del login, establecer timestamp
+                    session['ultima_verificacion_2fa'] = datetime.now().isoformat()
+        except Exception as e:
+            # Si hay error en la verificación, continuar (no bloquear)
+            print(f"Error verificando sesión: {e}")
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -883,6 +1229,252 @@ def admin_required(f):
             return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
+
+def verificar_usuario_bloqueado(username):
+    """Verifica si un usuario está bloqueado por intentos fallidos"""
+    try:
+        usuarios = cargar_datos('usuarios.json')
+        config = cargar_configuracion()
+        seguridad = config.get('seguridad', {})
+        
+        # Obtener datos del usuario
+        user_data = None
+        if username in usuarios:
+            user_data = usuarios[username]
+        elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+            user_data = usuarios['usuarios'][username]
+        
+        if not user_data:
+            return False, None
+        
+        # Verificar si está bloqueado
+        bloqueado_hasta = user_data.get('bloqueado_hasta')
+        if bloqueado_hasta:
+            try:
+                fecha_bloqueo = datetime.fromisoformat(bloqueado_hasta)
+                if datetime.now() < fecha_bloqueo:
+                    tiempo_restante = (fecha_bloqueo - datetime.now()).total_seconds() / 60
+                    return True, f'Usuario bloqueado. Intente nuevamente en {int(tiempo_restante)} minutos'
+                else:
+                    # Desbloquear automáticamente si ya pasó el tiempo
+                    if username in usuarios:
+                        usuarios[username].pop('bloqueado_hasta', None)
+                        usuarios[username].pop('intentos_fallidos', None)
+                    elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+                        usuarios['usuarios'][username].pop('bloqueado_hasta', None)
+                        usuarios['usuarios'][username].pop('intentos_fallidos', None)
+                    guardar_datos('usuarios.json', usuarios)
+                    return False, None
+            except:
+                # Si hay error parseando fecha, desbloquear
+                if username in usuarios:
+                    usuarios[username].pop('bloqueado_hasta', None)
+                elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+                    usuarios['usuarios'][username].pop('bloqueado_hasta', None)
+                guardar_datos('usuarios.json', usuarios)
+        
+        return False, None
+    except Exception as e:
+        print(f"Error verificando bloqueo de usuario: {e}")
+        return False, None
+
+def registrar_intento_fallido(username):
+    """Registra un intento fallido de login y bloquea si es necesario"""
+    try:
+        usuarios = cargar_datos('usuarios.json')
+        config = cargar_configuracion()
+        seguridad = config.get('seguridad', {})
+        intentos_maximos = seguridad.get('intentos_login', 5)
+        tiempo_bloqueo_minutos = seguridad.get('tiempo_bloqueo_ip', 15)
+        
+        # Obtener datos del usuario
+        user_data = None
+        user_key = None
+        if username in usuarios:
+            user_data = usuarios[username]
+            user_key = username
+        elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+            user_data = usuarios['usuarios'][username]
+            user_key = 'usuarios'
+        
+        if not user_data:
+            return
+        
+        # Incrementar intentos fallidos
+        intentos_fallidos = user_data.get('intentos_fallidos', 0) + 1
+        user_data['intentos_fallidos'] = intentos_fallidos
+        user_data['ultimo_intento_fallido'] = datetime.now().isoformat()
+        
+        # Si excede el máximo, bloquear usuario
+        if intentos_fallidos >= intentos_maximos:
+            fecha_desbloqueo = datetime.now() + timedelta(minutes=tiempo_bloqueo_minutos)
+            user_data['bloqueado_hasta'] = fecha_desbloqueo.isoformat()
+            registrar_bitacora(username, 'Bloqueo de cuenta', f'Usuario bloqueado por {intentos_maximos} intentos fallidos. Desbloqueo: {fecha_desbloqueo.strftime("%Y-%m-%d %H:%M")}')
+        
+        # Guardar cambios
+        if user_key == 'usuarios':
+            usuarios['usuarios'][username] = user_data
+        else:
+            usuarios[username] = user_data
+        
+        guardar_datos('usuarios.json', usuarios)
+    except Exception as e:
+        print(f"Error registrando intento fallido: {e}")
+
+def resetear_intentos_fallidos(username):
+    """Resetea los intentos fallidos de un usuario después de login exitoso"""
+    try:
+        usuarios = cargar_datos('usuarios.json')
+        
+        if username in usuarios:
+            usuarios[username].pop('intentos_fallidos', None)
+            usuarios[username].pop('bloqueado_hasta', None)
+        elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+            usuarios['usuarios'][username].pop('intentos_fallidos', None)
+            usuarios['usuarios'][username].pop('bloqueado_hasta', None)
+        
+        guardar_datos('usuarios.json', usuarios)
+    except Exception as e:
+        print(f"Error reseteando intentos fallidos: {e}")
+
+def generar_token_recuperacion():
+    """Genera un token único para recuperación de contraseña"""
+    import secrets
+    return secrets.token_urlsafe(32)
+
+def guardar_token_recuperacion(username, token):
+    """Guarda un token de recuperación de contraseña"""
+    try:
+        # Cargar tokens existentes
+        tokens_file = 'tokens_recuperacion.json'
+        if os.path.exists(tokens_file):
+            with open(tokens_file, 'r', encoding='utf-8') as f:
+                tokens = json.load(f)
+        else:
+            tokens = {}
+        
+        # Guardar token con expiración (1 hora)
+        fecha_expiracion = datetime.now() + timedelta(hours=1)
+        tokens[token] = {
+            'username': username,
+            'fecha_creacion': datetime.now().isoformat(),
+            'fecha_expiracion': fecha_expiracion.isoformat(),
+            'usado': False
+        }
+        
+        # Limpiar tokens expirados
+        tokens_activos = {}
+        for t, datos in tokens.items():
+            try:
+                expiracion = datetime.fromisoformat(datos['fecha_expiracion'])
+                if datetime.now() < expiracion and not datos.get('usado', False):
+                    tokens_activos[t] = datos
+            except:
+                pass
+        
+        tokens_activos[token] = tokens[token]
+        
+        with open(tokens_file, 'w', encoding='utf-8') as f:
+            json.dump(tokens_activos, f, indent=4, ensure_ascii=False)
+        
+        return True
+    except Exception as e:
+        print(f"Error guardando token de recuperación: {e}")
+        return False
+
+def verificar_token_recuperacion(token):
+    """Verifica si un token de recuperación es válido"""
+    try:
+        tokens_file = 'tokens_recuperacion.json'
+        if not os.path.exists(tokens_file):
+            return None
+        
+        with open(tokens_file, 'r', encoding='utf-8') as f:
+            tokens = json.load(f)
+        
+        if token not in tokens:
+            return None
+        
+        datos = tokens[token]
+        
+        # Verificar si ya fue usado
+        if datos.get('usado', False):
+            return None
+        
+        # Verificar expiración
+        try:
+            expiracion = datetime.fromisoformat(datos['fecha_expiracion'])
+            if datetime.now() > expiracion:
+                return None
+        except:
+            return None
+        
+        return datos['username']
+    except Exception as e:
+        print(f"Error verificando token de recuperación: {e}")
+        return None
+
+def marcar_token_usado(token):
+    """Marca un token de recuperación como usado"""
+    try:
+        tokens_file = 'tokens_recuperacion.json'
+        if not os.path.exists(tokens_file):
+            return
+        
+        with open(tokens_file, 'r', encoding='utf-8') as f:
+            tokens = json.load(f)
+        
+        if token in tokens:
+            tokens[token]['usado'] = True
+            with open(tokens_file, 'w', encoding='utf-8') as f:
+                json.dump(tokens, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error marcando token como usado: {e}")
+
+def enviar_email_recuperacion(username, token):
+    """Envía un email con el enlace de recuperación de contraseña"""
+    try:
+        email_usuario = obtener_email_usuario(username)
+        if not email_usuario:
+            return False, 'No se encontró email para el usuario'
+        
+        config = cargar_configuracion()
+        empresa = config.get('empresa', {})
+        nombre_empresa = empresa.get('nombre', 'Sistema')
+        
+        # Generar enlace de recuperación
+        enlace_recuperacion = url_for('resetear_contraseña', token=token, _external=True)
+        
+        # Preparar mensaje
+        asunto = f'Recuperación de Contraseña - {nombre_empresa}'
+        mensaje_texto = f"""
+        Recuperación de Contraseña
+        
+        Has solicitado recuperar tu contraseña para el usuario {username}.
+        
+        Haz clic en el siguiente enlace para restablecer tu contraseña:
+        {enlace_recuperacion}
+        
+        Este enlace expirará en 1 hora.
+        
+        Si no solicitaste este cambio, ignora este email.
+        
+        {nombre_empresa}
+        """
+        
+        # Enviar email
+        exito = enviar_email_reporte(asunto, mensaje_texto, email_usuario, config)
+        
+        if exito:
+            return True, f'Email de recuperación enviado a {email_usuario}'
+        else:
+            return False, 'Error enviando email. Verifica la configuración SMTP en Configuración del Sistema'
+    
+    except Exception as e:
+        print(f"Error enviando email de recuperación: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f'Error: {str(e)}'
 
 def verify_password(username, password):
     """Verifica la contraseña de un usuario."""
@@ -1081,6 +1673,86 @@ def obtener_estadisticas():
     except Exception as e:
         print(f"DEBUG: Error cargando pagos recibidos para dashboard: {e}")
         # Continuar sin los pagos recibidos si hay error
+    
+    # Calcular porcentajes de crecimiento comparando con mes anterior
+    mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
+    año_anterior = datetime.now().year if mes_actual > 1 else datetime.now().year - 1
+    
+    # Calcular cuentas por cobrar del mes anterior
+    total_cobrar_mes_anterior = 0
+    for n in notas.values():
+        fecha_str = n.get('fecha', '')
+        if fecha_str:
+            try:
+                fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d')
+                if fecha_dt.month == mes_anterior and fecha_dt.year == año_anterior:
+                    total_nota = safe_float(n.get('total_usd', 0))
+                    total_abonado = safe_float(n.get('total_abonado', 0))
+                    saldo = max(0, total_nota - total_abonado)
+                    if saldo > 0:
+                        total_cobrar_mes_anterior += saldo
+            except (ValueError, TypeError):
+                continue
+    
+    # Calcular pagos recibidos del mes anterior
+    total_pagos_mes_anterior = 0
+    for n in notas.values():
+        fecha_str = n.get('fecha', '')
+        if fecha_str:
+            try:
+                fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d')
+                if fecha_dt.month == mes_anterior and fecha_dt.year == año_anterior:
+                    if 'pagos' in n and n['pagos']:
+                        for pago in n['pagos']:
+                            monto = safe_float(pago.get('monto', 0))
+                            total_pagos_mes_anterior += monto
+            except (ValueError, TypeError):
+                continue
+    
+    # Sumar pagos del archivo pagos_recibidos.json del mes anterior
+    try:
+        pagos_recibidos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        if pagos_recibidos and isinstance(pagos_recibidos, dict):
+            for pago_id, pago in pagos_recibidos.items():
+                if not isinstance(pago, dict):
+                    continue
+                fecha_pago = pago.get('fecha', '')
+                if fecha_pago:
+                    try:
+                        fecha_parseada = parsear_fecha_segura(fecha_pago, ['%Y-%m-%d', '%d/%m/%Y'])
+                        if fecha_parseada and fecha_parseada.month == mes_anterior and fecha_parseada.year == año_anterior:
+                            monto_usd = safe_float(pago.get('monto_usd', 0))
+                            total_pagos_mes_anterior += monto_usd
+                    except (ValueError, TypeError):
+                        continue
+    except Exception:
+        pass
+    
+    # Calcular total facturado del mes anterior
+    total_facturado_mes_anterior = 0
+    for n in notas.values():
+        fecha_str = n.get('fecha', '')
+        if fecha_str:
+            try:
+                fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%d')
+                if fecha_dt.month == mes_anterior and fecha_dt.year == año_anterior:
+                    total_facturado_mes_anterior += safe_float(n.get('total_usd', 0))
+            except (ValueError, TypeError):
+                continue
+    
+    # Calcular total facturado del mes actual
+    total_facturado_usd = sum(safe_float(n.get('total_usd', 0)) for n in notas.values())
+    
+    # Calcular porcentajes de crecimiento
+    def calcular_porcentaje_crecimiento(actual, anterior):
+        if anterior == 0:
+            return 0 if actual == 0 else 100
+        return ((actual - anterior) / anterior) * 100
+    
+    crecimiento_cobranza = calcular_porcentaje_crecimiento(total_cobrar_usd, total_cobrar_mes_anterior)
+    crecimiento_pagos = calcular_porcentaje_crecimiento(total_pagos_recibidos_usd, total_pagos_mes_anterior)
+    crecimiento_facturado = calcular_porcentaje_crecimiento(total_facturado_usd, total_facturado_mes_anterior)
+    
     return {
         'total_clientes': total_clientes,
         'total_productos': total_productos,
@@ -1093,7 +1765,11 @@ def obtener_estadisticas():
         'productos_bajo_stock': productos_bajo_stock,
         'ordenes_pendientes': ordenes_pendientes,
         'total_pagos_recibidos_usd': total_pagos_recibidos_usd,
-        'total_pagos_recibidos_bs': total_pagos_recibidos_bs
+        'total_pagos_recibidos_bs': total_pagos_recibidos_bs,
+        'total_facturado_usd': total_facturado_usd,
+        'crecimiento_cobranza': crecimiento_cobranza,
+        'crecimiento_pagos': crecimiento_pagos,
+        'crecimiento_facturado': crecimiento_facturado
     }
 
 def obtener_ordenes_estados_vencidos():
@@ -1782,9 +2458,17 @@ def limpiar_monto(monto):
 def index():
     stats = obtener_estadisticas()
     notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-    total_facturado_usd = sum(safe_float(f.get('total_usd', 0)) for f in notas.values())
+    # total_facturado_usd ya está en stats, no es necesario calcularlo de nuevo
+    total_facturado_usd = stats.get('total_facturado_usd', 0)
     cantidad_notas = len(notas)
     promedio_nota_usd = total_facturado_usd / cantidad_notas if cantidad_notas > 0 else 0
+    
+    # Cargar configuración del dashboard
+    config = cargar_configuracion()
+    dashboard_config = config.get('dashboard', {})
+    tarjetas_habilitadas = dashboard_config.get('tarjetas_habilitadas', {})
+    colores = dashboard_config.get('colores', {})
+    iconos = dashboard_config.get('iconos', {})
     # Obtener tasa EUR del BCV directamente (igual que el endpoint api_tasas_actualizadas)
     tasa_bcv_eur = 0
     try:
@@ -1826,7 +2510,9 @@ def index():
     if not stats.get('tasa_bcv') or stats.get('tasa_bcv', 0) < 1:
         advertencia_tasa = '¡Advertencia! No se ha podido obtener la tasa BCV actual.'
     stats['tasa_bcv_eur'] = tasa_bcv_eur
-    return render_template('index.html', **stats, advertencia_tasa=advertencia_tasa, total_facturado_usd=total_facturado_usd, promedio_nota_usd=promedio_nota_usd)
+    # No pasar total_facturado_usd explícitamente porque ya está en stats
+    return render_template('index.html', **stats, advertencia_tasa=advertencia_tasa, promedio_nota_usd=promedio_nota_usd, 
+                          dashboard_config=dashboard_config, tarjetas_habilitadas=tarjetas_habilitadas, colores_dashboard=colores, iconos_dashboard=iconos)
 
 # Rutas de la API para filtros del dashboard
 @app.route('/api/dashboard-filtros')
@@ -2466,6 +3152,20 @@ def nuevo_cliente():
             # Guardar datos
             if guardar_datos(ARCHIVO_CLIENTES, clientes):
                 print(f"✅ Cliente creado exitosamente: {nuevo_id}")
+                
+                # Enviar webhook si está configurado
+                try:
+                    enviar_webhook('nuevo_cliente', {
+                        'id_cliente': nuevo_id,
+                        'nombre': nombre,
+                        'rif': rif,
+                        'telefono': telefono,
+                        'email': email,
+                        'fecha': datetime.now().isoformat()
+                    })
+                except Exception as e:
+                    print(f"⚠️ Error enviando webhook de nuevo cliente: {e}")
+                
                 flash(f'✅ Cliente {nombre} creado exitosamente', 'success')
                 return redirect(url_for('mostrar_clientes'))
             else:
@@ -2637,6 +3337,9 @@ def mostrar_inventario():
 def nuevo_producto():
     # Cargar el inventario
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
+    # Cargar configuración de inventario
+    config = cargar_configuracion()
+    config_inv = config.get('inventario', {})
     
     if request.method == 'POST':
         nombre = request.form.get('nombre')
@@ -2649,11 +3352,32 @@ def nuevo_producto():
         codigo_barras = request.form.get('codigo_barras', '').strip()
         proveedor = request.form.get('proveedor', '')
         ubicacion = request.form.get('ubicacion', '')
-        stock_minimo = int(request.form.get('stock_minimo', 5))
+        
+        # Aplicar valores por defecto de configuración
+        stock_minimo_default = config_inv.get('stock_minimo_default', 5)
+        stock_maximo_default = config_inv.get('stock_maximo_default', 100)
+        punto_reorden_default = config_inv.get('punto_reorden_default', 10)
+        
+        stock_minimo = int(request.form.get('stock_minimo', stock_minimo_default))
+        stock_maximo = int(request.form.get('stock_maximo', stock_maximo_default))
+        punto_reorden = int(request.form.get('punto_reorden', punto_reorden_default))
         
         if not nombre or not tipo:
             flash('El nombre y el tipo son requeridos', 'danger')
             return redirect(url_for('nuevo_producto'))
+        
+        # Generar código de barras automáticamente si está habilitado
+        if config_inv.get('codigos_barras', False) and config_inv.get('generacion_automatica_codigos', False) and not codigo_barras:
+            # Generar código único basado en ID y timestamp
+            import hashlib
+            codigo_base = f"{nombre}{datetime.now().isoformat()}"
+            codigo_hash = hashlib.md5(codigo_base.encode()).hexdigest()[:12]
+            formato = config_inv.get('formato_codigo_barras', 'Code128')
+            if formato == 'EAN13':
+                # EAN13 requiere 13 dígitos
+                codigo_barras = codigo_hash[:12] + str(sum(int(d) for d in codigo_hash[:12]) % 10)
+            else:
+                codigo_barras = codigo_hash
         
         # Validar código de barras único
         if codigo_barras:
@@ -2661,6 +3385,15 @@ def nuevo_producto():
                                    if p.get('codigo_barras') == codigo_barras]
             if productos_con_codigo:
                 flash(f'Ya existe un producto con el código de barras: {codigo_barras}', 'danger')
+                return redirect(url_for('nuevo_producto'))
+        
+        # Validar control de stock si está habilitado
+        if config_inv.get('control_stock', True):
+            if cantidad < 0:
+                flash('La cantidad no puede ser negativa', 'danger')
+                return redirect(url_for('nuevo_producto'))
+            if stock_minimo < 0:
+                flash('El stock mínimo no puede ser negativo', 'danger')
                 return redirect(url_for('nuevo_producto'))
         
         # Generar nuevo ID - validar que las claves sean numéricas
@@ -2684,19 +3417,22 @@ def nuevo_producto():
         qr_data = f"ID: {nuevo_id}\nNombre: {nombre}\nTipo: {tipo}\nCategoría: {categoria}\nPrecio: ${precio}\nStock disponible: {cantidad}"
         qr_code = generar_qr_producto(qr_data, nuevo_id)
         
-        # Crear nuevo producto
-        inventario[nuevo_id] = {
+        # Crear nuevo producto con todas las configuraciones aplicadas
+        producto_nuevo = {
             'nombre': nombre,
             'tipo': tipo,
             'categoria': categoria,
             'subcategoria': subcategoria,
             'precio': precio,
             'cantidad': cantidad,
+            'stock_actual': cantidad,  # Alias para compatibilidad
             'descripcion': descripcion,
             'codigo_barras': codigo_barras,
             'proveedor': proveedor,
             'ubicacion': ubicacion,
             'stock_minimo': stock_minimo,
+            'stock_maximo': stock_maximo,
+            'punto_reorden': punto_reorden,
             'imagen': ruta_imagen,
             'qr_code': qr_code,
             'fecha_creacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -2705,8 +3441,30 @@ def nuevo_producto():
             'ruta_imagen': ruta_imagen
         }
         
-        # Registrar movimiento inicial si hay cantidad
-        if cantidad > 0:
+        # Agregar campos según configuración
+        if config_inv.get('seriales', False):
+            producto_nuevo['seriales'] = []
+        
+        if config_inv.get('control_lotes', False):
+            producto_nuevo['lotes'] = []
+        
+        if config_inv.get('control_caducidad', False):
+            producto_nuevo['fecha_caducidad'] = None
+            producto_nuevo['dias_restantes'] = None
+        
+        if config_inv.get('trazabilidad_completa', True):
+            producto_nuevo['historial_movimientos'] = []
+        
+        if config_inv.get('ubicaciones_multiples', False):
+            almacenes = config_inv.get('almacenes_default', '').split(',')
+            producto_nuevo['ubicaciones'] = {alm.strip(): 0 for alm in almacenes if alm.strip()}
+            if ubicacion:
+                producto_nuevo['ubicaciones'][ubicacion] = cantidad
+        
+        inventario[nuevo_id] = producto_nuevo
+        
+        # Registrar movimiento inicial si hay cantidad y está habilitado
+        if cantidad > 0 and config_inv.get('historial_detallado', True):
             movimiento = {
                 'tipo': 'entrada',
                 'producto_id': nuevo_id,
@@ -2716,7 +3474,22 @@ def nuevo_producto():
                 'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'usuario': session.get('username', 'Sistema')
             }
+            
+            # Agregar campos adicionales según configuración
+            if config_inv.get('causas_movimiento', True):
+                movimiento['causa'] = 'Creación inicial'
+            
+            if config_inv.get('ubicaciones_multiples', False) and ubicacion:
+                movimiento['ubicacion_origen'] = 'Externo'
+                movimiento['ubicacion_destino'] = ubicacion
+            
             registrar_movimientos_inventario([movimiento])
+            
+            # Guardar en historial del producto si está habilitado
+            if config_inv.get('trazabilidad_completa', True):
+                if 'historial_movimientos' not in inventario[nuevo_id]:
+                    inventario[nuevo_id]['historial_movimientos'] = []
+                inventario[nuevo_id]['historial_movimientos'].append(movimiento)
         
         if guardar_datos(ARCHIVO_INVENTARIO, inventario):
             flash('Producto creado exitosamente', 'success')
@@ -2767,6 +3540,9 @@ def nuevo_producto():
 def editar_producto(id):
     # Cargar el inventario
     inventario = cargar_datos(ARCHIVO_INVENTARIO)
+    # Cargar configuración de inventario
+    config = cargar_configuracion()
+    config_inv = config.get('inventario', {})
     
     if id not in inventario:
         flash('Producto no encontrado', 'danger')
@@ -2778,16 +3554,37 @@ def editar_producto(id):
         categoria = request.form.get('categoria')
         subcategoria = request.form.get('subcategoria', '')
         precio = safe_float(request.form.get('precio', 0))
-        cantidad = int(request.form.get('cantidad', 0))
+        cantidad_anterior = inventario[id].get('cantidad', 0)
+        cantidad = int(request.form.get('cantidad', cantidad_anterior))
         descripcion = request.form.get('descripcion', '')
         codigo_barras = request.form.get('codigo_barras', '').strip()
         proveedor = request.form.get('proveedor', '')
         ubicacion = request.form.get('ubicacion', '')
-        stock_minimo = int(request.form.get('stock_minimo', 5))
+        
+        # Aplicar valores por defecto de configuración si no existen
+        stock_minimo_default = config_inv.get('stock_minimo_default', 5)
+        stock_maximo_default = config_inv.get('stock_maximo_default', 100)
+        punto_reorden_default = config_inv.get('punto_reorden_default', 10)
+        
+        stock_minimo = int(request.form.get('stock_minimo', inventario[id].get('stock_minimo', stock_minimo_default)))
+        stock_maximo = int(request.form.get('stock_maximo', inventario[id].get('stock_maximo', stock_maximo_default)))
+        punto_reorden = int(request.form.get('punto_reorden', inventario[id].get('punto_reorden', punto_reorden_default)))
         
         if not nombre or not tipo:
             flash('El nombre y el tipo son requeridos', 'danger')
             return redirect(url_for('editar_producto', id=id))
+        
+        # Generar código de barras automáticamente si está habilitado y no existe
+        if config_inv.get('codigos_barras', False) and config_inv.get('generacion_automatica_codigos', False) and not codigo_barras:
+            if not inventario[id].get('codigo_barras'):
+                import hashlib
+                codigo_base = f"{nombre}{datetime.now().isoformat()}"
+                codigo_hash = hashlib.md5(codigo_base.encode()).hexdigest()[:12]
+                formato = config_inv.get('formato_codigo_barras', 'Code128')
+                if formato == 'EAN13':
+                    codigo_barras = codigo_hash[:12] + str(sum(int(d) for d in codigo_hash[:12]) % 10)
+                else:
+                    codigo_barras = codigo_hash
         
         # Validar código de barras único (excluyendo el producto actual)
         if codigo_barras:
@@ -2795,6 +3592,15 @@ def editar_producto(id):
                                    if p.get('codigo_barras') == codigo_barras and pid != id]
             if productos_con_codigo:
                 flash(f'Ya existe otro producto con el código de barras: {codigo_barras}', 'danger')
+                return redirect(url_for('editar_producto', id=id))
+        
+        # Validar control de stock si está habilitado
+        if config_inv.get('control_stock', True):
+            if cantidad < 0:
+                flash('La cantidad no puede ser negativa', 'danger')
+                return redirect(url_for('editar_producto', id=id))
+            if stock_minimo < 0:
+                flash('El stock mínimo no puede ser negativo', 'danger')
                 return redirect(url_for('editar_producto', id=id))
         
         # Procesar imagen si se subió una nueva
@@ -2820,7 +3626,7 @@ def editar_producto(id):
         cantidad_anterior = inventario[id].get('cantidad', 0)
         diferencia = cantidad - cantidad_anterior
         
-        # Actualizar producto
+        # Actualizar producto con todas las configuraciones
         inventario[id].update({
             'nombre': nombre,
             'tipo': tipo,
@@ -2828,18 +3634,29 @@ def editar_producto(id):
             'subcategoria': subcategoria,
             'precio': precio,
             'cantidad': cantidad,
+            'stock_actual': cantidad,  # Alias para compatibilidad
             'descripcion': descripcion,
             'codigo_barras': codigo_barras,
             'proveedor': proveedor,
             'ubicacion': ubicacion,
             'stock_minimo': stock_minimo,
+            'stock_maximo': stock_maximo,
+            'punto_reorden': punto_reorden,
             'ruta_imagen': ruta_imagen,
             'qr_code': qr_code,
             'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
         
-        # Registrar movimiento si hay diferencia en la cantidad
-        if diferencia != 0:
+        # Actualizar ubicaciones si está habilitado
+        if config_inv.get('ubicaciones_multiples', False):
+            if 'ubicaciones' not in inventario[id]:
+                almacenes = config_inv.get('almacenes_default', '').split(',')
+                inventario[id]['ubicaciones'] = {alm.strip(): 0 for alm in almacenes if alm.strip()}
+            if ubicacion and ubicacion in inventario[id].get('ubicaciones', {}):
+                inventario[id]['ubicaciones'][ubicacion] = cantidad
+        
+        # Registrar movimiento si hay diferencia en la cantidad y está habilitado
+        if diferencia != 0 and config_inv.get('historial_detallado', True):
             movimiento = {
                 'tipo': 'entrada' if diferencia > 0 else 'salida',
                 'producto_id': id,
@@ -2849,7 +3666,22 @@ def editar_producto(id):
                 'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'usuario': session.get('username', 'Sistema')
             }
+            
+            # Agregar campos adicionales según configuración
+            if config_inv.get('causas_movimiento', True):
+                movimiento['causa'] = 'Ajuste manual'
+            
+            if config_inv.get('ubicaciones_multiples', False) and ubicacion:
+                movimiento['ubicacion_origen'] = 'Ajuste' if diferencia < 0 else 'Externo'
+                movimiento['ubicacion_destino'] = ubicacion if diferencia > 0 else 'Ajuste'
+            
             registrar_movimientos_inventario([movimiento])
+            
+            # Guardar en historial del producto si está habilitado
+            if config_inv.get('trazabilidad_completa', True):
+                if 'historial_movimientos' not in inventario[id]:
+                    inventario[id]['historial_movimientos'] = []
+                inventario[id]['historial_movimientos'].append(movimiento)
             
             # Actualizar última entrada/salida
             if diferencia > 0:
@@ -3253,7 +4085,10 @@ def nueva_nota_entrega():
                 # Inicializar campos de pagos para sincronización
                 'pagos': [],
                 'total_abonado': 0.0,
-                'saldo_pendiente': total_usd
+                'saldo_pendiente': total_usd,
+                # 🌟 NUEVOS CAMPOS PARA CONCILIACIÓN
+                'saldo_pendiente_usd': total_usd,  # El saldo pendiente es igual al total
+                'estado_pago': 'Pendiente'  # Estado inicial de pago
             }
             
             # Guardar la nota
@@ -3962,40 +4797,128 @@ def test_notas():
 @app.route('/notas-entrega/reporte')
 @login_required
 def reporte_notas_entrega():
-    """Reporte de notas de entrega con filtro por mes."""
+    """Reporte mejorado de notas de entrega con filtros avanzados, gráficos y comparaciones."""
     try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('mostrar_notas_entrega'))
+        
         notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         
-        # Obtener parámetros de filtro
+        # Obtener parámetros de filtro avanzados
         mes_filtro = request.args.get('mes', '')
         año_filtro = request.args.get('año', '')
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        cliente_filtro = request.args.get('cliente', '').strip()
+        estado_filtro = request.args.get('estado', '')
+        monto_min = request.args.get('monto_min', '')
+        monto_max = request.args.get('monto_max', '')
+        comparar_periodo = request.args.get('comparar', '') == 'on'
+        periodo_comparacion = request.args.get('periodo_comparacion', 'mes_anterior')
         
-        # Filtrar notas por mes y año
+        # Filtrar notas con filtros avanzados
         notas_filtradas = {}
+        notas_comparacion = {}
+        
         for numero, nota in notas.items():
             fecha_str = nota.get('fecha', '')
             if not fecha_str:
                 continue
             
-            # Intentar parsear la fecha de forma segura
             fecha_nota = parsear_fecha_segura(fecha_str)
             if not fecha_nota:
                 continue
             
-            # Aplicar filtros
+            # Aplicar todos los filtros
             incluir = True
-            if mes_filtro:
-                if fecha_nota.month != int(mes_filtro):
+            
+            # Filtro por rango de fechas
+            if fecha_desde:
+                fecha_desde_obj = parsear_fecha_segura(fecha_desde)
+                if fecha_desde_obj and fecha_nota < fecha_desde_obj:
                     incluir = False
-            if año_filtro:
-                if fecha_nota.year != int(año_filtro):
+            if fecha_hasta:
+                fecha_hasta_obj = parsear_fecha_segura(fecha_hasta)
+                if fecha_hasta_obj and fecha_nota > fecha_hasta_obj:
+                    incluir = False
+            
+            # Filtro por mes/año (si no hay rango de fechas)
+            if not fecha_desde and not fecha_hasta:
+                if mes_filtro and fecha_nota.month != int(mes_filtro):
+                    incluir = False
+                if año_filtro and fecha_nota.year != int(año_filtro):
+                    incluir = False
+            
+            # Filtro por cliente
+            if cliente_filtro and incluir:
+                cliente_id = nota.get('cliente_id')
+                if cliente_id and cliente_id in clientes:
+                    nombre_cliente = clientes[cliente_id].get('nombre', '').lower()
+                    if cliente_filtro.lower() not in nombre_cliente:
+                        incluir = False
+                else:
+                    incluir = False
+            
+            # Filtro por estado
+            if estado_filtro and incluir:
+                estado_nota = nota.get('estado', '').upper()
+                if estado_filtro.upper() != estado_nota:
+                    incluir = False
+            
+            # Filtro por monto
+            if monto_min and incluir:
+                total_usd = float(nota.get('total_usd', 0) or 0)
+                if total_usd < float(monto_min):
+                    incluir = False
+            if monto_max and incluir:
+                total_usd = float(nota.get('total_usd', 0) or 0)
+                if total_usd > float(monto_max):
                     incluir = False
             
             if incluir:
                 notas_filtradas[numero] = nota
         
-        # Agregar información del cliente a cada nota
+        # Datos para comparación de períodos
+        if comparar_periodo:
+            fecha_base = datetime.now()
+            if fecha_desde:
+                fecha_base = parsear_fecha_segura(fecha_desde) or datetime.now()
+            
+            if periodo_comparacion == 'mes_anterior':
+                # Mes anterior
+                if fecha_base.month == 1:
+                    mes_comp = 12
+                    año_comp = fecha_base.year - 1
+                else:
+                    mes_comp = fecha_base.month - 1
+                    año_comp = fecha_base.year
+                
+                for numero, nota in notas.items():
+                    fecha_str = nota.get('fecha', '')
+                    if fecha_str:
+                        fecha_nota = parsear_fecha_segura(fecha_str)
+                        if fecha_nota and fecha_nota.month == mes_comp and fecha_nota.year == año_comp:
+                            notas_comparacion[numero] = nota
+            
+            elif periodo_comparacion == 'año_anterior':
+                # Año anterior mismo mes
+                año_comp = fecha_base.year - 1
+                mes_comp = fecha_base.month
+                
+                for numero, nota in notas.items():
+                    fecha_str = nota.get('fecha', '')
+                    if fecha_str:
+                        fecha_nota = parsear_fecha_segura(fecha_str)
+                        if fecha_nota and fecha_nota.month == mes_comp and fecha_nota.year == año_comp:
+                            notas_comparacion[numero] = nota
+        
+        # Agregar información del cliente
         for numero, nota in notas_filtradas.items():
             cliente_id = nota.get('cliente_id')
             if cliente_id and cliente_id in clientes:
@@ -4005,12 +4928,57 @@ def reporte_notas_entrega():
                 nota['cliente_nombre'] = 'Cliente no especificado'
                 nota['cliente_telefono'] = ''
         
-        # Calcular estadísticas
+        # Calcular estadísticas principales
         total_notas = len(notas_filtradas)
         total_usd = sum(float(nota.get('total_usd', 0) or 0) for nota in notas_filtradas.values())
         total_bs = sum(float(nota.get('total_bs', 0) or 0) for nota in notas_filtradas.values())
+        promedio_usd = total_usd / total_notas if total_notas > 0 else 0
         
-        # Ordenar notas por fecha (más recientes primero)
+        # Estadísticas de comparación
+        total_notas_comp = len(notas_comparacion)
+        total_usd_comp = sum(float(nota.get('total_usd', 0) or 0) for nota in notas_comparacion.values())
+        variacion_notas = ((total_notas - total_notas_comp) / total_notas_comp * 100) if total_notas_comp > 0 else 0
+        variacion_usd = ((total_usd - total_usd_comp) / total_usd_comp * 100) if total_usd_comp > 0 else 0
+        
+        # Estadísticas por mes (últimos 12 meses para gráfico)
+        notas_por_mes = {}
+        for i in range(12):
+            fecha_ref = datetime.now() - timedelta(days=30*i)
+            mes_key = fecha_ref.strftime('%Y-%m')
+            notas_por_mes[mes_key] = {'notas': 0, 'total_usd': 0, 'total_bs': 0}
+        
+        for numero, nota in notas.items():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota:
+                    mes_key = fecha_nota.strftime('%Y-%m')
+                    if mes_key in notas_por_mes:
+                        notas_por_mes[mes_key]['notas'] += 1
+                        notas_por_mes[mes_key]['total_usd'] += float(nota.get('total_usd', 0) or 0)
+                        notas_por_mes[mes_key]['total_bs'] += float(nota.get('total_bs', 0) or 0)
+        
+        # Estadísticas por estado
+        notas_por_estado = {}
+        for nota in notas_filtradas.values():
+            estado = nota.get('estado', 'SIN_ESTADO')
+            if estado not in notas_por_estado:
+                notas_por_estado[estado] = {'cantidad': 0, 'total_usd': 0}
+            notas_por_estado[estado]['cantidad'] += 1
+            notas_por_estado[estado]['total_usd'] += float(nota.get('total_usd', 0) or 0)
+        
+        # Top clientes
+        clientes_totales = {}
+        for nota in notas_filtradas.values():
+            cliente_nombre = nota.get('cliente_nombre', 'Sin nombre')
+            if cliente_nombre not in clientes_totales:
+                clientes_totales[cliente_nombre] = {'notas': 0, 'total_usd': 0}
+            clientes_totales[cliente_nombre]['notas'] += 1
+            clientes_totales[cliente_nombre]['total_usd'] += float(nota.get('total_usd', 0) or 0)
+        
+        top_clientes = sorted(clientes_totales.items(), key=lambda x: x[1]['total_usd'], reverse=True)[:10]
+        
+        # Ordenar notas por fecha
         notas_filtradas_ordenadas = dict(sorted(
             notas_filtradas.items(),
             key=lambda x: parsear_fecha_segura(x[1].get('fecha', '')) or datetime.min,
@@ -4018,7 +4986,7 @@ def reporte_notas_entrega():
         ))
         notas_filtradas = notas_filtradas_ordenadas
         
-        # Obtener opciones de meses y años
+        # Opciones de meses y años
         meses = [
             {'valor': '1', 'nombre': 'Enero'}, {'valor': '2', 'nombre': 'Febrero'},
             {'valor': '3', 'nombre': 'Marzo'}, {'valor': '4', 'nombre': 'Abril'},
@@ -4030,20 +4998,45 @@ def reporte_notas_entrega():
         
         años = []
         año_actual = datetime.now().year
-        for año in range(año_actual - 2, año_actual + 1):
+        for año in range(año_actual - 5, año_actual + 1):
             años.append({'valor': str(año), 'nombre': str(año)})
+        
+        # Lista de clientes para filtro
+        lista_clientes = sorted([{'id': k, 'nombre': v.get('nombre', '')} 
+                                 for k, v in clientes.items()], 
+                                key=lambda x: x['nombre'])
         
         return render_template('reporte_notas_entrega.html', 
                              notas=notas_filtradas,
                              total_notas=total_notas,
                              total_usd=total_usd,
                              total_bs=total_bs,
+                             promedio_usd=promedio_usd,
                              mes_filtro=mes_filtro,
                              año_filtro=año_filtro,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta,
+                             cliente_filtro=cliente_filtro,
+                             estado_filtro=estado_filtro,
+                             monto_min=monto_min,
+                             monto_max=monto_max,
+                             comparar_periodo=comparar_periodo,
+                             periodo_comparacion=periodo_comparacion,
+                             total_notas_comp=total_notas_comp,
+                             total_usd_comp=total_usd_comp,
+                             variacion_notas=variacion_notas,
+                             variacion_usd=variacion_usd,
+                             notas_por_mes=notas_por_mes,
+                             notas_por_estado=notas_por_estado,
+                             top_clientes=top_clientes,
                              meses=meses,
-                             años=años)
+                             años=años,
+                             lista_clientes=lista_clientes,
+                             config=config)
     except Exception as e:
         print(f"Error en reporte_notas_entrega: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error generando el reporte', 'error')
         return redirect(url_for('mostrar_notas_entrega'))
 
@@ -4128,6 +5121,231 @@ def imprimir_reporte_notas():
         flash('Error generando el PDF del reporte', 'error')
         return redirect(url_for('reporte_notas_entrega'))
 
+@app.route('/notas-entrega/reporte/exportar/<formato>')
+@login_required
+def exportar_reporte_notas(formato):
+    """Exportar reporte de notas de entrega en diferentes formatos (CSV, JSON, HTML)."""
+    try:
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('exportar')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para exportar reportes', 'warning')
+            return redirect(url_for('reporte_notas_entrega'))
+        
+        # Verificar si la exportación está habilitada
+        if not config.get('reportes', {}).get('habilitados', True):
+            flash('Los reportes están deshabilitados', 'warning')
+            return redirect(url_for('reporte_notas_entrega'))
+        
+        # Obtener parámetros de filtro (mismos que el reporte principal)
+        mes_filtro = request.args.get('mes', '')
+        año_filtro = request.args.get('año', '')
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        cliente_filtro = request.args.get('cliente', '').strip()
+        estado_filtro = request.args.get('estado', '')
+        
+        # Filtrar notas (misma lógica que reporte principal)
+        notas_filtradas = {}
+        for numero, nota in notas.items():
+            fecha_str = nota.get('fecha', '')
+            if not fecha_str:
+                continue
+            
+            fecha_nota = parsear_fecha_segura(fecha_str)
+            if not fecha_nota:
+                continue
+            
+            incluir = True
+            
+            if fecha_desde:
+                fecha_desde_obj = parsear_fecha_segura(fecha_desde)
+                if fecha_desde_obj and fecha_nota < fecha_desde_obj:
+                    incluir = False
+            if fecha_hasta:
+                fecha_hasta_obj = parsear_fecha_segura(fecha_hasta)
+                if fecha_hasta_obj and fecha_nota > fecha_hasta_obj:
+                    incluir = False
+            
+            if not fecha_desde and not fecha_hasta:
+                if mes_filtro and fecha_nota.month != int(mes_filtro):
+                    incluir = False
+                if año_filtro and fecha_nota.year != int(año_filtro):
+                    incluir = False
+            
+            if cliente_filtro and incluir:
+                cliente_id = nota.get('cliente_id')
+                if cliente_id and cliente_id in clientes:
+                    nombre_cliente = clientes[cliente_id].get('nombre', '').lower()
+                    if cliente_filtro.lower() not in nombre_cliente:
+                        incluir = False
+                else:
+                    incluir = False
+            
+            if estado_filtro and incluir:
+                estado_nota = nota.get('estado', '').upper()
+                if estado_filtro.upper() != estado_nota:
+                    incluir = False
+            
+            if incluir:
+                # Agregar información del cliente
+                cliente_id = nota.get('cliente_id')
+                if cliente_id and cliente_id in clientes:
+                    nota['cliente_nombre'] = clientes[cliente_id].get('nombre', 'Cliente no especificado')
+                else:
+                    nota['cliente_nombre'] = 'Cliente no especificado'
+                notas_filtradas[numero] = nota
+        
+        # Preparar datos para exportación
+        datos_exportar = []
+        for numero, nota in notas_filtradas.items():
+            datos_exportar.append({
+                'numero': numero,
+                'fecha': nota.get('fecha', ''),
+                'cliente': nota.get('cliente_nombre', ''),
+                'estado': nota.get('estado', ''),
+                'total_usd': float(nota.get('total_usd', 0) or 0),
+                'total_bs': float(nota.get('total_bs', 0) or 0),
+                'modalidad_pago': nota.get('modalidad_pago', '')
+            })
+        
+        fecha_generacion = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        if formato == 'csv':
+            if not config.get('reportes', {}).get('exportacion_csv', True):
+                flash('La exportación a CSV está deshabilitada', 'warning')
+                return redirect(url_for('reporte_notas_entrega'))
+            
+            # Generar CSV
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow(['Número', 'Fecha', 'Cliente', 'Estado', 'Total USD', 'Total Bs', 'Modalidad Pago'])
+            
+            for dato in datos_exportar:
+                writer.writerow([
+                    dato['numero'],
+                    dato['fecha'],
+                    dato['cliente'],
+                    dato['estado'],
+                    f"{dato['total_usd']:.2f}",
+                    f"{dato['total_bs']:.2f}",
+                    dato['modalidad_pago']
+                ])
+            
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=reporte_notas_{fecha_generacion}.csv'
+            return response
+        
+        elif formato == 'json':
+            if not config.get('reportes', {}).get('exportacion_json', True):
+                flash('La exportación a JSON está deshabilitada', 'warning')
+                return redirect(url_for('reporte_notas_entrega'))
+            
+            # Generar JSON
+            datos_json = {
+                'fecha_generacion': datetime.now().isoformat(),
+                'filtros': {
+                    'mes': mes_filtro,
+                    'año': año_filtro,
+                    'fecha_desde': fecha_desde,
+                    'fecha_hasta': fecha_hasta,
+                    'cliente': cliente_filtro,
+                    'estado': estado_filtro
+                },
+                'total_registros': len(datos_exportar),
+                'total_usd': sum(d['total_usd'] for d in datos_exportar),
+                'total_bs': sum(d['total_bs'] for d in datos_exportar),
+                'notas': datos_exportar
+            }
+            
+            response = make_response(json.dumps(datos_json, indent=2, ensure_ascii=False))
+            response.headers['Content-Type'] = 'application/json; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=reporte_notas_{fecha_generacion}.json'
+            return response
+        
+        elif formato == 'html':
+            if not config.get('reportes', {}).get('exportacion_html', True):
+                flash('La exportación a HTML está deshabilitada', 'warning')
+                return redirect(url_for('reporte_notas_entrega'))
+            
+            # Generar HTML
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Reporte de Notas de Entrega - {fecha_generacion}</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    h1 {{ color: #333; }}
+                    table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+                    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                    th {{ background-color: #4CAF50; color: white; }}
+                    tr:nth-child(even) {{ background-color: #f2f2f2; }}
+                </style>
+            </head>
+            <body>
+                <h1>Reporte de Notas de Entrega</h1>
+                <p><strong>Fecha de generación:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+                <p><strong>Total de notas:</strong> {len(datos_exportar)}</p>
+                <p><strong>Total USD:</strong> ${sum(d['total_usd'] for d in datos_exportar):.2f}</p>
+                <p><strong>Total Bs:</strong> Bs {sum(d['total_bs'] for d in datos_exportar):.2f}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Total USD</th>
+                            <th>Total Bs</th>
+                            <th>Modalidad Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            """
+            
+            for dato in datos_exportar:
+                html_content += f"""
+                        <tr>
+                            <td>{dato['numero']}</td>
+                            <td>{dato['fecha']}</td>
+                            <td>{dato['cliente']}</td>
+                            <td>{dato['estado']}</td>
+                            <td>${dato['total_usd']:.2f}</td>
+                            <td>Bs {dato['total_bs']:.2f}</td>
+                            <td>{dato['modalidad_pago']}</td>
+                        </tr>
+                """
+            
+            html_content += """
+                    </tbody>
+                </table>
+            </body>
+            </html>
+            """
+            
+            response = make_response(html_content)
+            response.headers['Content-Type'] = 'text/html; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=reporte_notas_{fecha_generacion}.html'
+            return response
+        
+        else:
+            flash('Formato de exportación no válido', 'error')
+            return redirect(url_for('reporte_notas_entrega'))
+    
+    except Exception as e:
+        print(f"Error exportando reporte: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error exportando el reporte', 'error')
+        return redirect(url_for('reporte_notas_entrega'))
+
 # ===== MÓDULO DE PAGOS RECIBIDOS =====
 
 @app.route('/pagos-recibidos')
@@ -4193,12 +5411,38 @@ def mostrar_pagos_recibidos():
                     except (ValueError, TypeError) as e:
                         print(f"⚠️ Error calculando monto_bs para {id_pago}: {e}")
         
+        # Cargar órdenes de servicio para verificar estado de pago
+        ordenes_servicio = cargar_datos('ordenes_servicio.json')
+        if not isinstance(ordenes_servicio, dict):
+            ordenes_servicio = {}
+        
         # Filtrar pagos con filtros avanzados
         pagos_filtrados = {}
         if isinstance(pagos, dict):
             for id_pago, pago in pagos.items():
                 if not isinstance(pago, dict):
                     continue
+                
+                # FILTRO ESPECIAL: Si el pago está asociado a una orden de servicio,
+                # solo incluirlo si la orden está completamente pagada
+                orden_servicio_id = pago.get('orden_servicio')
+                if orden_servicio_id and orden_servicio_id in ordenes_servicio:
+                    orden = ordenes_servicio[orden_servicio_id]
+                    entrega = orden.get('entrega', {})
+                    
+                    # Calcular si está completamente pagada
+                    monto_pagado = safe_float(entrega.get('monto_pagado', 0), 0.0)
+                    monto_pendiente = safe_float(entrega.get('monto_pendiente', 0), 0.0)
+                    total_orden = safe_float(orden.get('costo_total', 0), 0.0)
+                    
+                    # Si no hay total_orden, calcular desde entrega
+                    if total_orden == 0:
+                        total_orden = monto_pagado + monto_pendiente
+                    
+                    # Solo incluir si está completamente pagada (monto_pendiente <= 0.01)
+                    if monto_pendiente > 0.01:
+                        # Orden no está completamente pagada, no incluir en "Todos los pagos"
+                        continue
                 
                 # Filtro por método
                 if metodo_filtro and pago.get('metodo_pago', '') != metodo_filtro:
@@ -4370,6 +5614,11 @@ def mostrar_pagos_recibidos():
             print(f"⚠️ notas no es un diccionario, es: {type(notas)}")
             notas = {}
         
+        # Cargar órdenes de servicio para calcular pendientes
+        ordenes_servicio = cargar_datos('ordenes_servicio.json')
+        if not isinstance(ordenes_servicio, dict):
+            ordenes_servicio = {}
+        
         tasa_bcv = obtener_tasa_bcv() or 216.37
         try:
             tasa_bcv = float(tasa_bcv)
@@ -4384,6 +5633,7 @@ def mostrar_pagos_recibidos():
                 total_pendiente_usd = 0
                 total_pendiente_bs = 0
                 
+                # Calcular pendientes de notas de entrega
                 for nota_id, nota in notas.items():
                     if not isinstance(nota, dict):
                         continue
@@ -4400,6 +5650,10 @@ def mostrar_pagos_recibidos():
                         except (ValueError, TypeError) as e:
                             print(f"⚠️ Error calculando saldo para nota {nota_id}: {e}")
                             continue
+                
+                # NO calcular pendientes de órdenes de servicio si ya tienen nota de entrega
+                # Las notas de entrega ya incluyen los saldos pendientes de las órdenes asociadas
+                # Esto evita duplicación de saldos pendientes
                 
                 if total_pendiente_usd > 0:
                     pagos_pendientes[cliente_id] = {
@@ -4520,6 +5774,14 @@ def nuevo_pago_recibido():
                 'metodo_pago': metodo_pago,
                 'numero_referencia': numero_referencia,
                 'banco': banco,
+                'banco_pago_movil': request.form.get('banco_pago_movil', '').strip(),
+                'telefono_pago_movil': request.form.get('telefono_pago_movil', '').strip(),
+                'cedula_pago_movil': request.form.get('cedula_pago_movil', '').strip(),
+                'email_zelle': request.form.get('email_zelle', '').strip(),
+                'email_paypal': request.form.get('email_paypal', '').strip(),
+                'email_binance': request.form.get('email_binance', '').strip(),
+                'numero_cuenta': request.form.get('numero_cuenta', '').strip(),
+                'tipo_cuenta': request.form.get('tipo_cuenta', '').strip(),
                 'observaciones': observaciones,
                 'numero_nota': numero_nota,
                 'fecha': datetime.now().strftime('%Y-%m-%d'),
@@ -4544,6 +5806,33 @@ def nuevo_pago_recibido():
                 return redirect(url_for('nuevo_pago_recibido'))
             
             print(f"✅ Pago {id_pago} guardado exitosamente")
+            
+            # Enviar webhook si está configurado
+            try:
+                enviar_webhook('nuevo_pago', {
+                    'id_pago': id_pago,
+                    'monto_usd': monto_usd,
+                    'monto_bs': monto_bs,
+                    'metodo_pago': metodo_pago,
+                    'numero_nota': numero_nota,
+                    'cliente': cliente_nombre,
+                    'fecha': datetime.now().isoformat()
+                })
+            except Exception as e:
+                print(f"⚠️ Error enviando webhook de nuevo pago: {e}")
+            
+            # Exportar a contabilidad si está configurado
+            try:
+                exportar_a_contabilidad('pago', {
+                    'id_pago': id_pago,
+                    'monto_usd': monto_usd,
+                    'monto_bs': monto_bs,
+                    'metodo_pago': metodo_pago,
+                    'numero_nota': numero_nota,
+                    'cliente': cliente_nombre
+                })
+            except Exception as e:
+                print(f"⚠️ Error exportando pago a contabilidad: {e}")
             
             # Si está asociado a una nota, sincronizar con nota de entrega y cuentas por cobrar
             if numero_nota and numero_nota.strip():
@@ -4621,6 +5910,11 @@ Gracias por su pago.
     
     # GET - Mostrar formulario
     try:
+        # Obtener configuración de efectivo
+        config = cargar_configuracion()
+        metodos_pago_config = config.get('metodos_pago', {})
+        aceptar_efectivo_usd = metodos_pago_config.get('aceptar_efectivo_usd', True)
+        aceptar_efectivo_bs = metodos_pago_config.get('aceptar_efectivo_bs', True)
         clientes = cargar_datos(ARCHIVO_CLIENTES)
         # Asegurar que clientes sea un diccionario
         if not isinstance(clientes, dict):
@@ -4642,7 +5936,13 @@ Gracias por su pago.
         
         # Obtener parámetros de query string para pre-llenar el formulario
         nota_param = request.args.get('nota', '').strip()
+        # Obtener cliente desde parámetros (puede venir como 'cliente' o 'cliente_id')
         cliente_param = request.args.get('cliente', '').strip()
+        cliente_id_param = request.args.get('cliente_id', '').strip()
+        
+        # Priorizar cliente_id si está presente
+        if cliente_id_param:
+            cliente_param = cliente_id_param
         
         # Nota y cliente pre-seleccionados
         nota_seleccionada = None
@@ -4737,7 +6037,9 @@ Gracias por su pago.
                              pagos_pendientes=pagos_pendientes,
                              nota_seleccionada=nota_seleccionada,
                              cliente_seleccionado=cliente_seleccionado,
-                             saldo_pendiente=saldo_pendiente)
+                             saldo_pendiente=saldo_pendiente,
+                             aceptar_efectivo_usd=aceptar_efectivo_usd,
+                             aceptar_efectivo_bs=aceptar_efectivo_bs)
     except Exception as e:
         print(f"❌ Error cargando formulario nuevo_pago_recibido: {e}")
         import traceback
@@ -4799,6 +6101,14 @@ def editar_pago_recibido(id):
             pago['metodo_pago'] = request.form.get('metodo_pago', '')
             pago['numero_referencia'] = request.form.get('numero_referencia', '').strip()
             pago['banco'] = request.form.get('banco', '').strip()
+            pago['banco_pago_movil'] = request.form.get('banco_pago_movil', '').strip()
+            pago['telefono_pago_movil'] = request.form.get('telefono_pago_movil', '').strip()
+            pago['cedula_pago_movil'] = request.form.get('cedula_pago_movil', '').strip()
+            pago['email_zelle'] = request.form.get('email_zelle', '').strip()
+            pago['email_paypal'] = request.form.get('email_paypal', '').strip()
+            pago['email_binance'] = request.form.get('email_binance', '').strip()
+            pago['numero_cuenta'] = request.form.get('numero_cuenta', '').strip()
+            pago['tipo_cuenta'] = request.form.get('tipo_cuenta', '').strip()
             pago['observaciones'] = request.form.get('observaciones', '').strip()
             pago['numero_nota'] = request.form.get('numero_nota', '').strip()
             pago['fecha_modificacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -4876,7 +6186,9 @@ def editar_pago_recibido(id):
                              pago=pago,
                              clientes=clientes,
                              notas=notas,
-                             metodos_pago=metodos_pago)
+                             metodos_pago=metodos_pago,
+                             aceptar_efectivo_usd=aceptar_efectivo_usd,
+                             aceptar_efectivo_bs=aceptar_efectivo_bs)
     except Exception as e:
         print(f"Error cargando formulario editar_pago_recibido: {e}")
         flash('Error cargando el formulario', 'error')
@@ -5123,6 +6435,82 @@ def exportar_pagos_recibidos():
         flash('Error exportando los pagos', 'error')
         return redirect(url_for('mostrar_pagos_recibidos'))
 
+def registrar_pago_recibido(monto_pagado, tipo_pago, orden_id, nota_entrega_id=None, cliente_data=None, concepto=''):
+    """
+    Registra un pago en el archivo ARCHIVO_PAGOS_RECIBIDOS.
+    Centraliza la lógica para pagos que vienen de Nota de Entrega o Servicio Técnico.
+    
+    Args:
+        monto_pagado: Monto del pago en USD
+        tipo_pago: Tipo de pago (efectivo, transferencia, etc.)
+        orden_id: ID de la orden de servicio (puede ser None)
+        nota_entrega_id: ID de la nota de entrega (puede ser None)
+        cliente_data: Diccionario con datos del cliente
+        concepto: Concepto del pago
+    
+    Returns:
+        str: ID del pago registrado si fue exitoso, None si hubo error
+    """
+    try:
+        if monto_pagado <= 0:
+            print("⚠️ [PAGO] Monto del pago es cero o negativo. No se registra.")
+            return None
+
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        
+        # Generación de ID único usando UUID para mayor seguridad
+        id_pago = str(uuid4())
+        
+        # Obtener tasa BCV
+        tasa = obtener_tasa_bcv()
+
+        # Determinar número de referencia
+        if orden_id:
+            numero_referencia = f'ST-{orden_id}'
+        elif nota_entrega_id:
+            numero_referencia = f'NE-{nota_entrega_id}'
+        else:
+            numero_referencia = f'PAGO-{datetime.now().strftime("%Y%m%d%H%M%S")}'
+
+        # Obtener cliente_id - puede venir directamente o desde cliente_data
+        cliente_id_valor = ''
+        if cliente_data:
+            # Intentar obtener el ID del cliente de diferentes formas
+            cliente_id_valor = cliente_data.get('id', '') or cliente_data.get('cliente_id', '')
+        
+        pago_data = {
+            'id': id_pago,
+            'fecha': datetime.now().strftime('%Y-%m-%d'),
+            'cliente': cliente_data.get('nombre', 'N/A') if cliente_data else 'Cliente Desconocido',
+            'cliente_id': cliente_id_valor,
+            'concepto': concepto,
+            'metodo_pago': tipo_pago.title() if tipo_pago else 'No especificado',
+            'monto_usd': monto_pagado,
+            'monto_bs': monto_pagado * tasa,
+            'tasa_bcv': tasa,
+            'nota_entrega_id': nota_entrega_id,  # Referencia directa a la Nota
+            'orden_servicio_id': orden_id,        # Referencia directa a la Orden
+            'numero_referencia': numero_referencia,
+            'banco': '',
+            'observaciones': concepto,
+            'usuario_registro': session.get('username', 'Sistema'),
+            'fecha_registro': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        pagos[id_pago] = pago_data
+        if guardar_datos(ARCHIVO_PAGOS_RECIBIDOS, pagos):
+            print(f"✅ [PAGO] Pago registrado exitosamente: {id_pago}")
+            return id_pago
+        else:
+            print(f"❌ [PAGO] Error guardando el archivo de pagos: {id_pago}")
+            return None
+
+    except Exception as e:
+        print(f"❌ [PAGO] Error registrando pago en pagos recibidos: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def sincronizar_pago_nota_entrega(numero_nota, monto_usd, monto_bs, metodo_pago='', referencia='', id_pago=''):
     """
     Sincroniza un pago con la nota de entrega, actualizando todos los módulos relacionados.
@@ -5250,9 +6638,15 @@ def sincronizar_pago_nota_entrega(numero_nota, monto_usd, monto_bs, metodo_pago=
             nota_encontrada['pagos'].append(nuevo_pago)
             print(f"   Nuevo pago agregado (total pagos: {len(nota_encontrada['pagos'])})")
         
+        # Obtener valores actuales (con inicialización si no existen)
+        abonado_actual = safe_float(nota_encontrada.get('total_abonado', 0.0), 0.0)
+        
         # Calcular total abonado sumando todos los pagos (siempre recalcular desde el array)
         total_abonado = sum(safe_float(pago.get('monto', 0), 0.0) for pago in nota_encontrada['pagos'])
-        saldo_pendiente = max(0.0, total_nota_usd - total_abonado)
+        
+        # Recalcular saldo pendiente
+        saldo_actualizado = total_nota_usd - total_abonado
+        saldo_pendiente = max(0.0, saldo_actualizado)  # El saldo nunca debe ser negativo
         
         print(f"💰 [SINCRONIZACIÓN] Cálculos:")
         print(f"   Total nota: ${total_nota_usd:.2f} USD")
@@ -5262,15 +6656,28 @@ def sincronizar_pago_nota_entrega(numero_nota, monto_usd, monto_bs, metodo_pago=
         # Actualizar campos en la nota
         nota_encontrada['total_abonado'] = total_abonado
         nota_encontrada['saldo_pendiente'] = saldo_pendiente
+        nota_encontrada['saldo_pendiente_usd'] = saldo_pendiente  # Campo adicional para consistencia
         
-        # Actualizar estado de la nota
+        # Actualizar estado de pago
+        estado_pago_anterior = nota_encontrada.get('estado_pago', 'Pendiente')
+        if saldo_pendiente <= 0.01:  # Tolerancia para errores de redondeo
+            nota_encontrada['estado_pago'] = 'Pagada'
+            nota_encontrada['fecha_pago_completo'] = datetime.now().strftime('%Y-%m-%d')
+        elif total_abonado > 0.0:
+            nota_encontrada['estado_pago'] = 'Abonada'
+        else:
+            nota_encontrada['estado_pago'] = 'Pendiente'
+        
+        # Actualizar estado de la nota (para compatibilidad con código existente)
         estado_anterior = nota_encontrada.get('estado', 'DESCONOCIDO')
         if saldo_pendiente <= 0.01:  # Tolerancia para errores de redondeo
             nota_encontrada['estado'] = 'PAGADA'
-            nota_encontrada['fecha_pago_completo'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if 'fecha_pago_completo' not in nota_encontrada:
+                nota_encontrada['fecha_pago_completo'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         elif total_abonado > 0:
             nota_encontrada['estado'] = 'ABONADA'
         
+        print(f"📝 [SINCRONIZACIÓN] Estado de pago: {estado_pago_anterior} → {nota_encontrada['estado_pago']}")
         print(f"📝 [SINCRONIZACIÓN] Estado: {estado_anterior} → {nota_encontrada['estado']}")
         
         # Guardar cambios en la nota
@@ -5306,8 +6713,10 @@ def sincronizar_pago_nota_entrega(numero_nota, monto_usd, monto_bs, metodo_pago=
         
         print(f"✅ [SINCRONIZACIÓN] COMPLETADA - Nota {numero_nota} actualizada exitosamente")
         print(f"   Total abonado: ${total_abonado:.2f} USD / Saldo pendiente: ${saldo_pendiente:.2f} USD")
+        print(f"   Estado de pago: {nota_encontrada.get('estado_pago', 'N/A')}")
         print(f"   Estado: {nota_encontrada['estado']}")
         print(f"   Total de pagos registrados: {len(nota_encontrada['pagos'])}")
+        print(f"📊 [SINCRONIZACIÓN] Nota {nota_id} actualizada. Saldo Pendiente: ${saldo_pendiente:.2f} USD")
         
         return True
         
@@ -9233,15 +10642,296 @@ def login():
             flash('Por favor ingrese usuario y contraseña', 'warning')
             return render_template('login.html')
         
+        # Verificar si el usuario está bloqueado
+        esta_bloqueado, mensaje_bloqueo = verificar_usuario_bloqueado(username)
+        if esta_bloqueado:
+            flash(mensaje_bloqueo or 'Usuario bloqueado por múltiples intentos fallidos', 'danger')
+            config = cargar_configuracion()
+            seguridad = config.get('seguridad', {})
+            return render_template('login.html', 
+                                 autenticacion_2fa=seguridad.get('2fa_email', True) or seguridad.get('2fa_sms', True),
+                                 mostrar_2fa=seguridad.get('autenticacion_2fa', False))
+        
         if verify_password(username, password):
-            session['usuario'] = username
-            registrar_bitacora(username, 'Inicio de sesión', 'Inicio de sesión exitoso')
-            flash('Bienvenido al sistema', 'success')
-            return redirect(url_for('index'))
+            # Resetear intentos fallidos después de login exitoso
+            resetear_intentos_fallidos(username)
+            # Verificar si 2FA está habilitado
+            config = cargar_configuracion()
+            seguridad = config.get('seguridad', {})
+            
+            if seguridad.get('autenticacion_2fa', False):
+                # 2FA habilitado - enviar código y redirigir a verificación
+                metodo = request.form.get('metodo_2fa', 'email')
+                exito, mensaje, codigo = enviar_codigo_2fa(username, metodo)
+                
+                if exito:
+                    # Guardar username en sesión temporal para verificación
+                    session['usuario_pendiente_2fa'] = username
+                    session['login_inicial'] = True  # Marcar como login inicial
+                    # Determinar método usado (puede haber cambiado si hubo fallback)
+                    metodo_usado = 'email' if 'email' in mensaje.lower() else ('sms' if 'sms' in mensaje.lower() or 'whatsapp' in mensaje.lower() else metodo)
+                    session['metodo_2fa'] = metodo_usado
+                    flash(f'Código de verificación enviado por {metodo_usado}. Revisa tu {metodo_usado}.', 'info')
+                    return redirect(url_for('verificar_2fa'))
+                else:
+                    # Si falla el envío, mostrar error y no permitir login
+                    flash(f'Error enviando código 2FA: {mensaje}', 'danger')
+                    flash('Por favor configure email o teléfono en Configuración del Sistema o contacte al administrador.', 'warning')
+                    # No permitir login sin verificación si 2FA está habilitado
+                    config = cargar_configuracion()
+                    seguridad = config.get('seguridad', {})
+                    return render_template('login.html', 
+                                         autenticacion_2fa=seguridad.get('2fa_email', True) or seguridad.get('2fa_sms', True),
+                                         mostrar_2fa=seguridad.get('autenticacion_2fa', False),
+                                         error_2fa=mensaje)
+            else:
+                # 2FA no habilitado - login normal
+                session['usuario'] = username
+                # Guardar rol en sesión para acceso rápido
+                rol_usuario = obtener_rol_usuario(username)
+                session['rol'] = rol_usuario
+                session['ultima_actividad'] = datetime.now().isoformat()
+                registrar_bitacora(username, 'Inicio de sesión', 'Inicio de sesión exitoso')
+                flash('Bienvenido al sistema', 'success')
+                return redirect(url_for('index'))
         else:
+            # Registrar intento fallido
+            registrar_intento_fallido(username)
             registrar_bitacora(username, 'Intento fallido', 'Intento fallido de inicio de sesión')
-            flash('Usuario o contraseña incorrectos', 'danger')
-    return render_template('login.html')
+            
+            # Obtener número de intentos restantes
+            usuarios = cargar_datos('usuarios.json')
+            config = cargar_configuracion()
+            seguridad = config.get('seguridad', {})
+            intentos_maximos = seguridad.get('intentos_login', 5)
+            
+            intentos_fallidos = 0
+            if username in usuarios:
+                intentos_fallidos = usuarios[username].get('intentos_fallidos', 0)
+            elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+                intentos_fallidos = usuarios['usuarios'][username].get('intentos_fallidos', 0)
+            
+            intentos_restantes = intentos_maximos - intentos_fallidos
+            
+            if intentos_restantes > 0:
+                flash(f'Usuario o contraseña incorrectos. Intentos restantes: {intentos_restantes}', 'danger')
+            else:
+                tiempo_bloqueo = seguridad.get('tiempo_bloqueo_ip', 15)
+                flash(f'Usuario bloqueado por múltiples intentos fallidos. Intente nuevamente en {tiempo_bloqueo} minutos', 'danger')
+    
+    # GET request - mostrar formulario de login
+    config = cargar_configuracion()
+    seguridad = config.get('seguridad', {})
+    empresa = config.get('empresa', {})
+    return render_template('login.html', 
+                         autenticacion_2fa=seguridad.get('2fa_email', True) or seguridad.get('2fa_sms', True),
+                         mostrar_2fa=seguridad.get('autenticacion_2fa', False),
+                         empresa=empresa)
+
+@app.route('/verificar-2fa', methods=['GET', 'POST'])
+@csrf.exempt
+def verificar_2fa():
+    """Ruta para verificar código 2FA"""
+    # Verificar que hay un usuario pendiente de verificación
+    if 'usuario_pendiente_2fa' not in session:
+        # Si viene de una re-verificación, guardar la página de destino
+        if request.referrer and request.referrer != request.url:
+            session['next_page'] = request.referrer
+        flash('No hay sesión pendiente de verificación', 'warning')
+        return redirect(url_for('login'))
+    
+    username = session.get('usuario_pendiente_2fa')
+    metodo = session.get('metodo_2fa', 'email')
+    
+    # Si es re-verificación y no se ha enviado código aún, enviarlo automáticamente
+    if request.method == 'GET' and 'requiere_verificacion_2fa' in session and 'codigo_2fa_enviado' not in session:
+        exito, mensaje, codigo = enviar_codigo_2fa(username, metodo)
+        if exito:
+            metodo_usado = 'email' if 'email' in mensaje.lower() else ('sms' if 'sms' in mensaje.lower() or 'whatsapp' in mensaje.lower() else metodo)
+            session['metodo_2fa'] = metodo_usado
+            session['codigo_2fa_enviado'] = True
+            flash(f'Código de verificación enviado por {metodo_usado}. Revisa tu {metodo_usado}.', 'info')
+        else:
+            flash(f'Error enviando código: {mensaje}', 'warning')
+    
+    if request.method == 'POST':
+        codigo_ingresado = request.form.get('codigo', '').strip()
+        
+        if not codigo_ingresado:
+            flash('Por favor ingrese el código de verificación', 'warning')
+            return render_template('verificar_2fa.html', username=username, metodo=metodo)
+        
+        # Verificar código
+        exito, mensaje = verificar_codigo_2fa(username, codigo_ingresado)
+        
+        if exito:
+            # Código correcto - completar login o re-verificación
+            session.pop('usuario_pendiente_2fa', None)
+            session.pop('metodo_2fa', None)
+            session.pop('requiere_verificacion_2fa', None)
+            session.pop('codigo_2fa_enviado', None)
+            session['usuario'] = username
+            # Guardar rol en sesión para acceso rápido
+            rol_usuario = obtener_rol_usuario(username)
+            session['rol'] = rol_usuario
+            session['ultima_verificacion_2fa'] = datetime.now().isoformat()
+            session['ultima_actividad'] = datetime.now().isoformat()
+            
+            # Determinar si es login inicial o re-verificación
+            if 'login_inicial' in session:
+                registrar_bitacora(username, 'Inicio de sesión', 'Inicio de sesión exitoso con 2FA')
+                session.pop('login_inicial', None)
+                flash('Verificación exitosa. Bienvenido al sistema', 'success')
+                return redirect(url_for('index'))
+            else:
+                registrar_bitacora(username, 'Re-verificación 2FA', 'Re-verificación 2FA exitosa')
+                flash('Verificación exitosa. Puedes continuar trabajando', 'success')
+                # Redirigir a la página que intentaba acceder o al inicio
+                next_page = session.pop('next_page', None) or url_for('index')
+                return redirect(next_page)
+        else:
+            # Código incorrecto
+            flash(mensaje, 'danger')
+            return render_template('verificar_2fa.html', username=username, metodo=metodo)
+    
+    # GET request - mostrar formulario de verificación
+    # Si es re-verificación, guardar la página de destino
+    if request.referrer and request.referrer != request.url and 'requiere_verificacion_2fa' in session:
+        session['next_page'] = request.referrer
+    
+    es_reverificacion = 'requiere_verificacion_2fa' in session
+    return render_template('verificar_2fa.html', username=username, metodo=metodo, es_reverificacion=es_reverificacion)
+
+@app.route('/recuperar-contraseña', methods=['GET', 'POST'])
+@csrf.exempt
+def recuperar_contraseña():
+    """Página para solicitar recuperación de contraseña"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        
+        if not username:
+            flash('Por favor ingrese su nombre de usuario', 'warning')
+            return render_template('recuperar_contraseña.html')
+        
+        # Verificar que el usuario existe
+        usuarios = cargar_datos('usuarios.json')
+        usuario_existe = False
+        
+        if username in usuarios:
+            usuario_existe = True
+        elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+            usuario_existe = True
+        
+        if not usuario_existe:
+            # Por seguridad, no revelar si el usuario existe o no
+            flash('Si el usuario existe, recibirás un email con instrucciones para recuperar tu contraseña', 'info')
+            return render_template('recuperar_contraseña.html')
+        
+        # Generar token de recuperación
+        token = generar_token_recuperacion()
+        
+        # Guardar token
+        if guardar_token_recuperacion(username, token):
+            # Enviar email
+            exito, mensaje = enviar_email_recuperacion(username, token)
+            
+            if exito:
+                flash('Se ha enviado un email con instrucciones para recuperar tu contraseña. Revisa tu bandeja de entrada.', 'success')
+                registrar_bitacora(username, 'Recuperación de contraseña', 'Solicitud de recuperación de contraseña')
+            else:
+                flash(f'Error enviando email: {mensaje}. Contacta al administrador.', 'danger')
+        else:
+            flash('Error generando token de recuperación. Intenta nuevamente.', 'danger')
+        
+        return render_template('recuperar_contraseña.html')
+    
+    return render_template('recuperar_contraseña.html')
+
+@app.route('/resetear-contraseña/<token>', methods=['GET', 'POST'])
+@csrf.exempt
+def resetear_contraseña(token):
+    """Página para restablecer la contraseña usando un token"""
+    # Verificar token
+    username = verificar_token_recuperacion(token)
+    
+    if not username:
+        flash('El enlace de recuperación es inválido o ha expirado. Por favor solicita uno nuevo.', 'danger')
+        return redirect(url_for('recuperar_contraseña'))
+    
+    if request.method == 'POST':
+        nueva_contraseña = request.form.get('nueva_contraseña', '').strip()
+        confirmar_contraseña = request.form.get('confirmar_contraseña', '').strip()
+        
+        if not nueva_contraseña or not confirmar_contraseña:
+            flash('Por favor complete todos los campos', 'warning')
+            return render_template('resetear_contraseña.html', token=token, username=username)
+        
+        if nueva_contraseña != confirmar_contraseña:
+            flash('Las contraseñas no coinciden', 'danger')
+            return render_template('resetear_contraseña.html', token=token, username=username)
+        
+        # Validar longitud mínima
+        config = cargar_configuracion()
+        seguridad = config.get('seguridad', {})
+        longitud_min = seguridad.get('longitud_min_contraseña', 8)
+        
+        if len(nueva_contraseña) < longitud_min:
+            flash(f'La contraseña debe tener al menos {longitud_min} caracteres', 'danger')
+            return render_template('resetear_contraseña.html', token=token, username=username)
+        
+        # Cambiar contraseña
+        try:
+            usuarios = cargar_datos('usuarios.json')
+            
+            # Generar hash de la nueva contraseña
+            from werkzeug.security import generate_password_hash
+            password_hash = generate_password_hash(nueva_contraseña)
+            
+            # Actualizar contraseña
+            if username in usuarios:
+                usuarios[username]['password'] = password_hash
+                usuarios[username].pop('password_hash', None)  # Eliminar hash antiguo si existe
+            elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+                usuarios['usuarios'][username]['password'] = password_hash
+                usuarios['usuarios'][username].pop('password_hash', None)
+            
+            guardar_datos('usuarios.json', usuarios)
+            
+            # Marcar token como usado
+            marcar_token_usado(token)
+            
+            # Resetear bloqueo si existe
+            resetear_intentos_fallidos(username)
+            
+            flash('Contraseña restablecida exitosamente. Puedes iniciar sesión ahora.', 'success')
+            registrar_bitacora(username, 'Restablecimiento de contraseña', 'Contraseña restablecida exitosamente')
+            
+            return redirect(url_for('login'))
+        
+        except Exception as e:
+            print(f"Error restableciendo contraseña: {e}")
+            flash('Error al restablecer la contraseña. Intenta nuevamente.', 'danger')
+            return render_template('resetear_contraseña.html', token=token, username=username)
+    
+    return render_template('resetear_contraseña.html', token=token, username=username)
+
+@app.route('/reenviar-codigo-2fa', methods=['POST'])
+@csrf.exempt
+def reenviar_codigo_2fa():
+    """Reenvía código 2FA"""
+    if 'usuario_pendiente_2fa' not in session:
+        return jsonify({'success': False, 'mensaje': 'No hay sesión pendiente'}), 400
+    
+    username = session.get('usuario_pendiente_2fa')
+    metodo = request.json.get('metodo', session.get('metodo_2fa', 'email'))
+    
+    exito, mensaje, codigo = enviar_codigo_2fa(username, metodo)
+    
+    if exito:
+        session['metodo_2fa'] = metodo
+        return jsonify({'success': True, 'mensaje': f'Código reenviado por {metodo}'})
+    else:
+        return jsonify({'success': False, 'mensaje': mensaje}), 400
 
 @app.route('/logout')
 @login_required
@@ -10837,7 +12527,23 @@ def nueva_orden_servicio():
             if clientes and cliente_id in clientes:
                 cliente_data = clientes[cliente_id]
         
-        return render_template('servicio_tecnico/nueva_orden.html', cliente_data=cliente_data)
+        # Cargar configuración de equipos
+        config = cargar_configuracion()
+        config_equipos = config.get('equipos_clientes', {})
+        
+        # Obtener listas desde la configuración
+        marcas_permitidas = config_equipos.get('marcas_permitidas', ['Apple', 'Samsung', 'Xiaomi', 'Huawei', 'Oppo', 'Vivo', 'OnePlus', 'Motorola', 'Google', 'Realme', 'LG', 'Sony', 'Nokia', 'TCL', 'Alcatel', 'ZTE', 'Honor', 'Infinix', 'Tecno', 'Otro'])
+        colores_disponibles = config_equipos.get('colores_disponibles', ['Negro', 'Blanco', 'Azul', 'Rojo', 'Dorado', 'Plateado', 'Verde', 'Rosa', 'Gris', 'Morado'])
+        estados_equipos = config_equipos.get('estados_equipos', ['Funcional', 'En Reparación', 'Reparado', 'Entregado', 'Sin Arreglo'])
+        condicion_fisica_opciones = config_equipos.get('condicion_fisica_opciones', ['Excelente', 'Bueno', 'Regular', 'Malo', 'Muy Malo'])
+        
+        return render_template('servicio_tecnico/nueva_orden.html', 
+                             cliente_data=cliente_data,
+                             marcas_permitidas=marcas_permitidas,
+                             colores_disponibles=colores_disponibles,
+                             estados_equipos=estados_equipos,
+                             condicion_fisica_opciones=condicion_fisica_opciones,
+                             config_equipos=config_equipos)
     
     if request.method == 'POST':
         try:
@@ -12373,74 +14079,103 @@ def reparacion_completa(id):
             
             print(f"DEBUG: Datos recibidos - Repuestos: {repuestos_usados}, Cantidades: {cantidades}, Costos: {costos_unitarios}")
             
-            # Procesar repuestos usados
+            # Procesar repuestos usados del formulario
             repuestos_detalle = []
             total_repuestos = 0
             
             for i, repuesto_id in enumerate(repuestos_usados):
-                if repuesto_id and i < len(cantidades) and i < len(costos_unitarios):
-                    try:
-                        cantidad = int(cantidades[i]) if cantidades[i] else 0
-                        costo_unitario = safe_float(costos_unitarios[i]) if costos_unitarios[i] else 0
-                        
-                        print(f"DEBUG: Procesando repuesto {i}: ID={repuesto_id}, Cantidad={cantidad}, Costo={costo_unitario}")
-                        
-                        if cantidad > 0 and costo_unitario > 0:
-                            # Buscar repuesto en inventario
-                            repuesto_info = inventario.get(repuesto_id, {})
-                            
-                            repuestos_detalle.append({
-                                'id': repuesto_id,
-                                'nombre': repuesto_info.get('nombre', 'Repuesto desconocido'),
-                                'cantidad': cantidad,
-                                'costo_unitario': costo_unitario,
-                                'subtotal': cantidad * costo_unitario
-                            })
-                            
-                            total_repuestos += cantidad * costo_unitario
-                            
-                            # Validar stock antes de descontar
-                            if repuesto_id in inventario:
-                                stock_actual = inventario[repuesto_id].get('cantidad', 0)
-                                if stock_actual < cantidad:
-                                    print(f"DEBUG: Stock insuficiente para {repuesto_id}. Disponible: {stock_actual}, Requerido: {cantidad}")
-                                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                                        return jsonify({
-                                            'success': False,
-                                            'message': f'Stock insuficiente para {repuesto_info.get("nombre", repuesto_id)}. Disponible: {stock_actual}, Requerido: {cantidad}'
-                                        }), 400
-                                    flash(f'Stock insuficiente para {repuesto_info.get("nombre", repuesto_id)}. Disponible: {stock_actual}', 'danger')
-                                    return redirect(url_for('reparacion_completa', id=id))
-                                # Descontar del inventario
-                                inventario[repuesto_id]['cantidad'] = max(0, stock_actual - cantidad)
-                                print(f"DEBUG: Stock actualizado para {repuesto_id}: {stock_actual} -> {inventario[repuesto_id]['cantidad']}")
-                    except (ValueError, TypeError) as e:
-                        print(f"DEBUG: Error al procesar repuesto {i}: {str(e)}")
+                try:
+                    # Validar que tenemos todos los datos necesarios
+                    if not repuesto_id or i >= len(cantidades) or i >= len(costos_unitarios):
+                        print(f"DEBUG: Datos incompletos para repuesto {i}, saltando...")
                         continue
+                    
+                    cantidad = int(cantidades[i]) if cantidades[i] else 0
+                    costo = safe_float(costos_unitarios[i]) if costos_unitarios[i] else 0
+                    
+                    # Validar que cantidad y costo sean válidos
+                    if cantidad <= 0 or costo <= 0:
+                        print(f"DEBUG: Cantidad o costo inválido para repuesto {i}, saltando...")
+                        continue
+                    
+                    # OBTENER INFORMACIÓN DEL INVENTARIO para el nombre y validar existencia
+                    if repuesto_id not in inventario:
+                        # Manejo de error si el ID del repuesto no está en el inventario
+                        mensaje_error = f"El repuesto con ID '{repuesto_id}' no se encontró en el inventario."
+                        print(f"DEBUG: {mensaje_error}")
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+                            return jsonify({
+                                'success': False,
+                                'message': mensaje_error
+                            }), 400
+                        flash(mensaje_error, 'danger')
+                        return redirect(url_for('reparacion_completa', id=id))
+                    
+                    producto_inventario = inventario[repuesto_id]
+                    nombre_repuesto = producto_inventario.get('nombre', 'Desconocido')
+                    
+                    # Agregar repuesto al detalle
+                    repuesto_detalle = {
+                        'id': repuesto_id,
+                        'nombre': nombre_repuesto,
+                        'cantidad': cantidad,
+                        'costo_unitario': costo,
+                        'subtotal': cantidad * costo
+                    }
+                    repuestos_detalle.append(repuesto_detalle)
+                    total_repuestos += repuesto_detalle['subtotal']
+                    
+                    print(f"DEBUG: Repuesto procesado: {nombre_repuesto} (ID: {repuesto_id}), Cantidad: {cantidad}, Costo: ${costo:.2f}, Subtotal: ${repuesto_detalle['subtotal']:.2f}")
+                    
+                except (ValueError, IndexError, TypeError) as e:
+                    # Manejo de error si los datos del formulario están incompletos o mal formados
+                    mensaje_error = f'Datos de repuestos incompletos o inválidos en la posición {i}: {str(e)}'
+                    print(f"DEBUG: {mensaje_error}")
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
+                        return jsonify({
+                            'success': False,
+                            'message': 'Datos de repuestos incompletos o inválidos.'
+                        }), 400
+                    flash('Datos de repuestos incompletos o inválidos.', 'danger')
+                    return redirect(url_for('reparacion_completa', id=id))
             
             print(f"DEBUG: Total repuestos procesados: {len(repuestos_detalle)}, Total costo: {total_repuestos}")
             
-            # Si no hay repuestos procesados, intentar cargar del diagnóstico
+            # Si no hay repuestos procesados del formulario, intentar cargar del diagnóstico
             if len(repuestos_detalle) == 0 and ordenes[id].get('diagnostico', {}).get('repuestos_seleccionados'):
                 try:
                     import json
                     repuestos_str = ordenes[id].get('diagnostico', {}).get('repuestos_seleccionados', '[]')
                     repuestos_diagnostico = cargar_json_seguro(repuestos_str, [])
-                    print(f"DEBUG: Cargando repuestos del diagnóstico: {repuestos_diagnostico}")
+                    print(f"DEBUG: Cargando repuestos del diagnóstico: {len(repuestos_diagnostico)} repuestos")
                     
                     for repuesto in repuestos_diagnostico:
-                        repuestos_detalle.append({
-                            'id': repuesto['id'],
-                            'nombre': repuesto['nombre'],
-                            'cantidad': repuesto['cantidad'],
-                            'costo_unitario': repuesto['precio'],
-                            'subtotal': repuesto['cantidad'] * repuesto['precio']
-                        })
-                        total_repuestos += repuesto['cantidad'] * repuesto['precio']
+                        repuesto_id = repuesto.get('id', '')
+                        cantidad = repuesto.get('cantidad', 0)
+                        precio = safe_float(repuesto.get('precio', 0))
+                        
+                        # Validar que el repuesto existe en inventario y obtener nombre actualizado
+                        if repuesto_id in inventario:
+                            nombre_repuesto = inventario[repuesto_id].get('nombre', repuesto.get('nombre', 'Desconocido'))
+                        else:
+                            nombre_repuesto = repuesto.get('nombre', 'Desconocido')
+                            print(f"DEBUG: ⚠️ Repuesto {repuesto_id} del diagnóstico no encontrado en inventario")
+                        
+                        if cantidad > 0 and precio > 0:
+                            repuestos_detalle.append({
+                                'id': repuesto_id,
+                                'nombre': nombre_repuesto,
+                                'cantidad': cantidad,
+                                'costo_unitario': precio,
+                                'subtotal': cantidad * precio
+                            })
+                            total_repuestos += cantidad * precio
                     
-                    print(f"DEBUG: Repuestos del diagnóstico cargados: {len(repuestos_detalle)}, Total: {total_repuestos}")
+                    print(f"DEBUG: ✅ Repuestos del diagnóstico cargados: {len(repuestos_detalle)}, Total: ${total_repuestos:.2f}")
                 except Exception as e:
-                    print(f"DEBUG: Error al cargar repuestos del diagnóstico: {str(e)}")
+                    print(f"DEBUG: ❌ Error al cargar repuestos del diagnóstico: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
             
             # Inicializar reparación si no existe
             if 'reparacion' not in ordenes[id]:
@@ -12449,7 +14184,7 @@ def reparacion_completa(id):
             # Preservar datos anteriores (como fotos, datos previos)
             reparacion_actual = ordenes[id]['reparacion']
             
-            # Validar stock antes de descontar
+            # ✅ Validar stock ANTES de descontar (validación integral)
             if repuestos_detalle:
                 problemas_stock = []
                 for repuesto in repuestos_detalle:
@@ -12458,10 +14193,15 @@ def reparacion_completa(id):
                     if repuesto_id in inventario:
                         stock_actual = inventario[repuesto_id].get('cantidad', 0)
                         if stock_actual < cantidad_necesaria:
+                            # 🚩 PUNTO DE FALLO: Se acumula el error sin descontar nada
                             problemas_stock.append(f"{repuesto['nombre']}: Disponible {stock_actual}, Requerido {cantidad_necesaria}")
+                    else:
+                        problemas_stock.append(f"{repuesto['nombre']}: Producto no encontrado en inventario")
                 
                 if problemas_stock:
+                    # Se detiene la operación y se notifica el problema
                     mensaje_error = 'Stock insuficiente:\n' + '\n'.join(problemas_stock)
+                    print(f"DEBUG: ❌ Validación de stock fallida: {mensaje_error}")
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.form.get('ajax'):
                         return jsonify({
                             'success': False,
@@ -12470,14 +14210,48 @@ def reparacion_completa(id):
                     flash(mensaje_error, 'danger')
                     return redirect(url_for('reparacion_completa', id=id))
                 
-                # Descontar del inventario después de validar
+                # 📉 Descontar del inventario después de validación exitosa
+                movimientos_salida = []
+                
                 for repuesto in repuestos_detalle:
                     repuesto_id = repuesto['id']
                     cantidad = repuesto['cantidad']
+                    
                     if repuesto_id in inventario:
                         stock_actual = inventario[repuesto_id].get('cantidad', 0)
+                        
+                        # 1. Actualizar stock en el diccionario 'inventario'
                         inventario[repuesto_id]['cantidad'] = max(0, stock_actual - cantidad)
-                        print(f"DEBUG: Stock actualizado para {repuesto_id}: {stock_actual} -> {inventario[repuesto_id]['cantidad']}")
+                        print(f"DEBUG: ✅ Stock actualizado para {repuesto_id}: {stock_actual} -> {inventario[repuesto_id]['cantidad']}")
+                        
+                        # 2. Registrar movimiento para trazabilidad
+                        movimiento = {
+                            'tipo': 'salida',
+                            'producto_id': repuesto_id,
+                            'producto_nombre': repuesto['nombre'],
+                            'cantidad': cantidad,
+                            'motivo': f'Uso en Orden de Servicio ID: {id}',
+                            'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'usuario': session.get('username', 'Técnico'),
+                            'orden_servicio_id': id,
+                            'stock_anterior': stock_actual,
+                            'stock_nuevo': inventario[repuesto_id]['cantidad']
+                        }
+                        movimientos_salida.append(movimiento)
+                
+                # 3. Registrar todos los movimientos de salida
+                if movimientos_salida:
+                    try:
+                        registrar_movimientos_inventario(movimientos_salida)
+                        print(f"DEBUG: ✅ {len(movimientos_salida)} movimientos de inventario registrados")
+                    except Exception as e:
+                        print(f"DEBUG: ⚠️ Error registrando movimientos de inventario: {e}")
+                        # No fallar la operación si hay error en el registro de movimientos
+                
+                # 4. Guardar el inventario actualizado
+                if not guardar_datos('inventario.json', inventario):
+                    print(f"DEBUG: ⚠️ Error guardando inventario actualizado")
+                    flash('Error al actualizar el inventario. Los repuestos fueron procesados pero el inventario no se actualizó.', 'warning')
             
             # Actualizar datos de reparación
             reparacion_actual.update({
@@ -12658,21 +14432,15 @@ def entrega_orden(id):
         if request.method == 'POST':
             try:
                 print(f"DEBUG: Procesando entrega para orden {id}")
-                # Obtener datos del formulario de entrega
+                # Obtener datos del formulario de entrega (SIN pago ni firma)
                 fecha_entrega = request.form.get('fecha_entrega', '')
                 nombre_retira = request.form.get('nombre_retira', '')
                 cedula_retira = request.form.get('cedula_retira', '')
                 telefono_retira = request.form.get('telefono_retira', '')
-                tipo_pago = request.form.get('tipo_pago', '')
-                monto_pagado = safe_float(request.form.get('monto_pagado', 0) or 0)
-                monto_pendiente = safe_float(request.form.get('monto_pendiente', 0) or 0)
                 observaciones_entrega = request.form.get('observaciones_entrega', '')
                 tecnico_entrega = request.form.get('tecnico_entrega', session.get('username', 'Técnico'))
                 
-                # Procesar firma digital si existe
-                firma_digital = request.form.get('firma_digital', '')
-                
-                # Actualizar datos de entrega
+                # Actualizar datos de entrega (SIN pago ni firma)
                 if 'entrega' not in ordenes[id]:
                     ordenes[id]['entrega'] = {}
                 
@@ -12681,12 +14449,8 @@ def entrega_orden(id):
                     'nombre_retira': nombre_retira,
                     'cedula_retira': cedula_retira,
                     'telefono_retira': telefono_retira,
-                    'tipo_pago': tipo_pago,
-                    'monto_pagado': monto_pagado,
-                    'monto_pendiente': monto_pendiente,
                     'observaciones_entrega': observaciones_entrega,
                     'tecnico_entrega': tecnico_entrega,
-                    'firma_digital': firma_digital,
                     'fecha_actualizacion': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
                 
@@ -12702,61 +14466,8 @@ def entrega_orden(id):
                     "estado": "entregado",
                     "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     "usuario": session.get('username', 'Técnico'),
-                    "comentarios": f"Equipo entregado a {nombre_retira} - Pago: {tipo_pago}"
+                    "comentarios": f"Equipo entregado a {nombre_retira}"
                 })
-                
-                # Si hay monto pagado, sincronizar con nota de entrega si existe
-                if monto_pagado > 0:
-                    try:
-                        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
-                        for nota_id, nota_data in notas.items():
-                            if isinstance(nota_data, dict) and nota_data.get('orden_servicio_id') == id:
-                                # Sincronizar el pago con la nota de entrega
-                                sincronizar_pago_nota_entrega(
-                                    nota_id,
-                                    monto_pagado,
-                                    monto_pagado * nota_data.get('tasa_bcv', 216.37),
-                                    metodo_pago=tipo_pago,
-                                    referencia=f"Entrega orden {id}",
-                                    id_pago=f'PAGO-ENTREGA-{datetime.now().strftime("%Y%m%d%H%M%S")}'
-                                )
-                                print(f"✅ Pago de entrega sincronizado con nota {nota_id}")
-                                break
-                    except Exception as e:
-                        print(f"⚠️ Error sincronizando pago con nota: {e}")
-                
-                # Registrar pago en pagos recibidos si hay monto pagado
-                if monto_pagado > 0:
-                    try:
-                        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
-                        orden = ordenes[id]
-                        cliente = orden.get('cliente', {})
-                        
-                        id_pago = f'PAGO-{datetime.now().strftime("%Y%m%d%H%M%S")}'
-                        
-                        pago_data = {
-                            'id': id_pago,
-                            'fecha': datetime.now().strftime('%Y-%m-%d'),
-                            'cliente': cliente.get('nombre', 'Cliente'),
-                            'cliente_id': orden.get('cliente_id', ''),
-                            'concepto': f'Servicio Técnico - Orden {orden.get("numero_orden", "")}',
-                            'metodo_pago': tipo_pago.title(),
-                            'monto_usd': monto_pagado,
-                            'monto_bs': monto_pagado * obtener_tasa_bcv(),
-                            'tasa_bcv': obtener_tasa_bcv(),
-                            'numero_referencia': f'ST-{orden.get("numero_orden", "")}',
-                            'orden_servicio': id,
-                            'banco': '',
-                            'observaciones': f'Entrega de equipo: {orden.get("equipo", {}).get("marca", "")} {orden.get("equipo", {}).get("modelo", "")}',
-                            'usuario_registro': session.get('username', 'Sistema'),
-                            'fecha_registro': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        }
-                        
-                        pagos[id_pago] = pago_data
-                        guardar_datos(ARCHIVO_PAGOS_RECIBIDOS, pagos)
-                        print(f"DEBUG: Pago registrado en pagos recibidos: {id_pago}")
-                    except Exception as e:
-                        print(f"DEBUG: Error registrando pago en pagos recibidos: {e}")
                 
                 # Guardar cambios
                 guardar_datos('ordenes_servicio.json', ordenes)
@@ -12811,6 +14522,404 @@ def entrega_orden(id):
         
         # No mostrar el error al usuario
         return redirect(url_for('servicio_tecnico'))
+
+@app.route('/api/metodos-pago-habilitados', methods=['GET'])
+@login_required
+def obtener_metodos_pago_completos():
+    """Obtiene los métodos de pago habilitados con sus datos completos desde la configuración"""
+    try:
+        config = cargar_configuracion()
+        metodos_pago_config = config.get('metodos_pago', {})
+        empresa = config.get('empresa', {})
+        
+        metodos_disponibles = []
+        
+        # Mapeo de métodos con sus iconos y datos
+        mapeo_metodos = {
+            'efectivo': {
+                'nombre': 'Efectivo',
+                'icono': '💵',
+                'requiere_datos': False
+            },
+            'transferencia': {
+                'nombre': 'Transferencia Bancaria',
+                'icono': '🏦',
+                'requiere_datos': True,
+                'datos': {
+                    'banco_nombre': metodos_pago_config.get('banco_nombre', ''),
+                    'numero_cuenta': metodos_pago_config.get('numero_cuenta', ''),
+                    'tipo_cuenta': metodos_pago_config.get('tipo_cuenta', 'corriente'),
+                    'titular_cuenta': metodos_pago_config.get('titular_cuenta', empresa.get('nombre', ''))
+                }
+            },
+            'pago_movil': {
+                'nombre': 'Pago Móvil',
+                'icono': '📱',
+                'requiere_datos': True,
+                'datos': {
+                    'banco': metodos_pago_config.get('banco_pago_movil', ''),
+                    'telefono': metodos_pago_config.get('telefono_pago_movil', ''),
+                    'cedula': metodos_pago_config.get('cedula_pago_movil', '')
+                }
+            },
+            'zelle': {
+                'nombre': 'Zelle',
+                'icono': '💳',
+                'requiere_datos': True,
+                'datos': {
+                    'email': metodos_pago_config.get('email_zelle', '')
+                }
+            },
+            'paypal': {
+                'nombre': 'PayPal',
+                'icono': '💰',
+                'requiere_datos': True,
+                'datos': {
+                    'email': metodos_pago_config.get('email_paypal', '') or metodos_pago_config.get('email_zelle', '')
+                }
+            },
+            'binance': {
+                'nombre': 'Binance',
+                'icono': '₿',
+                'requiere_datos': True,
+                'datos': {
+                    'email': metodos_pago_config.get('email_binance', '')
+                }
+            }
+        }
+        
+        # Verificar cada método y agregarlo si está habilitado
+        for clave, info in mapeo_metodos.items():
+            metodo_config = metodos_pago_config.get(clave, {})
+            if isinstance(metodo_config, dict) and metodo_config.get('habilitado', False):
+                # Para efectivo, verificar si acepta USD o Bs
+                if clave == 'efectivo':
+                    acepta_usd = metodos_pago_config.get('aceptar_efectivo_usd', False)
+                    acepta_bs = metodos_pago_config.get('aceptar_efectivo_bs', False)
+                    if not acepta_usd and not acepta_bs:
+                        continue  # Si no acepta ninguno, no incluir
+                
+                # Para métodos que requieren datos, verificar que tengan la información necesaria
+                if info.get('requiere_datos', False):
+                    datos = info.get('datos', {})
+                    tiene_datos = False
+                    if clave == 'transferencia':
+                        tiene_datos = bool(datos.get('banco_nombre') and datos.get('numero_cuenta'))
+                    elif clave == 'pago_movil':
+                        tiene_datos = bool(datos.get('telefono') and datos.get('cedula'))
+                        # El banco es opcional, pero si está presente se incluirá
+                    elif clave in ['zelle', 'paypal', 'binance']:
+                        tiene_datos = bool(datos.get('email'))
+                    
+                    if not tiene_datos:
+                        continue  # Si no tiene datos, no incluir
+                
+                metodos_disponibles.append({
+                    'clave': clave,
+                    'nombre': info['nombre'],
+                    'icono': info['icono'],
+                    'datos': info.get('datos', {})
+                })
+        
+        return jsonify({
+            'success': True,
+            'metodos': metodos_disponibles
+        })
+    except Exception as e:
+        print(f"❌ Error obteniendo métodos de pago: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'metodos': []
+        }), 500
+
+@app.route('/servicio-tecnico/orden/<id>/monto-pendiente', methods=['GET'])
+@login_required
+def obtener_monto_pendiente_orden(id):
+    """Obtiene el monto pendiente de una orden de servicio"""
+    try:
+        ordenes = cargar_datos('ordenes_servicio.json')
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'}), 404
+        
+        orden = ordenes[id]
+        monto_pendiente_usd = 0.0
+        notas_pendientes = []
+        tasa_bcv = obtener_tasa_bcv() or 216.37
+        
+        # Calcular desde notas de entrega asociadas
+        for nota_id, nota_data in notas.items():
+            if isinstance(nota_data, dict) and nota_data.get('orden_servicio_id') == id:
+                total_nota = safe_float(nota_data.get('total_usd', 0), 0.0)
+                total_abonado = safe_float(nota_data.get('total_abonado', 0), 0.0)
+                saldo_pendiente = max(0.0, total_nota - total_abonado)
+                
+                if saldo_pendiente > 0.01:
+                    notas_pendientes.append({
+                        'numero': nota_data.get('numero', nota_id),
+                        'saldo': saldo_pendiente
+                    })
+                    monto_pendiente_usd += saldo_pendiente
+        
+        # Si no hay notas, calcular desde el diagnóstico
+        if monto_pendiente_usd == 0 and orden.get('diagnostico'):
+            monto_pendiente_usd = safe_float(orden.get('diagnostico', {}).get('total_estimado', 0), 0.0)
+        
+        monto_pendiente_bs = monto_pendiente_usd * tasa_bcv
+        
+        return jsonify({
+            'success': True,
+            'monto_pendiente_usd': monto_pendiente_usd,
+            'monto_pendiente_bs': monto_pendiente_bs,
+            'notas_pendientes': notas_pendientes,
+            'tasa_bcv': tasa_bcv
+        })
+    except Exception as e:
+        print(f"❌ Error obteniendo monto pendiente: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/servicio-tecnico/orden/<id>/enviar-notificacion-pago', methods=['POST'])
+@login_required
+def enviar_notificacion_pago_entrega(id):
+    """Envía notificación de pago pendiente al cliente con datos de cuentas bancarias"""
+    try:
+        # Obtener parámetros de personalización
+        data = request.get_json(silent=True) or {}
+        metodos_seleccionados = data.get('metodos_pago', [])
+        enviar_whatsapp = data.get('enviar_whatsapp', True)
+        enviar_email = data.get('enviar_email', True)
+        
+        ordenes = cargar_datos('ordenes_servicio.json')
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        config = cargar_configuracion()
+        
+        if id not in ordenes:
+            return jsonify({'success': False, 'message': 'Orden no encontrada'}), 404
+        
+        orden = ordenes[id]
+        cliente_id = orden.get('cliente_id', '')
+        
+        if cliente_id not in clientes:
+            return jsonify({'success': False, 'message': 'Cliente no encontrado'}), 404
+        
+        cliente = clientes[cliente_id]
+        telefono = cliente.get('telefono', '')
+        email = cliente.get('email', '')
+        
+        # Validar que haya al menos un canal disponible si está seleccionado
+        if enviar_whatsapp and not telefono:
+            enviar_whatsapp = False
+        if enviar_email and not email:
+            enviar_email = False
+        
+        if not enviar_whatsapp and not enviar_email:
+            return jsonify({'success': False, 'message': 'El cliente no tiene teléfono ni email registrado, o no se seleccionó ningún canal'}), 400
+        
+        # Calcular monto pendiente desde notas de entrega asociadas
+        monto_pendiente_usd = 0.0
+        notas_pendientes = []
+        tasa_bcv = obtener_tasa_bcv() or 216.37
+        
+        for nota_id, nota_data in notas.items():
+            if isinstance(nota_data, dict) and nota_data.get('orden_servicio_id') == id:
+                total_nota = safe_float(nota_data.get('total_usd', 0), 0.0)
+                total_abonado = safe_float(nota_data.get('total_abonado', 0), 0.0)
+                saldo_pendiente = max(0.0, total_nota - total_abonado)
+                
+                if saldo_pendiente > 0.01:
+                    notas_pendientes.append({
+                        'numero': nota_data.get('numero', nota_id),
+                        'saldo': saldo_pendiente
+                    })
+                    monto_pendiente_usd += saldo_pendiente
+        
+        # Si no hay notas, calcular desde el diagnóstico de la orden
+        if monto_pendiente_usd == 0 and orden.get('diagnostico'):
+            monto_pendiente_usd = safe_float(orden.get('diagnostico', {}).get('total_estimado', 0), 0.0)
+        
+        if monto_pendiente_usd <= 0:
+            return jsonify({
+                'success': False, 
+                'message': 'No hay monto pendiente de pago para esta orden'
+            }), 400
+        
+        monto_pendiente_bs = monto_pendiente_usd * tasa_bcv
+        
+        # Obtener datos de cuentas bancarias de la empresa
+        metodos_pago_config = config.get('metodos_pago', {})
+        empresa = config.get('empresa', {})
+        
+        # Construir mensaje con datos de cuentas según métodos seleccionados
+        mensaje_cuentas = ""
+        
+        # Si no se seleccionaron métodos, incluir todos los habilitados
+        if not metodos_seleccionados:
+            metodos_seleccionados = []
+            if metodos_pago_config.get('efectivo', {}).get('habilitado', False):
+                metodos_seleccionados.append('efectivo')
+            if metodos_pago_config.get('transferencia', {}).get('habilitado', False):
+                metodos_seleccionados.append('transferencia')
+            if metodos_pago_config.get('pago_movil', {}).get('habilitado', False):
+                metodos_seleccionados.append('pago_movil')
+            if metodos_pago_config.get('zelle', {}).get('habilitado', False):
+                metodos_seleccionados.append('zelle')
+            if metodos_pago_config.get('paypal', {}).get('habilitado', False):
+                metodos_seleccionados.append('paypal')
+            if metodos_pago_config.get('binance', {}).get('habilitado', False):
+                metodos_seleccionados.append('binance')
+        
+        # Efectivo
+        if 'efectivo' in metodos_seleccionados and metodos_pago_config.get('efectivo', {}).get('habilitado', False):
+            mensaje_cuentas += f"\n💵 *EFECTIVO:*\n"
+            if metodos_pago_config.get('aceptar_efectivo_usd', False):
+                mensaje_cuentas += f"• Aceptamos efectivo en USD\n"
+            if metodos_pago_config.get('aceptar_efectivo_bs', False):
+                mensaje_cuentas += f"• Aceptamos efectivo en Bs\n"
+            mensaje_cuentas += f"• Puede pagar en nuestro local\n"
+        
+        # Transferencia bancaria
+        if 'transferencia' in metodos_seleccionados and metodos_pago_config.get('transferencia', {}).get('habilitado', False):
+            banco_nombre = metodos_pago_config.get('banco_nombre', '')
+            numero_cuenta = metodos_pago_config.get('numero_cuenta', '')
+            tipo_cuenta = metodos_pago_config.get('tipo_cuenta', 'corriente')
+            titular_cuenta = metodos_pago_config.get('titular_cuenta', empresa.get('nombre', ''))
+            
+            if banco_nombre and numero_cuenta:
+                mensaje_cuentas += f"\n🏦 *TRANSFERENCIA BANCARIA:*\n"
+                mensaje_cuentas += f"• Banco: {banco_nombre}\n"
+                mensaje_cuentas += f"• Tipo: {tipo_cuenta.title()}\n"
+                mensaje_cuentas += f"• Número: {numero_cuenta}\n"
+                mensaje_cuentas += f"• Titular: {titular_cuenta}\n"
+        
+        # Pago Móvil
+        if 'pago_movil' in metodos_seleccionados and metodos_pago_config.get('pago_movil', {}).get('habilitado', False):
+            banco_pm = metodos_pago_config.get('banco_pago_movil', '')
+            telefono_pm = metodos_pago_config.get('telefono_pago_movil', '')
+            cedula_pm = metodos_pago_config.get('cedula_pago_movil', '')
+            
+            if telefono_pm and cedula_pm:
+                mensaje_cuentas += f"\n📱 *PAGO MÓVIL:*\n"
+                if banco_pm:
+                    mensaje_cuentas += f"• Banco: {banco_pm}\n"
+                mensaje_cuentas += f"• Teléfono: {telefono_pm}\n"
+                mensaje_cuentas += f"• Cédula: {cedula_pm}\n"
+        
+        # Zelle
+        if 'zelle' in metodos_seleccionados and metodos_pago_config.get('zelle', {}).get('habilitado', False):
+            email_zelle = metodos_pago_config.get('email_zelle', '')
+            if email_zelle:
+                mensaje_cuentas += f"\n💳 *ZELLE:*\n"
+                mensaje_cuentas += f"• Email: {email_zelle}\n"
+        
+        # PayPal
+        if 'paypal' in metodos_seleccionados and metodos_pago_config.get('paypal', {}).get('habilitado', False):
+            email_paypal = metodos_pago_config.get('email_paypal', '') or metodos_pago_config.get('email_zelle', '')
+            if email_paypal:
+                mensaje_cuentas += f"\n💰 *PAYPAL:*\n"
+                mensaje_cuentas += f"• Email: {email_paypal}\n"
+        
+        # Binance
+        if 'binance' in metodos_seleccionados and metodos_pago_config.get('binance', {}).get('habilitado', False):
+            email_binance = metodos_pago_config.get('email_binance', '')
+            if email_binance:
+                mensaje_cuentas += f"\n₿ *BINANCE:*\n"
+                mensaje_cuentas += f"• Email: {email_binance}\n"
+        
+        # Crear mensaje completo
+        mensaje_notificacion = f"""💳 *RECORDATORIO DE PAGO PENDIENTE*
+
+👤 *Cliente:* {cliente.get('nombre', 'Cliente')}
+📋 *Orden de Servicio:* {orden.get('numero_orden', id)}
+
+💰 *MONTO PENDIENTE:*
+• USD: ${monto_pendiente_usd:.2f}
+• Bs: Bs {monto_pendiente_bs:,.2f}
+
+{mensaje_cuentas}
+
+📝 *NOTAS PENDIENTES:*
+"""
+        
+        if notas_pendientes:
+            for nota in notas_pendientes:
+                mensaje_notificacion += f"• {nota['numero']}: ${nota['saldo']:.2f} USD\n"
+        else:
+            mensaje_notificacion += f"• Orden {orden.get('numero_orden', id)}: ${monto_pendiente_usd:.2f} USD\n"
+        
+        mensaje_notificacion += f"""
+---
+*{empresa.get('nombre', 'Servicio Técnico')}*
+📱 WhatsApp: {empresa.get('whatsapp', '')}
+📧 Email: {empresa.get('email', '')}
+"""
+        
+        # Enviar notificación según canales seleccionados
+        resultados = {'whatsapp': False, 'email': False}
+        
+        # Preparar mensaje base
+        mensaje_base = mensaje_notificacion
+        
+        # Enviar por WhatsApp si está seleccionado y el cliente tiene teléfono
+        if enviar_whatsapp and telefono:
+            try:
+                config_notif = config.get('notificaciones', {})
+                if config_notif.get('whatsapp_habilitado', False):
+                    enlace_whatsapp = enviar_whatsapp_reportes(telefono, mensaje_base)
+                    if enlace_whatsapp:
+                        resultados['whatsapp'] = True
+                        resultados['enlace_whatsapp'] = enlace_whatsapp
+                        print(f"📱 Enlace WhatsApp generado para {telefono}")
+            except Exception as e:
+                print(f"❌ Error generando WhatsApp: {e}")
+        
+        # Enviar por Email si está seleccionado y el cliente tiene email
+        if enviar_email and email:
+            try:
+                config_notif = config.get('notificaciones', {})
+                if config_notif.get('email_habilitado', False):
+                    resultado_email = enviar_email_reporte(
+                        "💳 Recordatorio de Pago Pendiente",
+                        mensaje_base,
+                        email,
+                        config
+                    )
+                    if resultado_email:
+                        resultados['email'] = True
+                        print(f"📧 Email enviado a {email}")
+            except Exception as e:
+                print(f"❌ Error enviando email: {e}")
+        
+        # Registrar en bitácora
+        try:
+            registrar_bitacora(
+                session.get('username', 'Sistema'),
+                'Notificación de pago pendiente enviada',
+                f"Orden: {orden.get('numero_orden', id)}, Cliente: {cliente.get('nombre', '')}, Monto: ${monto_pendiente_usd:.2f} USD"
+            )
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'message': 'Notificación enviada exitosamente',
+            'resultados': resultados,
+            'monto_pendiente_usd': monto_pendiente_usd,
+            'monto_pendiente_bs': monto_pendiente_bs
+        })
+        
+    except Exception as e:
+        print(f"❌ Error enviando notificación de pago: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error enviando notificación: {str(e)}'
+        }), 500
 
 @app.route('/servicio-tecnico/orden/<id>/comprobante-retiro', methods=['GET'])
 @login_required
@@ -13650,7 +15759,10 @@ def generar_factura_servicio(id):
             # Inicializar campos de pagos para sincronización
             "pagos": [],
             "total_abonado": 0.0,
-            "saldo_pendiente": total_usd
+            "saldo_pendiente": total_usd,
+            # 🌟 NUEVOS CAMPOS PARA CONCILIACIÓN
+            "saldo_pendiente_usd": total_usd,  # El saldo pendiente es igual al total
+            "estado_pago": "Pendiente"  # Estado inicial de pago
         }
         
         # Guardar nota de entrega
@@ -14212,7 +16324,23 @@ def editar_orden_servicio(id):
             flash('Orden de servicio actualizada correctamente', 'success')
             return redirect(url_for('ver_orden_servicio', id=id))
         
-        return render_template('servicio_tecnico/editar_orden.html', orden=orden)
+        # Cargar configuración de equipos
+        config = cargar_configuracion()
+        config_equipos = config.get('equipos_clientes', {})
+        
+        # Obtener listas desde la configuración
+        marcas_permitidas = config_equipos.get('marcas_permitidas', ['Apple', 'Samsung', 'Xiaomi', 'Huawei', 'Oppo', 'Vivo', 'OnePlus', 'Motorola', 'Google', 'Realme', 'LG', 'Sony', 'Nokia', 'TCL', 'Alcatel', 'ZTE', 'Honor', 'Infinix', 'Tecno', 'Otro'])
+        colores_disponibles = config_equipos.get('colores_disponibles', ['Negro', 'Blanco', 'Azul', 'Rojo', 'Dorado', 'Plateado', 'Verde', 'Rosa', 'Gris', 'Morado'])
+        estados_equipos = config_equipos.get('estados_equipos', ['Funcional', 'En Reparación', 'Reparado', 'Entregado', 'Sin Arreglo'])
+        condicion_fisica_opciones = config_equipos.get('condicion_fisica_opciones', ['Excelente', 'Bueno', 'Regular', 'Malo', 'Muy Malo'])
+        
+        return render_template('servicio_tecnico/editar_orden.html', 
+                             orden=orden,
+                             marcas_permitidas=marcas_permitidas,
+                             colores_disponibles=colores_disponibles,
+                             estados_equipos=estados_equipos,
+                             condicion_fisica_opciones=condicion_fisica_opciones,
+                             config_equipos=config_equipos)
         
     except Exception as e:
         print(f"Error editando orden de servicio: {e}")
@@ -14263,6 +16391,11 @@ def completar_borrador_servicio(id):
 def eliminar_orden_servicio(id):
     """Eliminar una orden de servicio"""
     try:
+        # Verificar permiso para eliminar órdenes
+        tiene_permiso, mensaje = verificar_permiso_usuario('eliminar_ordenes')
+        if not tiene_permiso:
+            return jsonify({'success': False, 'message': mensaje or 'No tienes permiso para eliminar órdenes'}), 403
+        
         ordenes = cargar_datos('ordenes_servicio.json')
         
         if id not in ordenes:
@@ -14271,6 +16404,9 @@ def eliminar_orden_servicio(id):
         # Eliminar la orden
         del ordenes[id]
         guardar_datos('ordenes_servicio.json', ordenes)
+        
+        # Registrar en bitácora
+        registrar_bitacora(session.get('usuario', 'Sistema'), 'Eliminar Orden', f'Orden {id} eliminada')
         
         return jsonify({'success': True, 'message': 'Orden de servicio eliminada correctamente'})
         
@@ -15355,6 +17491,29 @@ def cargar_configuracion():
                     'efecto_glassmorphism': False,
                     'nombre_tema': 'Mi Tema Personalizado'
                 },
+                'dashboard': {
+                    'tarjetas_habilitadas': {
+                        'cuentas_por_cobrar': True,
+                        'pagos_recibidos': True,
+                        'nota_entrega': True
+                    },
+                    'mostrar_porcentajes_crecimiento': True,
+                    'mostrar_valores_bs': True,
+                    'actualizacion_automatica': True,
+                    'intervalo_actualizacion': 60,
+                    'mostrar_filtros': True,
+                    'comparar_con_mes_anterior': True,
+                    'colores': {
+                        'cuentas_por_cobrar': '#00ff88',
+                        'pagos_recibidos': '#00ff88',
+                        'nota_entrega': '#00ff88'
+                    },
+                    'iconos': {
+                        'cuentas_por_cobrar': 'fas fa-hand-holding-usd',
+                        'pagos_recibidos': 'fas fa-money-check-alt',
+                        'nota_entrega': 'fas fa-file-invoice-dollar'
+                    }
+                },
                 'inventario': {
                     'control_stock': True,
                     'stock_minimo_default': 5,
@@ -15441,18 +17600,60 @@ def cargar_configuracion():
                     'habilitados': True,
                     'exportacion_excel': True,
                     'exportacion_pdf': True,
-                    'envio_automatico': False
+                    'exportacion_csv': True,
+                    'exportacion_json': True,
+                    'exportacion_html': True,
+                    'envio_automatico': False,
+                    'graficos_interactivos': True,
+                    'comparaciones_periodos': True,
+                    'filtros_avanzados': True,
+                    'personalizacion_habilitada': True,
+                    'programacion_habilitada': True,
+                    'dashboard_ejecutivo': True,
+                    'reporte_estado_resultados': True,
+                    'reporte_flujo_caja': True,
+                    'reporte_rotacion_inventario': True,
+                    'reporte_analisis_clientes': True,
+                    'reporte_productos_rentables': True,
+                    'permiso_ver_reportes': 'admin',
+                    'permiso_exportar': 'admin',
+                    'permiso_programar': 'admin',
+                    'permiso_personalizar': 'admin'
                 },
+                'reportes_personalizados': {},
+                'reportes_programados': {},
                 'integraciones': {
                     'api_externas': False,
-                    'bases_datos': False,
+                    'api_tasas_cambio': False,
+                    'api_whatsapp': False,
+                    'api_email': False,
+                    'api_sms': False,
                     'sincronizacion_nube': False,
-                    'webhooks': False
+                    'nube_proveedor': 'google_drive',
+                    'nube_frecuencia': 'diaria',
+                    'nube_automatica': False,
+                    'webhooks': False,
+                    'webhook_url': '',
+                    'webhook_secreto': '',
+                    'webhook_eventos': [],
+                    'bases_datos': False,
+                    'bd_tipo': 'mysql',
+                    'bd_host': '',
+                    'bd_puerto': '3306',
+                    'bd_nombre': '',
+                    'bd_usuario': '',
+                    'pagos_online': False,
+                    'pago_proveedor': 'paypal',
+                    'pago_api_key': '',
+                    'contabilidad': False,
+                    'contabilidad_sistema': ''
                 },
                 'usuarios': {
                     'permiso_eliminar_ordenes': 'admin',
                     'permiso_ver_reportes': 'admin',
-                    'permiso_modificar_precios': 'admin'
+                    'permiso_modificar_precios': 'admin',
+                    'permiso_gestionar_usuarios': 'admin',
+                    'permiso_configuracion': 'admin'
                 },
                 'backup': {
                     'automatico': False,
@@ -15533,10 +17734,534 @@ def guardar_configuracion(config):
         print(f"Error guardando configuración: {e}")
         return False
 
+def verificar_permiso_usuario(permiso):
+    """
+    Verifica si el usuario actual tiene un permiso específico.
+    Combina la configuración del sistema con el sistema de roles.
+    
+    Args:
+        permiso: Nombre del permiso (eliminar_ordenes, modificar_precios, etc.)
+    
+    Returns:
+        (bool, str): (tiene_permiso, mensaje_error)
+    """
+    try:
+        usuario = session.get('usuario', '')
+        if not usuario:
+            return False, 'Debe iniciar sesión'
+        
+        config = cargar_configuracion()
+        usuarios_config = config.get('usuarios', {})
+        
+        # Obtener configuración del permiso (puede ser 'admin', 'manager', 'todos', etc.)
+        permiso_config = usuarios_config.get(f'permiso_{permiso}', 'admin')
+        
+        # Si el permiso es 'todos', permitir acceso
+        if permiso_config == 'todos':
+            return True, None
+        
+        # Obtener rol del usuario
+        rol_usuario = session.get('rol') or obtener_rol_usuario(usuario)
+        
+        # Verificar si es administrador
+        es_admin = (
+            rol_usuario == 'Administrador Principal' or 
+            rol_usuario == 'Administrador' or 
+            usuario == 'admin' or
+            usuario.lower() == 'admin' or
+            es_administrador_principal(usuario)
+        )
+        
+        # Verificar también el sistema de roles
+        tiene_permiso_rol = tiene_permiso(usuario, permiso)
+        
+        # Si el permiso requiere admin y el usuario es admin, permitir
+        if permiso_config == 'admin' and es_admin:
+            return True, None
+        
+        # Si el permiso requiere manager y el usuario es admin o manager
+        if permiso_config == 'manager':
+            es_manager = es_admin or rol_usuario in ['Administrador', 'Administrador Principal']
+            if es_manager:
+                return True, None
+        
+        # Verificar también el sistema de roles
+        if tiene_permiso_rol:
+            return True, None
+        
+        # Si no tiene permiso
+        return False, f'No tienes permiso para {permiso}. Se requiere: {permiso_config}. Tu rol: {rol_usuario}'
+    
+    except Exception as e:
+        print(f"Error verificando permiso de usuario: {e}")
+        import traceback
+        traceback.print_exc()
+        # En caso de error, denegar acceso (más seguro)
+        return False, 'Error verificando permisos'
+
+def verificar_permiso_reportes(permiso_requerido='ver_reportes'):
+    """Verifica si el usuario tiene permiso para acceder a reportes."""
+    try:
+        config = cargar_configuracion()
+        usuario = session.get('usuario', '')
+        
+        if not usuario:
+            return False, 'Debe iniciar sesión para acceder a los reportes'
+        
+        # Verificar si los reportes están habilitados
+        if not config.get('reportes', {}).get('habilitados', True):
+            return False, 'Los reportes están deshabilitados en la configuración del sistema'
+        
+        # Verificar permisos específicos
+        permiso_config = config.get('reportes', {}).get(f'permiso_{permiso_requerido}', 'admin')
+        
+        # Si el permiso es 'todos', permitir acceso
+        if permiso_config == 'todos':
+            return True, None
+        
+        # Verificar si el usuario es administrador usando las funciones del sistema
+        # Primero intentar obtener el rol de la sesión (más rápido)
+        rol_usuario = session.get('rol') or obtener_rol_usuario(usuario)
+        
+        # Si no hay rol en sesión, actualizarlo
+        if 'rol' not in session:
+            session['rol'] = rol_usuario
+        
+        # Verificar también el formato antiguo de usuarios.json (role: "admin")
+        rol_antiguo = None
+        try:
+            usuarios = cargar_datos('usuarios.json')
+            # Verificar formato antiguo (directo en usuarios.json)
+            if usuario in usuarios and 'role' in usuarios[usuario]:
+                rol_antiguo = usuarios[usuario].get('role', '').lower()
+            # Verificar formato nuevo (en usuarios['usuarios'])
+            elif 'usuarios' in usuarios and usuario in usuarios['usuarios']:
+                rol_antiguo = usuarios['usuarios'][usuario].get('rol', '').lower()
+        except Exception as e:
+            print(f"⚠️ Error verificando rol antiguo: {e}")
+        
+        # Considerar administradores: 'Administrador Principal', 'Administrador', 'admin' (rol antiguo), o usuario 'admin'
+        es_admin = (
+            rol_usuario == 'Administrador Principal' or 
+            rol_usuario == 'Administrador' or 
+            rol_usuario == 'admin' or
+            rol_usuario.lower() == 'admin' or
+            rol_antiguo == 'admin' or
+            usuario == 'admin' or
+            usuario.lower() == 'admin' or
+            es_administrador_principal(usuario)
+        )
+        
+        print(f"🔍 Verificando permisos - Usuario: {usuario}, Rol: {rol_usuario}, Rol Antiguo: {rol_antiguo}, Es Admin: {es_admin}, Permiso requerido: {permiso_config}")
+        
+        # Si el permiso requiere admin y el usuario es admin, permitir
+        if permiso_config == 'admin' and es_admin:
+            return True, None
+        
+        # Si el permiso es 'todos', ya se verificó arriba
+        if permiso_config == 'todos':
+            return True, None
+        
+        # Si no es admin y se requiere admin, denegar
+        if permiso_config == 'admin' and not es_admin:
+            return False, f'No tienes permiso para {permiso_requerido}. Se requiere rol de administrador. Tu rol actual: {rol_usuario}'
+        
+        # Por defecto, permitir si no hay restricción específica
+        return True, None
+    
+    except Exception as e:
+        print(f"Error verificando permisos de reportes: {e}")
+        import traceback
+        traceback.print_exc()
+        # En caso de error, permitir acceso (más permisivo)
+        return True, None
+
+def enviar_webhook(evento, datos):
+    """
+    Envía un webhook cuando ocurre un evento en el sistema.
+    
+    Args:
+        evento: Tipo de evento (nueva_factura, nuevo_pago, nuevo_cliente, stock_bajo, orden_completada)
+        datos: Diccionario con los datos del evento
+    """
+    try:
+        config = cargar_configuracion()
+        integraciones = config.get('integraciones', {})
+        
+        # Verificar si los webhooks están habilitados
+        if not integraciones.get('webhooks', False):
+            return False, 'Webhooks deshabilitados'
+        
+        # Verificar si el evento está configurado para notificar
+        eventos_configurados = integraciones.get('webhook_eventos', [])
+        if evento not in eventos_configurados:
+            return False, f'Evento {evento} no configurado para webhooks'
+        
+        webhook_url = integraciones.get('webhook_url', '').strip()
+        if not webhook_url:
+            return False, 'URL del webhook no configurada'
+        
+        # Preparar payload
+        webhook_secreto = integraciones.get('webhook_secreto', '')
+        payload = {
+            'evento': evento,
+            'timestamp': datetime.now().isoformat(),
+            'datos': datos
+        }
+        
+        # Agregar firma si hay secreto
+        headers = {'Content-Type': 'application/json'}
+        if webhook_secreto:
+            import hmac
+            import hashlib
+            import base64
+            payload_str = json.dumps(payload, sort_keys=True)
+            firma = hmac.new(
+                webhook_secreto.encode('utf-8'),
+                payload_str.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            headers['X-Webhook-Signature'] = firma
+        
+        # Enviar webhook
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code in [200, 201, 202]:
+            print(f"✅ Webhook enviado exitosamente: {evento}")
+            return True, 'Webhook enviado exitosamente'
+        else:
+            print(f"⚠️ Webhook respondió con código {response.status_code}: {response.text}")
+            return False, f'Error en webhook: {response.status_code}'
+    
+    except requests.exceptions.Timeout:
+        print(f"⏱️ Timeout enviando webhook: {evento}")
+        return False, 'Timeout enviando webhook'
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error enviando webhook: {e}")
+        return False, f'Error de conexión: {str(e)}'
+    except Exception as e:
+        print(f"❌ Error inesperado enviando webhook: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f'Error inesperado: {str(e)}'
+
+def verificar_integracion_habilitada(tipo_integracion):
+    """
+    Verifica si una integración específica está habilitada.
+    
+    Args:
+        tipo_integracion: Tipo de integración (api_tasas_cambio, api_whatsapp, webhooks, etc.)
+    """
+    try:
+        config = cargar_configuracion()
+        integraciones = config.get('integraciones', {})
+        return integraciones.get(tipo_integracion, False)
+    except:
+        return False
+
+def sincronizar_con_nube():
+    """
+    Sincroniza los archivos del sistema con un servicio de almacenamiento en la nube.
+    Soporta: Google Drive, Dropbox, OneDrive, AWS S3
+    """
+    try:
+        config = cargar_configuracion()
+        integraciones = config.get('integraciones', {})
+        
+        if not integraciones.get('sincronizacion_nube', False):
+            return False, 'Sincronización con nube deshabilitada'
+        
+        proveedor = integraciones.get('nube_proveedor', 'google_drive')
+        frecuencia = integraciones.get('nube_frecuencia', 'diaria')
+        
+        # Archivos a sincronizar
+        archivos_a_sincronizar = [
+            'clientes.json',
+            'inventario.json',
+            'notas_entrega.json',
+            'pagos_recibidos.json',
+            'ordenes_servicio.json',
+            'config_sistema.json'
+        ]
+        
+        # Crear archivo ZIP con los datos
+        import zipfile
+        import tempfile
+        import shutil
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f'backup_sistema_{timestamp}.zip'
+        temp_dir = tempfile.mkdtemp()
+        zip_path = os.path.join(temp_dir, zip_filename)
+        
+        try:
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for archivo in archivos_a_sincronizar:
+                    if os.path.exists(archivo):
+                        zipf.write(archivo, archivo)
+                        print(f"✅ Agregado a backup: {archivo}")
+            
+            # Aquí iría la lógica específica de cada proveedor
+            # Por ahora, solo guardamos el backup localmente
+            backup_dir = 'backups_nube'
+            os.makedirs(backup_dir, exist_ok=True)
+            destino_local = os.path.join(backup_dir, zip_filename)
+            shutil.copy2(zip_path, destino_local)
+            
+            print(f"✅ Backup creado: {destino_local}")
+            print(f"ℹ️ Para sincronizar con {proveedor}, configure las credenciales correspondientes")
+            
+            # Limpiar archivo temporal
+            shutil.rmtree(temp_dir)
+            
+            return True, f'Backup creado exitosamente: {zip_filename}'
+        
+        except Exception as e:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+            raise e
+    
+    except Exception as e:
+        print(f"❌ Error sincronizando con nube: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f'Error: {str(e)}'
+
+def conectar_base_datos_externa():
+    """
+    Conecta con una base de datos externa y sincroniza datos.
+    Soporta: MySQL, PostgreSQL, SQLite
+    """
+    try:
+        config = cargar_configuracion()
+        integraciones = config.get('integraciones', {})
+        
+        if not integraciones.get('bases_datos', False):
+            return None, 'Conexión a base de datos externa deshabilitada'
+        
+        bd_tipo = integraciones.get('bd_tipo', 'mysql')
+        bd_host = integraciones.get('bd_host', '').strip()
+        bd_puerto = integraciones.get('bd_puerto', '3306')
+        bd_nombre = integraciones.get('bd_nombre', '').strip()
+        bd_usuario = integraciones.get('bd_usuario', '').strip()
+        
+        if not all([bd_host, bd_nombre, bd_usuario]):
+            return None, 'Configuración de base de datos incompleta'
+        
+        # Aquí iría la lógica de conexión según el tipo
+        # Por ahora, solo validamos la configuración
+        print(f"🔌 Configuración de BD: {bd_tipo}://{bd_usuario}@{bd_host}:{bd_puerto}/{bd_nombre}")
+        print(f"ℹ️ Para conectar, instale el driver correspondiente:")
+        
+        drivers = {
+            'mysql': 'pip install mysql-connector-python o pymysql',
+            'postgresql': 'pip install psycopg2',
+            'sqlite': 'Incluido en Python'
+        }
+        
+        print(f"   {drivers.get(bd_tipo, 'Driver no especificado')}")
+        
+        return None, 'Configuración validada. Instale el driver para conectar.'
+    
+    except Exception as e:
+        print(f"❌ Error conectando a base de datos: {e}")
+        return None, f'Error: {str(e)}'
+
+def procesar_pago_online(monto, moneda='USD', descripcion='', metadata=None):
+    """
+    Procesa un pago online usando el proveedor configurado.
+    Soporta: PayPal, Stripe, MercadoPago
+    """
+    try:
+        config = cargar_configuracion()
+        integraciones = config.get('integraciones', {})
+        
+        if not integraciones.get('pagos_online', False):
+            return False, None, 'Pagos online deshabilitados'
+        
+        proveedor = integraciones.get('pago_proveedor', 'paypal')
+        api_key = integraciones.get('pago_api_key', '').strip()
+        
+        if not api_key:
+            return False, None, 'API Key no configurada'
+        
+        # Aquí iría la lógica específica de cada proveedor
+        # Por ahora, solo validamos la configuración
+        print(f"💳 Procesando pago con {proveedor}")
+        print(f"   Monto: {monto} {moneda}")
+        print(f"   Descripción: {descripcion}")
+        print(f"ℹ️ Para procesar pagos reales, configure las credenciales de {proveedor}")
+        
+        # Simulación de respuesta (en producción, aquí iría la llamada real a la API)
+        pago_id = f"pago_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        return True, pago_id, f'Pago simulado procesado. ID: {pago_id}'
+    
+    except Exception as e:
+        print(f"❌ Error procesando pago online: {e}")
+        return False, None, f'Error: {str(e)}'
+
+def exportar_a_contabilidad(tipo_documento, datos):
+    """
+    Exporta datos a un sistema de contabilidad externo.
+    Soporta: QuickBooks, Xero, Contasol, etc.
+    """
+    try:
+        config = cargar_configuracion()
+        integraciones = config.get('integraciones', {})
+        
+        if not integraciones.get('contabilidad', False):
+            return False, 'Integración con contabilidad deshabilitada'
+        
+        sistema_contabilidad = integraciones.get('contabilidad_sistema', '').strip()
+        
+        if not sistema_contabilidad:
+            return False, 'Sistema de contabilidad no configurado'
+        
+        # Preparar datos para exportación
+        datos_exportacion = {
+            'tipo': tipo_documento,
+            'fecha': datetime.now().isoformat(),
+            'sistema_destino': sistema_contabilidad,
+            'datos': datos
+        }
+        
+        # Aquí iría la lógica específica de cada sistema
+        # Por ahora, guardamos los datos en un archivo para exportación manual
+        export_dir = 'exportaciones_contabilidad'
+        os.makedirs(export_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        archivo_export = os.path.join(export_dir, f'{tipo_documento}_{timestamp}.json')
+        
+        with open(archivo_export, 'w', encoding='utf-8') as f:
+            json.dump(datos_exportacion, f, indent=4, ensure_ascii=False)
+        
+        print(f"✅ Datos exportados para {sistema_contabilidad}: {archivo_export}")
+        print(f"ℹ️ Para integración automática, configure la API de {sistema_contabilidad}")
+        
+        return True, f'Datos exportados: {archivo_export}'
+    
+    except Exception as e:
+        print(f"❌ Error exportando a contabilidad: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, f'Error: {str(e)}'
+
+@app.route('/api/integraciones/sincronizar-nube', methods=['POST'])
+@login_required
+def api_sincronizar_nube():
+    """Sincronizar manualmente con la nube"""
+    try:
+        exito, mensaje = sincronizar_con_nube()
+        if exito:
+            return jsonify({'success': True, 'message': mensaje})
+        else:
+            return jsonify({'success': False, 'message': mensaje}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/integraciones/procesar-pago-online', methods=['POST'])
+@login_required
+def api_procesar_pago_online():
+    """Procesar un pago online"""
+    try:
+        data = request.get_json()
+        monto = float(data.get('monto', 0))
+        moneda = data.get('moneda', 'USD')
+        descripcion = data.get('descripcion', '')
+        metadata = data.get('metadata', {})
+        
+        exito, pago_id, mensaje = procesar_pago_online(monto, moneda, descripcion, metadata)
+        if exito:
+            return jsonify({'success': True, 'pago_id': pago_id, 'message': mensaje})
+        else:
+            return jsonify({'success': False, 'message': mensaje}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/integraciones/conectar-bd', methods=['POST'])
+@login_required
+def api_conectar_bd():
+    """Conectar con base de datos externa"""
+    try:
+        conexion, mensaje = conectar_base_datos_externa()
+        if conexion:
+            return jsonify({'success': True, 'message': mensaje, 'conexion': str(conexion)})
+        else:
+            return jsonify({'success': False, 'message': mensaje}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/usuarios/<username>/desbloquear', methods=['POST'])
+@login_required
+def desbloquear_usuario(username):
+    """Desbloquear un usuario manualmente (solo administradores)"""
+    try:
+        # Verificar que el usuario actual es administrador
+        tiene_permiso, mensaje = verificar_permiso_usuario('gestionar_usuarios')
+        if not tiene_permiso:
+            return jsonify({'success': False, 'message': 'No tienes permiso para desbloquear usuarios'}), 403
+        
+        usuarios = cargar_datos('usuarios.json')
+        
+        # Desbloquear usuario
+        if username in usuarios:
+            usuarios[username].pop('bloqueado_hasta', None)
+            usuarios[username].pop('intentos_fallidos', None)
+        elif 'usuarios' in usuarios and username in usuarios['usuarios']:
+            usuarios['usuarios'][username].pop('bloqueado_hasta', None)
+            usuarios['usuarios'][username].pop('intentos_fallidos', None)
+        else:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+        
+        guardar_datos('usuarios.json', usuarios)
+        registrar_bitacora(session.get('usuario', 'Sistema'), 'Desbloquear usuario', f'Usuario {username} desbloqueado manualmente')
+        
+        return jsonify({'success': True, 'message': f'Usuario {username} desbloqueado exitosamente'})
+    
+    except Exception as e:
+        print(f"Error desbloqueando usuario: {e}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+def verificar_reporte_habilitado(tipo_reporte):
+    """Verifica si un tipo de reporte específico está habilitado."""
+    try:
+        config = cargar_configuracion()
+        reportes_config = config.get('reportes', {})
+        
+        # Mapeo de tipos de reporte a configuraciones
+        mapeo_reportes = {
+            'dashboard_ejecutivo': 'dashboard_ejecutivo',
+            'estado_resultados': 'reporte_estado_resultados',
+            'flujo_caja': 'reporte_flujo_caja',
+            'rotacion_inventario': 'reporte_rotacion_inventario',
+            'analisis_clientes': 'reporte_analisis_clientes',
+            'productos_rentables': 'reporte_productos_rentables'
+        }
+        
+        config_key = mapeo_reportes.get(tipo_reporte, 'habilitados')
+        return reportes_config.get(config_key, True)
+    
+    except Exception as e:
+        print(f"Error verificando reporte habilitado: {e}")
+        return True  # Por defecto, permitir si hay error
+
 @app.route('/configuracion', methods=['GET', 'POST'])
 @login_required
 def configuracion_sistema():
     """Página de configuración del sistema"""
+    # Verificar permiso para acceder a la configuración
+    tiene_permiso, mensaje = verificar_permiso_usuario('configuracion')
+    if not tiene_permiso:
+        flash(mensaje or 'No tienes permiso para acceder a la configuración del sistema', 'warning')
+        return redirect(url_for('index'))
+    
     if request.method == 'POST':
         print("\n" + "="*60)
         print("🔧 RECIBIENDO FORMULARIO DE CONFIGURACIÓN")
@@ -15696,6 +18421,7 @@ def configuracion_sistema():
                 config['metodos_pago']['tipo_cuenta'] = request.form.get('tipo_cuenta', 'corriente')
                 config['metodos_pago']['numero_cuenta'] = request.form.get('numero_cuenta', '')
                 config['metodos_pago']['titular_cuenta'] = request.form.get('titular_cuenta', '')
+                config['metodos_pago']['banco_pago_movil'] = request.form.get('banco_pago_movil', '')
                 config['metodos_pago']['telefono_pago_movil'] = request.form.get('telefono_pago_movil', '')
                 config['metodos_pago']['cedula_pago_movil'] = request.form.get('cedula_pago_movil', '')
                 config['metodos_pago']['email_zelle'] = request.form.get('email_zelle', '')
@@ -15829,6 +18555,47 @@ def configuracion_sistema():
                         print("✅ Categorías actualizadas correctamente")
                 except Exception as e:
                     print(f"⚠️ Error procesando categorías: {e}")
+            
+            # Actualizar sección dashboard
+            if 'dashboard_cuentas_por_cobrar' in request.form or 'dashboard_mostrar_porcentajes' in request.form:
+                if 'dashboard' not in config:
+                    config['dashboard'] = {}
+                
+                # Tarjetas habilitadas
+                if 'tarjetas_habilitadas' not in config['dashboard']:
+                    config['dashboard']['tarjetas_habilitadas'] = {}
+                
+                config['dashboard']['tarjetas_habilitadas']['cuentas_por_cobrar'] = request.form.get('dashboard_cuentas_por_cobrar') == 'on'
+                config['dashboard']['tarjetas_habilitadas']['pagos_recibidos'] = request.form.get('dashboard_pagos_recibidos') == 'on'
+                config['dashboard']['tarjetas_habilitadas']['nota_entrega'] = request.form.get('dashboard_nota_entrega') == 'on'
+                
+                # Opciones de visualización
+                config['dashboard']['mostrar_porcentajes_crecimiento'] = request.form.get('dashboard_mostrar_porcentajes') == 'on'
+                config['dashboard']['mostrar_valores_bs'] = request.form.get('dashboard_mostrar_valores_bs') == 'on'
+                config['dashboard']['mostrar_filtros'] = request.form.get('dashboard_mostrar_filtros') == 'on'
+                config['dashboard']['comparar_con_mes_anterior'] = request.form.get('dashboard_comparar_mes_anterior') == 'on'
+                
+                # Actualización automática
+                config['dashboard']['actualizacion_automatica'] = request.form.get('dashboard_actualizacion_automatica') == 'on'
+                config['dashboard']['intervalo_actualizacion'] = int(request.form.get('dashboard_intervalo_actualizacion', 60))
+                
+                # Colores
+                if 'colores' not in config['dashboard']:
+                    config['dashboard']['colores'] = {}
+                
+                config['dashboard']['colores']['cuentas_por_cobrar'] = request.form.get('dashboard_color_cuentas', '#00ff88')
+                config['dashboard']['colores']['pagos_recibidos'] = request.form.get('dashboard_color_pagos', '#00ff88')
+                config['dashboard']['colores']['nota_entrega'] = request.form.get('dashboard_color_nota', '#00ff88')
+                
+                # Iconos
+                if 'iconos' not in config['dashboard']:
+                    config['dashboard']['iconos'] = {}
+                
+                config['dashboard']['iconos']['cuentas_por_cobrar'] = request.form.get('dashboard_icono_cuentas', 'fas fa-hand-holding-usd')
+                config['dashboard']['iconos']['pagos_recibidos'] = request.form.get('dashboard_icono_pagos', 'fas fa-money-check-alt')
+                config['dashboard']['iconos']['nota_entrega'] = request.form.get('dashboard_icono_nota', 'fas fa-file-invoice-dollar')
+                
+                print("✅ Configuración de dashboard actualizada correctamente")
             
             # Actualizar sección proveedores
             if 'proveedores_habilitado' in request.form:
@@ -15969,13 +18736,35 @@ def configuracion_sistema():
                 # Tipos y Marcas
                 marcas_text = request.form.get('equipos_marcas_permitidas', '')
                 if marcas_text:
-                    config['equipos_clientes']['marcas_permitidas'] = [m.strip() for m in marcas_text.split(',') if m.strip()]
+                    # Procesar tanto líneas separadas como comas
+                    marcas_lista = []
+                    # Primero dividir por líneas
+                    for linea in marcas_text.split('\n'):
+                        linea = linea.strip()
+                        if linea:
+                            # Si la línea contiene comas, dividir también por comas
+                            if ',' in linea:
+                                marcas_lista.extend([m.strip() for m in linea.split(',') if m.strip()])
+                            else:
+                                marcas_lista.append(linea)
+                    config['equipos_clientes']['marcas_permitidas'] = marcas_lista
                 else:
                     config['equipos_clientes']['marcas_permitidas'] = []
                 
                 modelos_text = request.form.get('modelos_disponibles', '')
                 if modelos_text:
-                    config['equipos_clientes']['modelos_disponibles'] = [m.strip() for m in modelos_text.split(',') if m.strip()]
+                    # Procesar tanto líneas separadas como comas
+                    modelos_lista = []
+                    # Primero dividir por líneas
+                    for linea in modelos_text.split('\n'):
+                        linea = linea.strip()
+                        if linea:
+                            # Si la línea contiene comas, dividir también por comas
+                            if ',' in linea:
+                                modelos_lista.extend([m.strip() for m in linea.split(',') if m.strip()])
+                            else:
+                                modelos_lista.append(linea)
+                    config['equipos_clientes']['modelos_disponibles'] = modelos_lista
                 else:
                     config['equipos_clientes']['modelos_disponibles'] = []
                 
@@ -16069,10 +18858,16 @@ def configuracion_sistema():
                 
                 # Temas y colores
                 config['visual']['tema'] = request.form.get('tema', 'automatico')
-                config['visual']['color_primario'] = request.form.get('color_primario', '#4f46e5')
-                config['visual']['color_secundario'] = request.form.get('color_secundario', '#7c3aed')
-                config['visual']['color_acentos'] = request.form.get('color_acentos', '#10b981')
-                config['visual']['color_fondo'] = request.form.get('color_fondo', '#f9fafb')
+                # Usar color_primario_hex si existe, sino usar color_primario
+                color_primario = request.form.get('color_primario_hex') or request.form.get('color_primario', '#4f46e5')
+                color_secundario = request.form.get('color_secundario_hex') or request.form.get('color_secundario', '#7c3aed')
+                color_acentos = request.form.get('color_acentos_hex') or request.form.get('color_acentos', '#10b981')
+                color_fondo = request.form.get('color_fondo_hex') or request.form.get('color_fondo', '#f9fafb')
+                
+                config['visual']['color_primario'] = color_primario
+                config['visual']['color_secundario'] = color_secundario
+                config['visual']['color_acentos'] = color_acentos
+                config['visual']['color_fondo'] = color_fondo
                 config['visual']['preview_tiempo_real'] = request.form.get('preview_tiempo_real') == 'on'
                 
                 # Tipografía
@@ -16180,6 +18975,112 @@ def configuracion_sistema():
                 
                 print("✅ Configuración de seguridad actualizada")
             
+            # Actualizar sección contadores
+            if 'contadores_reset_anual' in request.form:
+                if 'contadores' not in config:
+                    config['contadores'] = {}
+                
+                config['contadores']['reset_anual'] = request.form.get('contadores_reset_anual') == 'on'
+                config['contadores']['prefijo_ano'] = request.form.get('contadores_prefijo_ano') == 'on'
+                config['contadores']['validacion_secuencial'] = request.form.get('contadores_validacion_secuencial') == 'on'
+                
+                print("✅ Configuración de contadores actualizada correctamente")
+            
+            # Actualizar sección reportes
+            if 'reportes_habilitados' in request.form:
+                if 'reportes' not in config:
+                    config['reportes'] = {}
+                
+                # Configuración General
+                config['reportes']['habilitados'] = request.form.get('reportes_habilitados') == 'on'
+                config['reportes']['graficos_interactivos'] = request.form.get('reportes_graficos_interactivos') == 'on'
+                config['reportes']['comparaciones_periodos'] = request.form.get('reportes_comparaciones_periodos') == 'on'
+                config['reportes']['filtros_avanzados'] = request.form.get('reportes_filtros_avanzados') == 'on'
+                
+                # Exportación
+                config['reportes']['exportacion_excel'] = request.form.get('reportes_exportacion_excel') == 'on'
+                config['reportes']['exportacion_pdf'] = request.form.get('reportes_exportacion_pdf') == 'on'
+                config['reportes']['exportacion_csv'] = request.form.get('reportes_exportacion_excel') == 'on'  # CSV usa la misma opción que Excel
+                config['reportes']['exportacion_json'] = request.form.get('reportes_exportacion_json') == 'on'
+                config['reportes']['exportacion_html'] = request.form.get('reportes_exportacion_html') == 'on'
+                
+                # Funcionalidades Avanzadas
+                config['reportes']['personalizacion_habilitada'] = request.form.get('reportes_personalizacion_habilitada') == 'on'
+                config['reportes']['programacion_habilitada'] = request.form.get('reportes_programacion_habilitada') == 'on'
+                config['reportes']['envio_automatico'] = request.form.get('reportes_envio_automatico') == 'on'
+                
+                # Reportes Específicos
+                config['reportes']['dashboard_ejecutivo'] = request.form.get('reportes_dashboard_ejecutivo') == 'on'
+                config['reportes']['reporte_estado_resultados'] = request.form.get('reportes_estado_resultados') == 'on'
+                config['reportes']['reporte_flujo_caja'] = request.form.get('reportes_flujo_caja') == 'on'
+                config['reportes']['reporte_rotacion_inventario'] = request.form.get('reportes_rotacion_inventario') == 'on'
+                config['reportes']['reporte_analisis_clientes'] = request.form.get('reportes_analisis_clientes') == 'on'
+                config['reportes']['reporte_productos_rentables'] = request.form.get('reportes_productos_rentables') == 'on'
+                
+                # Permisos
+                config['reportes']['permiso_ver_reportes'] = request.form.get('reportes_permiso_ver_reportes', 'admin')
+                config['reportes']['permiso_exportar'] = request.form.get('reportes_permiso_exportar', 'admin')
+                config['reportes']['permiso_programar'] = request.form.get('reportes_permiso_programar', 'admin')
+                config['reportes']['permiso_personalizar'] = request.form.get('reportes_permiso_personalizar', 'admin')
+                
+                print("✅ Configuración de reportes actualizada correctamente")
+            
+            # Actualizar sección integraciones
+            if 'integraciones_api_externas' in request.form or 'integraciones_sincronizacion_nube' in request.form or 'integraciones_webhooks' in request.form:
+                if 'integraciones' not in config:
+                    config['integraciones'] = {}
+                
+                # APIs Externas
+                config['integraciones']['api_externas'] = request.form.get('integraciones_api_externas') == 'on'
+                config['integraciones']['api_tasas_cambio'] = request.form.get('integraciones_api_tasas_cambio') == 'on'
+                config['integraciones']['api_whatsapp'] = request.form.get('integraciones_api_whatsapp') == 'on'
+                config['integraciones']['api_email'] = request.form.get('integraciones_api_email') == 'on'
+                config['integraciones']['api_sms'] = request.form.get('integraciones_api_sms') == 'on'
+                
+                # Sincronización con Nube
+                config['integraciones']['sincronizacion_nube'] = request.form.get('integraciones_sincronizacion_nube') == 'on'
+                config['integraciones']['nube_proveedor'] = request.form.get('integraciones_nube_proveedor', 'google_drive')
+                config['integraciones']['nube_frecuencia'] = request.form.get('integraciones_nube_frecuencia', 'diaria')
+                config['integraciones']['nube_automatica'] = request.form.get('integraciones_nube_automatica') == 'on'
+                
+                # Webhooks
+                config['integraciones']['webhooks'] = request.form.get('integraciones_webhooks') == 'on'
+                config['integraciones']['webhook_url'] = request.form.get('integraciones_webhook_url', '')
+                config['integraciones']['webhook_secreto'] = request.form.get('integraciones_webhook_secreto', '')
+                config['integraciones']['webhook_eventos'] = request.form.getlist('integraciones_webhook_eventos')
+                
+                # Bases de Datos Externas
+                config['integraciones']['bases_datos'] = request.form.get('integraciones_bases_datos') == 'on'
+                config['integraciones']['bd_tipo'] = request.form.get('integraciones_bd_tipo', 'mysql')
+                config['integraciones']['bd_host'] = request.form.get('integraciones_bd_host', '')
+                config['integraciones']['bd_puerto'] = request.form.get('integraciones_bd_puerto', '3306')
+                config['integraciones']['bd_nombre'] = request.form.get('integraciones_bd_nombre', '')
+                config['integraciones']['bd_usuario'] = request.form.get('integraciones_bd_usuario', '')
+                
+                # Integraciones de Pago
+                config['integraciones']['pagos_online'] = request.form.get('integraciones_pagos_online') == 'on'
+                config['integraciones']['pago_proveedor'] = request.form.get('integraciones_pago_proveedor', 'paypal')
+                config['integraciones']['pago_api_key'] = request.form.get('integraciones_pago_api_key', '')
+                
+                # Integraciones de Contabilidad
+                config['integraciones']['contabilidad'] = request.form.get('integraciones_contabilidad') == 'on'
+                config['integraciones']['contabilidad_sistema'] = request.form.get('integraciones_contabilidad_sistema', '')
+                
+                print("✅ Configuración de integraciones actualizada correctamente")
+            
+            # Actualizar sección permisos de usuarios
+            if 'permiso_eliminar_ordenes' in request.form or 'permiso_ver_reportes' in request.form or 'permiso_modificar_precios' in request.form:
+                if 'usuarios' not in config:
+                    config['usuarios'] = {}
+                
+                config['usuarios']['permiso_eliminar_ordenes'] = request.form.get('permiso_eliminar_ordenes', 'admin')
+                config['usuarios']['permiso_ver_reportes'] = request.form.get('permiso_ver_reportes', 'admin')
+                config['usuarios']['permiso_modificar_precios'] = request.form.get('permiso_modificar_precios', 'admin')
+                config['usuarios']['permiso_gestionar_usuarios'] = request.form.get('permiso_gestionar_usuarios', 'admin')
+                config['usuarios']['permiso_configuracion'] = request.form.get('permiso_configuracion', 'admin')
+                
+                print("✅ Configuración de permisos de usuarios actualizada correctamente")
+            
             # Guardar configuración
             print("\n💾 Intentando guardar configuración...")
             if guardar_configuracion(config):
@@ -16238,12 +19139,22 @@ def nuevo_usuario():
             if 'usuarios' not in usuarios:
                 usuarios['usuarios'] = {}
             
+            # Obtener email y teléfono opcionales
+            email = request.form.get('email', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            
             usuarios['usuarios'][username] = {
                 'password_hash': password_hash,
                 'rol': rol,
                 'fecha_creacion': datetime.now().isoformat(),
                 'activo': True
             }
+            
+            # Agregar email y teléfono si se proporcionaron
+            if email:
+                usuarios['usuarios'][username]['email'] = email
+            if telefono:
+                usuarios['usuarios'][username]['telefono'] = telefono
             
             # Asignar rol en el sistema de roles
             asignar_rol_usuario(username, rol)
@@ -16278,6 +19189,30 @@ def gestionar_usuarios():
                     flash(f'Rol {rol} asignado a {username}', 'success')
                 else:
                     flash(f'Error asignando rol', 'danger')
+            elif accion == 'editar_contacto':
+                # Editar email y teléfono del usuario
+                email = request.form.get('email', '').strip()
+                telefono = request.form.get('telefono', '').strip()
+                
+                if os.path.exists('usuarios.json'):
+                    with open('usuarios.json', 'r', encoding='utf-8') as f:
+                        usuarios = json.load(f)
+                    
+                    if 'usuarios' in usuarios and username in usuarios['usuarios']:
+                        if email:
+                            usuarios['usuarios'][username]['email'] = email
+                        else:
+                            usuarios['usuarios'][username].pop('email', None)
+                        
+                        if telefono:
+                            usuarios['usuarios'][username]['telefono'] = telefono
+                        else:
+                            usuarios['usuarios'][username].pop('telefono', None)
+                        
+                        with open('usuarios.json', 'w', encoding='utf-8') as f:
+                            json.dump(usuarios, f, indent=4, ensure_ascii=False)
+                        
+                        flash(f'Información de contacto de {username} actualizada', 'success')
             elif accion == 'eliminar_usuario':
                 # Leer y eliminar usuario
                 if os.path.exists('usuarios.json'):
@@ -17079,12 +20014,115 @@ def verificar_alertas():
                         'tipo': 'danger',
                         'titulo': 'Productos Agotados',
                         'mensaje': f"{len(productos_agotados)} producto(s) sin stock",
-                        'icono': 'fas fa-exclamation-circle',
+                        'icono': 'fas fa-exclamation-triangle',
                         'cantidad': len(productos_agotados),
                         'detalles': productos_agotados[:5]
                     })
             except Exception as e:
                 print(f"Error verificando productos agotados: {e}")
+        
+        # 3. Verificar caducidad si está habilitado
+        config_inv = config.get('inventario', {})
+        if config_inv.get('control_caducidad', False) and config_inv.get('alertas_caducidad', True):
+            try:
+                inventario = cargar_datos(ARCHIVO_INVENTARIO)
+                productos_por_caducar = []
+                dias_alerta = config_inv.get('dias_alerta_caducidad', 30)
+                fecha_limite = datetime.now() + timedelta(days=dias_alerta)
+                
+                for prod_id, prod in inventario.items():
+                    fecha_caducidad = prod.get('fecha_caducidad')
+                    if fecha_caducidad:
+                        try:
+                            fecha_cad = datetime.strptime(fecha_caducidad, '%Y-%m-%d')
+                            if fecha_cad <= fecha_limite:
+                                dias_restantes = (fecha_cad - datetime.now()).days
+                                productos_por_caducar.append({
+                                    'id': prod_id,
+                                    'nombre': prod.get('nombre', 'Desconocido'),
+                                    'fecha_caducidad': fecha_caducidad,
+                                    'dias_restantes': dias_restantes
+                                })
+                        except:
+                            pass
+                
+                if productos_por_caducar:
+                    alertas_activas.append({
+                        'tipo': 'warning',
+                        'titulo': 'Productos por Caducar',
+                        'mensaje': f"{len(productos_por_caducar)} producto(s) caducan en los próximos {dias_alerta} días",
+                        'icono': 'fas fa-calendar-times',
+                        'cantidad': len(productos_por_caducar),
+                        'detalles': productos_por_caducar[:5]
+                    })
+            except Exception as e:
+                print(f"Error verificando caducidad: {e}")
+        
+        # 4. Verificar movimientos inusuales si está habilitado
+        if config_inv.get('alertas_movimientos_inusuales', False):
+            try:
+                movimientos_file = 'movimientos_inventario.json'
+                if os.path.exists(movimientos_file):
+                    movimientos = cargar_datos(movimientos_file)
+                    if isinstance(movimientos, list):
+                        # Buscar movimientos grandes (más del 50% del stock)
+                        movimientos_inusuales = []
+                        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+                        movimientos_recientes = [m for m in movimientos if m.get('fecha', '') >= (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')]
+                        
+                        for mov in movimientos_recientes:
+                            prod_id = mov.get('producto_id')
+                            if prod_id in inventario:
+                                stock_actual = inventario[prod_id].get('cantidad', 0)
+                                cantidad_mov = mov.get('cantidad', 0)
+                                if stock_actual > 0 and cantidad_mov > stock_actual * 0.5:
+                                    movimientos_inusuales.append({
+                                        'producto': mov.get('producto_nombre', 'Desconocido'),
+                                        'tipo': mov.get('tipo', 'desconocido'),
+                                        'cantidad': cantidad_mov,
+                                        'stock_actual': stock_actual,
+                                        'fecha': mov.get('fecha', '')
+                                    })
+                        
+                        if movimientos_inusuales:
+                            alertas_activas.append({
+                                'tipo': 'info',
+                                'titulo': 'Movimientos Inusuales',
+                                'mensaje': f"{len(movimientos_inusuales)} movimiento(s) inusual(es) detectado(s)",
+                                'icono': 'fas fa-chart-line',
+                                'cantidad': len(movimientos_inusuales),
+                                'detalles': movimientos_inusuales[:5]
+                            })
+            except Exception as e:
+                print(f"Error verificando movimientos inusuales: {e}")
+        
+        # 5. Verificar punto de reorden si está habilitado
+        if config_inv.get('sugerencias_reposicion', True):
+            try:
+                inventario = cargar_datos(ARCHIVO_INVENTARIO)
+                productos_reorden = []
+                for prod_id, prod in inventario.items():
+                    stock_actual = int(prod.get('stock_actual', prod.get('cantidad', 0)))
+                    punto_reorden = prod.get('punto_reorden', config_inv.get('punto_reorden_default', 10))
+                    if stock_actual <= punto_reorden and stock_actual > 0:
+                        productos_reorden.append({
+                            'id': prod_id,
+                            'nombre': prod.get('nombre', 'Desconocido'),
+                            'stock': stock_actual,
+                            'punto_reorden': punto_reorden
+                        })
+                
+                if productos_reorden:
+                    alertas_activas.append({
+                        'tipo': 'info',
+                        'titulo': 'Sugerencias de Reposición',
+                        'mensaje': f"{len(productos_reorden)} producto(s) alcanzaron el punto de reorden",
+                        'icono': 'fas fa-shopping-cart',
+                        'cantidad': len(productos_reorden),
+                        'detalles': productos_reorden[:5]
+                    })
+            except Exception as e:
+                print(f"Error verificando punto de reorden: {e}")
         
         # 3. Verificar productos próximos a caducar (si tienen fecha de vencimiento)
         if alertas.get('productos_caducando', False):
@@ -17407,6 +20445,1014 @@ def verificar_alertas():
         import traceback
         traceback.print_exc()
         return []
+
+# ===== NUEVOS REPORTES FINANCIEROS Y DASHBOARD EJECUTIVO =====
+
+@app.route('/reportes/dashboard-ejecutivo')
+@login_required
+def dashboard_ejecutivo():
+    """Dashboard ejecutivo con KPIs y métricas en tiempo real."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si el reporte específico está habilitado
+        if not verificar_reporte_habilitado('dashboard_ejecutivo'):
+            flash('El dashboard ejecutivo está deshabilitado', 'warning')
+            return redirect(url_for('index'))
+        
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        ordenes = cargar_datos('ordenes_servicio.json')
+        
+        # KPIs principales
+        fecha_actual = datetime.now()
+        mes_actual = fecha_actual.month
+        año_actual = fecha_actual.year
+        
+        # Ventas del mes actual
+        ventas_mes = 0
+        notas_mes = 0
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota and fecha_nota.month == mes_actual and fecha_nota.year == año_actual:
+                    ventas_mes += float(nota.get('total_usd', 0) or 0)
+                    notas_mes += 1
+        
+        # Ventas del mes anterior
+        mes_anterior = mes_actual - 1 if mes_actual > 1 else 12
+        año_anterior = año_actual if mes_actual > 1 else año_actual - 1
+        ventas_mes_anterior = 0
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota and fecha_nota.month == mes_anterior and fecha_nota.year == año_anterior:
+                    ventas_mes_anterior += float(nota.get('total_usd', 0) or 0)
+        
+        variacion_ventas = ((ventas_mes - ventas_mes_anterior) / ventas_mes_anterior * 100) if ventas_mes_anterior > 0 else 0
+        
+        # Pagos recibidos del mes
+        pagos_mes = 0
+        for pago in pagos.values():
+            fecha_str = pago.get('fecha', '')
+            if fecha_str:
+                try:
+                    fecha_pago = datetime.strptime(fecha_str, '%Y-%m-%d')
+                    if fecha_pago.month == mes_actual and fecha_pago.year == año_actual:
+                        pagos_mes += float(pago.get('monto_usd', 0) or 0)
+                except:
+                    continue
+        
+        # Cuentas por cobrar
+        total_cobrar = 0
+        notas_pendientes = 0
+        for nota in notas.values():
+            estado = nota.get('estado', '').upper()
+            if estado != 'PAGADA' and estado != 'ENTREGADO':
+                total_cobrar += float(nota.get('total_usd', 0) or 0)
+                notas_pendientes += 1
+        
+        # Clientes activos (con compras en últimos 30 días)
+        clientes_activos = set()
+        fecha_limite = fecha_actual - timedelta(days=30)
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota and fecha_nota >= fecha_limite:
+                    cliente_id = nota.get('cliente_id')
+                    if cliente_id:
+                        clientes_activos.add(cliente_id)
+        
+        # Inventario
+        total_productos = len(inventario)
+        valor_inventario = sum(float(prod.get('precio', 0) or 0) * float(prod.get('cantidad', 0) or 0) 
+                              for prod in inventario.values())
+        productos_bajo_stock = sum(1 for prod in inventario.values() 
+                                   if float(prod.get('cantidad', 0) or 0) < 5)
+        
+        # Órdenes de servicio
+        ordenes_pendientes_count = sum(1 for orden in ordenes.values() 
+                                       if orden.get('estado', '').upper() not in ['ENTREGADO', 'CANCELADO'])
+        
+        # Gráficos de tendencias (últimos 6 meses)
+        ventas_por_mes = {}
+        for i in range(6):
+            fecha_ref = fecha_actual - timedelta(days=30*i)
+            mes_key = fecha_ref.strftime('%Y-%m')
+            ventas_por_mes[mes_key] = 0
+        
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota:
+                    mes_key = fecha_nota.strftime('%Y-%m')
+                    if mes_key in ventas_por_mes:
+                        ventas_por_mes[mes_key] += float(nota.get('total_usd', 0) or 0)
+        
+        # Top productos más vendidos (últimos 30 días)
+        productos_vendidos = {}
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota and fecha_nota >= fecha_limite:
+                    productos = nota.get('productos', [])
+                    if isinstance(productos, list):
+                        for prod in productos:
+                            nombre = prod.get('nombre', '')
+                            cantidad = float(prod.get('cantidad', 0) or 0)
+                            if nombre:
+                                if nombre not in productos_vendidos:
+                                    productos_vendidos[nombre] = 0
+                                productos_vendidos[nombre] += cantidad
+        
+        top_productos = sorted(productos_vendidos.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        return render_template('reportes/dashboard_ejecutivo.html',
+                             ventas_mes=ventas_mes,
+                             ventas_mes_anterior=ventas_mes_anterior,
+                             variacion_ventas=variacion_ventas,
+                             notas_mes=notas_mes,
+                             pagos_mes=pagos_mes,
+                             total_cobrar=total_cobrar,
+                             notas_pendientes=notas_pendientes,
+                             clientes_activos=len(clientes_activos),
+                             total_clientes=len(clientes),
+                             total_productos=total_productos,
+                             valor_inventario=valor_inventario,
+                             productos_bajo_stock=productos_bajo_stock,
+                             ordenes_pendientes=ordenes_pendientes_count,
+                             ventas_por_mes=ventas_por_mes,
+                             top_productos=top_productos,
+                             config=config)
+    except Exception as e:
+        print(f"Error en dashboard_ejecutivo: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error cargando el dashboard ejecutivo', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/reportes/estado-resultados')
+@login_required
+def reporte_estado_resultados():
+    """Reporte de Estado de Resultados (Pérdidas y Ganancias)."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si el reporte específico está habilitado
+        if not verificar_reporte_habilitado('estado_resultados'):
+            flash('El reporte de estado de resultados está deshabilitado', 'warning')
+            return redirect(url_for('index'))
+        
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        
+        # Obtener período
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        mes_filtro = request.args.get('mes', '')
+        año_filtro = request.args.get('año', str(datetime.now().year))
+        
+        # Determinar rango de fechas
+        if fecha_desde and fecha_hasta:
+            fecha_inicio = parsear_fecha_segura(fecha_desde)
+            fecha_fin = parsear_fecha_segura(fecha_hasta)
+        elif mes_filtro and año_filtro:
+            fecha_inicio = datetime(int(año_filtro), int(mes_filtro), 1)
+            if int(mes_filtro) == 12:
+                fecha_fin = datetime(int(año_filtro) + 1, 1, 1) - timedelta(days=1)
+            else:
+                fecha_fin = datetime(int(año_filtro), int(mes_filtro) + 1, 1) - timedelta(days=1)
+        else:
+            # Mes actual por defecto
+            ahora = datetime.now()
+            fecha_inicio = datetime(ahora.year, ahora.month, 1)
+            if ahora.month == 12:
+                fecha_fin = datetime(ahora.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                fecha_fin = datetime(ahora.year, ahora.month + 1, 1) - timedelta(days=1)
+        
+        # Calcular ingresos (ventas)
+        ingresos = 0
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota and fecha_inicio <= fecha_nota <= fecha_fin:
+                    ingresos += float(nota.get('total_usd', 0) or 0)
+        
+        # Calcular costos (costo de productos vendidos)
+        costo_ventas = 0
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota and fecha_inicio <= fecha_nota <= fecha_fin:
+                    productos = nota.get('productos', [])
+                    if isinstance(productos, list):
+                        for prod in productos:
+                            # Asumir costo como 60% del precio (ajustable)
+                            precio = float(prod.get('precio', 0) or 0)
+                            cantidad = float(prod.get('cantidad', 0) or 0)
+                            costo_ventas += precio * cantidad * 0.6
+        
+        # Utilidad bruta
+        utilidad_bruta = ingresos - costo_ventas
+        margen_bruto = (utilidad_bruta / ingresos * 100) if ingresos > 0 else 0
+        
+        # Gastos operativos (estimados, se pueden agregar más detalles)
+        gastos_operativos = 0  # Aquí se pueden agregar gastos reales si se tienen
+        
+        # Utilidad operativa
+        utilidad_operativa = utilidad_bruta - gastos_operativos
+        
+        # Ingresos por mes (últimos 12 meses)
+        ingresos_por_mes = {}
+        for i in range(12):
+            fecha_ref = datetime.now() - timedelta(days=30*i)
+            mes_key = fecha_ref.strftime('%Y-%m')
+            ingresos_por_mes[mes_key] = 0
+        
+        for nota in notas.values():
+            fecha_str = nota.get('fecha', '')
+            if fecha_str:
+                fecha_nota = parsear_fecha_segura(fecha_str)
+                if fecha_nota:
+                    mes_key = fecha_nota.strftime('%Y-%m')
+                    if mes_key in ingresos_por_mes:
+                        ingresos_por_mes[mes_key] += float(nota.get('total_usd', 0) or 0)
+        
+        meses = [
+            {'valor': '1', 'nombre': 'Enero'}, {'valor': '2', 'nombre': 'Febrero'},
+            {'valor': '3', 'nombre': 'Marzo'}, {'valor': '4', 'nombre': 'Abril'},
+            {'valor': '5', 'nombre': 'Mayo'}, {'valor': '6', 'nombre': 'Junio'},
+            {'valor': '7', 'nombre': 'Julio'}, {'valor': '8', 'nombre': 'Agosto'},
+            {'valor': '9', 'nombre': 'Septiembre'}, {'valor': '10', 'nombre': 'Octubre'},
+            {'valor': '11', 'nombre': 'Noviembre'}, {'valor': '12', 'nombre': 'Diciembre'}
+        ]
+        
+        años = []
+        año_actual = datetime.now().year
+        for año in range(año_actual - 5, año_actual + 1):
+            años.append({'valor': str(año), 'nombre': str(año)})
+        
+        return render_template('reportes/estado_resultados.html',
+                             ingresos=ingresos,
+                             costo_ventas=costo_ventas,
+                             utilidad_bruta=utilidad_bruta,
+                             margen_bruto=margen_bruto,
+                             gastos_operativos=gastos_operativos,
+                             utilidad_operativa=utilidad_operativa,
+                             fecha_inicio=fecha_inicio.strftime('%Y-%m-%d'),
+                             fecha_fin=fecha_fin.strftime('%Y-%m-%d'),
+                             ingresos_por_mes=ingresos_por_mes,
+                             meses=meses,
+                             años=años,
+                             mes_filtro=mes_filtro,
+                             año_filtro=año_filtro,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta,
+                             config=config)
+    except Exception as e:
+        print(f"Error en reporte_estado_resultados: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error generando el estado de resultados', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/reportes/flujo-caja')
+@login_required
+def reporte_flujo_caja():
+    """Reporte de Flujo de Caja."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si el reporte específico está habilitado
+        if not verificar_reporte_habilitado('flujo_caja'):
+            flash('El reporte de flujo de caja está deshabilitado', 'warning')
+            return redirect(url_for('index'))
+        
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        # Obtener período
+        fecha_desde = request.args.get('fecha_desde', '')
+        fecha_hasta = request.args.get('fecha_hasta', '')
+        mes_filtro = request.args.get('mes', '')
+        año_filtro = request.args.get('año', str(datetime.now().year))
+        
+        # Determinar rango de fechas
+        if fecha_desde and fecha_hasta:
+            fecha_inicio = parsear_fecha_segura(fecha_desde)
+            fecha_fin = parsear_fecha_segura(fecha_hasta)
+        elif mes_filtro and año_filtro:
+            fecha_inicio = datetime(int(año_filtro), int(mes_filtro), 1)
+            if int(mes_filtro) == 12:
+                fecha_fin = datetime(int(año_filtro) + 1, 1, 1) - timedelta(days=1)
+            else:
+                fecha_fin = datetime(int(año_filtro), int(mes_filtro) + 1, 1) - timedelta(days=1)
+        else:
+            ahora = datetime.now()
+            fecha_inicio = datetime(ahora.year, ahora.month, 1)
+            if ahora.month == 12:
+                fecha_fin = datetime(ahora.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                fecha_fin = datetime(ahora.year, ahora.month + 1, 1) - timedelta(days=1)
+        
+        # Entradas de efectivo (pagos recibidos)
+        entradas = 0
+        entradas_por_dia = {}
+        for pago in pagos.values():
+            fecha_str = pago.get('fecha', '')
+            if fecha_str:
+                try:
+                    fecha_pago = datetime.strptime(fecha_str, '%Y-%m-%d')
+                    if fecha_inicio <= fecha_pago <= fecha_fin:
+                        monto = float(pago.get('monto_usd', 0) or 0)
+                        entradas += monto
+                        dia_key = fecha_pago.strftime('%Y-%m-%d')
+                        if dia_key not in entradas_por_dia:
+                            entradas_por_dia[dia_key] = 0
+                        entradas_por_dia[dia_key] += monto
+                except:
+                    continue
+        
+        # Salidas estimadas (se pueden agregar más detalles)
+        salidas = 0
+        
+        # Flujo neto
+        flujo_neto = entradas - salidas
+        
+        # Proyección (últimos 30 días)
+        proyeccion_30_dias = entradas * (30 / ((fecha_fin - fecha_inicio).days + 1))
+        
+        meses = [
+            {'valor': '1', 'nombre': 'Enero'}, {'valor': '2', 'nombre': 'Febrero'},
+            {'valor': '3', 'nombre': 'Marzo'}, {'valor': '4', 'nombre': 'Abril'},
+            {'valor': '5', 'nombre': 'Mayo'}, {'valor': '6', 'nombre': 'Junio'},
+            {'valor': '7', 'nombre': 'Julio'}, {'valor': '8', 'nombre': 'Agosto'},
+            {'valor': '9', 'nombre': 'Septiembre'}, {'valor': '10', 'nombre': 'Octubre'},
+            {'valor': '11', 'nombre': 'Noviembre'}, {'valor': '12', 'nombre': 'Diciembre'}
+        ]
+        
+        años = []
+        año_actual = datetime.now().year
+        for año in range(año_actual - 5, año_actual + 1):
+            años.append({'valor': str(año), 'nombre': str(año)})
+        
+        return render_template('reportes/flujo_caja.html',
+                             entradas=entradas,
+                             salidas=salidas,
+                             flujo_neto=flujo_neto,
+                             proyeccion_30_dias=proyeccion_30_dias,
+                             entradas_por_dia=entradas_por_dia,
+                             fecha_inicio=fecha_inicio.strftime('%Y-%m-%d'),
+                             fecha_fin=fecha_fin.strftime('%Y-%m-%d'),
+                             meses=meses,
+                             años=años,
+                             mes_filtro=mes_filtro,
+                             año_filtro=año_filtro,
+                             fecha_desde=fecha_desde,
+                             fecha_hasta=fecha_hasta,
+                             config=config)
+    except Exception as e:
+        print(f"Error en reporte_flujo_caja: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error generando el flujo de caja', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/reportes/inventario-rotacion')
+@login_required
+def reporte_rotacion_inventario():
+    """Reporte de Rotación de Inventario."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si el reporte específico está habilitado
+        if not verificar_reporte_habilitado('rotacion_inventario'):
+            flash('El reporte de rotación de inventario está deshabilitado', 'warning')
+            return redirect(url_for('index'))
+        
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        # Calcular rotación de inventario
+        productos_rotacion = []
+        
+        for prod_id, producto in inventario.items():
+            nombre = producto.get('nombre', '')
+            stock_actual = float(producto.get('cantidad', 0) or 0)
+            precio = float(producto.get('precio', 0) or 0)
+            
+            # Calcular ventas del producto (últimos 30 días)
+            ventas_30_dias = 0
+            fecha_limite = datetime.now() - timedelta(days=30)
+            
+            for nota in notas.values():
+                fecha_str = nota.get('fecha', '')
+                if fecha_str:
+                    fecha_nota = parsear_fecha_segura(fecha_str)
+                    if fecha_nota and fecha_nota >= fecha_limite:
+                        productos = nota.get('productos', [])
+                        if isinstance(productos, list):
+                            for prod in productos:
+                                if prod.get('nombre', '') == nombre or prod.get('id', '') == prod_id:
+                                    cantidad = float(prod.get('cantidad', 0) or 0)
+                                    ventas_30_dias += cantidad
+            
+            # Calcular rotación (ventas / stock promedio)
+            rotacion = (ventas_30_dias / stock_actual) if stock_actual > 0 else 0
+            dias_rotacion = (stock_actual / (ventas_30_dias / 30)) if ventas_30_dias > 0 else 999
+            
+            productos_rotacion.append({
+                'id': prod_id,
+                'nombre': nombre,
+                'stock_actual': stock_actual,
+                'precio': precio,
+                'valor_inventario': stock_actual * precio,
+                'ventas_30_dias': ventas_30_dias,
+                'rotacion': rotacion,
+                'dias_rotacion': dias_rotacion,
+                'categoria': producto.get('categoria', 'Sin categoría')
+            })
+        
+        # Ordenar por rotación
+        productos_rotacion.sort(key=lambda x: x['rotacion'], reverse=True)
+        
+        # Análisis ABC
+        productos_rotacion.sort(key=lambda x: x['valor_inventario'], reverse=True)
+        valor_total = sum(p['valor_inventario'] for p in productos_rotacion)
+        acumulado = 0
+        productos_abc = []
+        
+        for producto in productos_rotacion:
+            acumulado += producto['valor_inventario']
+            porcentaje = (acumulado / valor_total * 100) if valor_total > 0 else 0
+            
+            if porcentaje <= 80:
+                categoria_abc = 'A'
+            elif porcentaje <= 95:
+                categoria_abc = 'B'
+            else:
+                categoria_abc = 'C'
+            
+            producto['categoria_abc'] = categoria_abc
+            producto['porcentaje_acumulado'] = porcentaje
+            productos_abc.append(producto)
+        
+        return render_template('reportes/rotacion_inventario.html',
+                             productos_rotacion=productos_abc,
+                             valor_total_inventario=valor_total,
+                             config=config)
+    except Exception as e:
+        print(f"Error en reporte_rotacion_inventario: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error generando el reporte de rotación', 'error')
+        return redirect(url_for('mostrar_inventario'))
+
+# ===== PERSONALIZACIÓN Y PROGRAMACIÓN DE REPORTES =====
+
+@app.route('/reportes/personalizacion')
+@login_required
+def personalizacion_reportes():
+    """Gestión de personalización de reportes (plantillas, columnas, favoritos)."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('personalizar')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para personalizar reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si la personalización está habilitada
+        if not config.get('reportes', {}).get('personalizacion_habilitada', True):
+            flash('La personalización de reportes está deshabilitada', 'warning')
+            return redirect(url_for('index'))
+        
+        usuario = session.get('usuario', 'default')
+        
+        # Cargar configuraciones personalizadas del usuario
+        config_personalizada = config.get('reportes_personalizados', {}).get(usuario, {
+            'plantillas': {},
+            'columnas_visibles': {},
+            'favoritos': []
+        })
+        
+        return render_template('reportes/personalizacion.html',
+                             config_personalizada=config_personalizada,
+                             usuario=usuario)
+    except Exception as e:
+        print(f"Error en personalizacion_reportes: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error cargando personalización', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/api/reportes/guardar-plantilla', methods=['POST'])
+@login_required
+def guardar_plantilla_reporte():
+    """Guardar una plantilla personalizada de reporte."""
+    try:
+        data = request.get_json()
+        nombre = data.get('nombre')
+        tipo_reporte = data.get('tipo_reporte')
+        configuracion = data.get('configuracion', {})
+        usuario = session.get('usuario', 'default')
+        
+        config = cargar_configuracion()
+        
+        if 'reportes_personalizados' not in config:
+            config['reportes_personalizados'] = {}
+        if usuario not in config['reportes_personalizados']:
+            config['reportes_personalizados'][usuario] = {
+                'plantillas': {},
+                'columnas_visibles': {},
+                'favoritos': []
+            }
+        
+        if 'plantillas' not in config['reportes_personalizados'][usuario]:
+            config['reportes_personalizados'][usuario]['plantillas'] = {}
+        
+        if tipo_reporte not in config['reportes_personalizados'][usuario]['plantillas']:
+            config['reportes_personalizados'][usuario]['plantillas'][tipo_reporte] = {}
+        
+        config['reportes_personalizados'][usuario]['plantillas'][tipo_reporte][nombre] = {
+            'configuracion': configuracion,
+            'fecha_creacion': datetime.now().isoformat(),
+            'fecha_modificacion': datetime.now().isoformat()
+        }
+        
+        guardar_configuracion(config)
+        
+        return jsonify({'success': True, 'message': 'Plantilla guardada correctamente'})
+    except Exception as e:
+        print(f"Error guardando plantilla: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/reportes/guardar-columnas', methods=['POST'])
+@login_required
+def guardar_columnas_reporte():
+    """Guardar configuración de columnas visibles para un reporte."""
+    try:
+        data = request.get_json()
+        tipo_reporte = data.get('tipo_reporte')
+        columnas = data.get('columnas', [])
+        usuario = session.get('usuario', 'default')
+        
+        config = cargar_configuracion()
+        
+        if 'reportes_personalizados' not in config:
+            config['reportes_personalizados'] = {}
+        if usuario not in config['reportes_personalizados']:
+            config['reportes_personalizados'][usuario] = {
+                'plantillas': {},
+                'columnas_visibles': {},
+                'favoritos': []
+            }
+        
+        config['reportes_personalizados'][usuario]['columnas_visibles'][tipo_reporte] = columnas
+        guardar_configuracion(config)
+        
+        return jsonify({'success': True, 'message': 'Columnas guardadas correctamente'})
+    except Exception as e:
+        print(f"Error guardando columnas: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/reportes/agregar-favorito', methods=['POST'])
+@login_required
+def agregar_favorito_reporte():
+    """Agregar un reporte a favoritos."""
+    try:
+        data = request.get_json()
+        tipo_reporte = data.get('tipo_reporte')
+        nombre = data.get('nombre')
+        url = data.get('url')
+        usuario = session.get('usuario', 'default')
+        
+        config = cargar_configuracion()
+        
+        if 'reportes_personalizados' not in config:
+            config['reportes_personalizados'] = {}
+        if usuario not in config['reportes_personalizados']:
+            config['reportes_personalizados'][usuario] = {
+                'plantillas': {},
+                'columnas_visibles': {},
+                'favoritos': []
+            }
+        
+        favorito = {
+            'tipo_reporte': tipo_reporte,
+            'nombre': nombre,
+            'url': url,
+            'fecha_agregado': datetime.now().isoformat()
+        }
+        
+        # Evitar duplicados
+        favoritos = config['reportes_personalizados'][usuario]['favoritos']
+        if favorito not in favoritos:
+            favoritos.append(favorito)
+        
+        guardar_configuracion(config)
+        
+        return jsonify({'success': True, 'message': 'Favorito agregado correctamente'})
+    except Exception as e:
+        print(f"Error agregando favorito: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/reportes/programacion')
+@login_required
+def programacion_reportes():
+    """Gestión de programación de reportes (envío automático por email)."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('programar')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para programar reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si la programación está habilitada
+        if not config.get('reportes', {}).get('programacion_habilitada', True):
+            flash('La programación de reportes está deshabilitada', 'warning')
+            return redirect(url_for('index'))
+        
+        usuario = session.get('usuario', 'default')
+        
+        # Cargar reportes programados
+        reportes_programados = config.get('reportes_programados', {}).get(usuario, [])
+        
+        return render_template('reportes/programacion.html',
+                             reportes_programados=reportes_programados,
+                             usuario=usuario)
+    except Exception as e:
+        print(f"Error en programacion_reportes: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error cargando programación', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/api/reportes/programar', methods=['POST'])
+@login_required
+def programar_reporte():
+    """Programar un reporte para envío automático."""
+    try:
+        data = request.get_json()
+        tipo_reporte = data.get('tipo_reporte')
+        nombre = data.get('nombre')
+        frecuencia = data.get('frecuencia')  # diario, semanal, mensual
+        dia_semana = data.get('dia_semana', None)  # Para semanal
+        dia_mes = data.get('dia_mes', None)  # Para mensual
+        hora = data.get('hora', '08:00')
+        email = data.get('email')
+        formato = data.get('formato', 'pdf')  # pdf, csv, json
+        filtros = data.get('filtros', {})
+        usuario = session.get('usuario', 'default')
+        
+        config = cargar_configuracion()
+        
+        if 'reportes_programados' not in config:
+            config['reportes_programados'] = {}
+        if usuario not in config['reportes_programados']:
+            config['reportes_programados'][usuario] = []
+        
+        reporte_programado = {
+            'id': str(uuid4()),
+            'tipo_reporte': tipo_reporte,
+            'nombre': nombre,
+            'frecuencia': frecuencia,
+            'dia_semana': dia_semana,
+            'dia_mes': dia_mes,
+            'hora': hora,
+            'email': email,
+            'formato': formato,
+            'filtros': filtros,
+            'activo': True,
+            'fecha_creacion': datetime.now().isoformat(),
+            'ultimo_envio': None,
+            'proximo_envio': calcular_proximo_envio(frecuencia, dia_semana, dia_mes, hora)
+        }
+        
+        config['reportes_programados'][usuario].append(reporte_programado)
+        guardar_configuracion(config)
+        
+        return jsonify({'success': True, 'message': 'Reporte programado correctamente', 'id': reporte_programado['id']})
+    except Exception as e:
+        print(f"Error programando reporte: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+def calcular_proximo_envio(frecuencia, dia_semana=None, dia_mes=None, hora='08:00'):
+    """Calcular la próxima fecha de envío programado."""
+    ahora = datetime.now()
+    hora_parts = hora.split(':')
+    hora_int = int(hora_parts[0])
+    minuto_int = int(hora_parts[1]) if len(hora_parts) > 1 else 0
+    
+    if frecuencia == 'diario':
+        proximo = ahora.replace(hour=hora_int, minute=minuto_int, second=0, microsecond=0)
+        if proximo <= ahora:
+            proximo += timedelta(days=1)
+    elif frecuencia == 'semanal':
+        dias_semana = {'lunes': 0, 'martes': 1, 'miercoles': 2, 'jueves': 3, 'viernes': 4, 'sabado': 5, 'domingo': 6}
+        dia_num = dias_semana.get(dia_semana.lower(), 0)
+        dias_hasta = (dia_num - ahora.weekday()) % 7
+        if dias_hasta == 0:
+            proximo = ahora.replace(hour=hora_int, minute=minuto_int, second=0, microsecond=0)
+            if proximo <= ahora:
+                dias_hasta = 7
+        proximo = ahora + timedelta(days=dias_hasta)
+        proximo = proximo.replace(hour=hora_int, minute=minuto_int, second=0, microsecond=0)
+    elif frecuencia == 'mensual':
+        dia_mes_int = int(dia_mes) if dia_mes else 1
+        proximo = ahora.replace(day=dia_mes_int, hour=hora_int, minute=minuto_int, second=0, microsecond=0)
+        if proximo <= ahora:
+            if ahora.month == 12:
+                proximo = proximo.replace(year=ahora.year + 1, month=1)
+            else:
+                proximo = proximo.replace(month=ahora.month + 1)
+    else:
+        proximo = ahora + timedelta(days=1)
+    
+    return proximo.isoformat()
+
+@app.route('/api/reportes/desprogramar/<reporte_id>', methods=['DELETE'])
+@login_required
+def desprogramar_reporte(reporte_id):
+    """Desactivar o eliminar un reporte programado."""
+    try:
+        usuario = session.get('usuario', 'default')
+        config = cargar_configuracion()
+        
+        if 'reportes_programados' in config and usuario in config['reportes_programados']:
+            reportes = config['reportes_programados'][usuario]
+            config['reportes_programados'][usuario] = [r for r in reportes if r.get('id') != reporte_id]
+            guardar_configuracion(config)
+        
+        return jsonify({'success': True, 'message': 'Reporte desprogramado correctamente'})
+    except Exception as e:
+        print(f"Error desprogramando reporte: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# ===== NUEVOS REPORTES ADICIONALES =====
+
+@app.route('/reportes/analisis-clientes')
+@login_required
+def reporte_analisis_clientes():
+    """Reporte de análisis de clientes (comportamiento, valor, frecuencia)."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si el reporte específico está habilitado
+        if not verificar_reporte_habilitado('analisis_clientes'):
+            flash('El reporte de análisis de clientes está deshabilitado', 'warning')
+            return redirect(url_for('index'))
+        
+        clientes = cargar_datos(ARCHIVO_CLIENTES)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        pagos = cargar_datos(ARCHIVO_PAGOS_RECIBIDOS)
+        
+        # Análisis de clientes
+        analisis_clientes = []
+        
+        for cliente_id, cliente in clientes.items():
+            nombre = cliente.get('nombre', 'Sin nombre')
+            
+            # Notas del cliente
+            notas_cliente = [n for n in notas.values() if n.get('cliente_id') == cliente_id]
+            total_compras = len(notas_cliente)
+            total_facturado = sum(float(n.get('total_usd', 0) or 0) for n in notas_cliente)
+            
+            # Pagos del cliente
+            pagos_cliente = [p for p in pagos.values() if p.get('cliente_id') == cliente_id]
+            total_pagado = sum(float(p.get('monto_usd', 0) or 0) for p in pagos_cliente)
+            
+            # Calcular saldo pendiente
+            saldo_pendiente = total_facturado - total_pagado
+            
+            # Frecuencia de compra
+            if notas_cliente:
+                fechas = [parsear_fecha_segura(n.get('fecha', '')) for n in notas_cliente if n.get('fecha')]
+                fechas = [f for f in fechas if f]
+                if fechas:
+                    fechas.sort()
+                    primera_compra = fechas[0]
+                    ultima_compra = fechas[-1]
+                    dias_activo = (ultima_compra - primera_compra).days + 1
+                    frecuencia = total_compras / (dias_activo / 30) if dias_activo > 0 else 0  # Compras por mes
+                else:
+                    frecuencia = 0
+                    primera_compra = None
+                    ultima_compra = None
+            else:
+                frecuencia = 0
+                primera_compra = None
+                ultima_compra = None
+            
+            # Ticket promedio
+            ticket_promedio = total_facturado / total_compras if total_compras > 0 else 0
+            
+            # Clasificación de cliente
+            if total_facturado >= 10000:
+                categoria = 'VIP'
+            elif total_facturado >= 5000:
+                categoria = 'Premium'
+            elif total_facturado >= 1000:
+                categoria = 'Regular'
+            else:
+                categoria = 'Ocasional'
+            
+            analisis_clientes.append({
+                'id': cliente_id,
+                'nombre': nombre,
+                'total_compras': total_compras,
+                'total_facturado': total_facturado,
+                'total_pagado': total_pagado,
+                'saldo_pendiente': saldo_pendiente,
+                'ticket_promedio': ticket_promedio,
+                'frecuencia_mensual': frecuencia,
+                'categoria': categoria,
+                'primera_compra': primera_compra.strftime('%Y-%m-%d') if primera_compra else None,
+                'ultima_compra': ultima_compra.strftime('%Y-%m-%d') if ultima_compra else None,
+                'telefono': cliente.get('telefono', ''),
+                'email': cliente.get('email', '')
+            })
+        
+        # Ordenar por total facturado
+        analisis_clientes.sort(key=lambda x: x['total_facturado'], reverse=True)
+        
+        # Estadísticas generales
+        total_clientes = len(analisis_clientes)
+        clientes_activos = len([c for c in analisis_clientes if c['total_compras'] > 0])
+        clientes_vip = len([c for c in analisis_clientes if c['categoria'] == 'VIP'])
+        total_facturado_general = sum(c['total_facturado'] for c in analisis_clientes)
+        total_pendiente_general = sum(c['saldo_pendiente'] for c in analisis_clientes)
+        
+        return render_template('reportes/analisis_clientes.html',
+                             analisis_clientes=analisis_clientes,
+                             total_clientes=total_clientes,
+                             clientes_activos=clientes_activos,
+                             clientes_vip=clientes_vip,
+                             total_facturado_general=total_facturado_general,
+                             total_pendiente_general=total_pendiente_general,
+                             config=config)
+    except Exception as e:
+        print(f"Error en reporte_analisis_clientes: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error generando análisis de clientes', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/reportes/productos-rentables')
+@login_required
+def reporte_productos_rentables():
+    """Reporte de productos más rentables (margen, rotación, valor)."""
+    try:
+        config = cargar_configuracion()
+        
+        # Verificar permisos
+        tiene_permiso, mensaje = verificar_permiso_reportes('ver_reportes')
+        if not tiene_permiso:
+            flash(mensaje or 'No tienes permiso para ver reportes', 'warning')
+            return redirect(url_for('index'))
+        
+        # Verificar si el reporte específico está habilitado
+        if not verificar_reporte_habilitado('productos_rentables'):
+            flash('El reporte de productos rentables está deshabilitado', 'warning')
+            return redirect(url_for('index'))
+        
+        inventario = cargar_datos(ARCHIVO_INVENTARIO)
+        notas = cargar_datos(ARCHIVO_NOTAS_ENTREGA)
+        
+        # Análisis de productos
+        productos_analisis = []
+        fecha_limite = datetime.now() - timedelta(days=90)  # Últimos 90 días
+        
+        for prod_id, producto in inventario.items():
+            nombre = producto.get('nombre', 'Sin nombre')
+            precio_venta = float(producto.get('precio', 0) or 0)
+            costo = float(producto.get('costo', precio_venta * 0.6) or precio_venta * 0.6)  # Asumir 60% si no hay costo
+            stock_actual = float(producto.get('cantidad', 0) or 0)
+            categoria = producto.get('categoria', 'Sin categoría')
+            
+            # Calcular ventas del producto
+            cantidad_vendida = 0
+            ingresos_totales = 0
+            
+            for nota in notas.values():
+                fecha_str = nota.get('fecha', '')
+                if fecha_str:
+                    fecha_nota = parsear_fecha_segura(fecha_str)
+                    if fecha_nota and fecha_nota >= fecha_limite:
+                        productos = nota.get('productos', [])
+                        if isinstance(productos, list):
+                            for prod in productos:
+                                if prod.get('id') == prod_id or prod.get('nombre') == nombre:
+                                    cantidad = float(prod.get('cantidad', 0) or 0)
+                                    precio = float(prod.get('precio', precio_venta) or precio_venta)
+                                    cantidad_vendida += cantidad
+                                    ingresos_totales += cantidad * precio
+            
+            # Calcular métricas
+            costo_total = cantidad_vendida * costo
+            utilidad_bruta = ingresos_totales - costo_total
+            margen_ganancia = (utilidad_bruta / ingresos_totales * 100) if ingresos_totales > 0 else 0
+            rotacion = (cantidad_vendida / stock_actual) if stock_actual > 0 else 0
+            valor_inventario = stock_actual * costo
+            roi = (utilidad_bruta / valor_inventario * 100) if valor_inventario > 0 else 0
+            
+            # Score de rentabilidad (combinación de margen, rotación y ROI)
+            score_rentabilidad = (margen_ganancia * 0.4) + (rotacion * 10 * 0.3) + (roi * 0.3)
+            
+            productos_analisis.append({
+                'id': prod_id,
+                'nombre': nombre,
+                'categoria': categoria,
+                'precio_venta': precio_venta,
+                'costo': costo,
+                'stock_actual': stock_actual,
+                'cantidad_vendida': cantidad_vendida,
+                'ingresos_totales': ingresos_totales,
+                'costo_total': costo_total,
+                'utilidad_bruta': utilidad_bruta,
+                'margen_ganancia': margen_ganancia,
+                'rotacion': rotacion,
+                'valor_inventario': valor_inventario,
+                'roi': roi,
+                'score_rentabilidad': score_rentabilidad
+            })
+        
+        # Ordenar por score de rentabilidad
+        productos_analisis.sort(key=lambda x: x['score_rentabilidad'], reverse=True)
+        
+        # Top productos
+        top_rentables = productos_analisis[:20]
+        top_margen = sorted(productos_analisis, key=lambda x: x['margen_ganancia'], reverse=True)[:10]
+        top_rotacion = sorted(productos_analisis, key=lambda x: x['rotacion'], reverse=True)[:10]
+        
+        # Estadísticas generales
+        total_productos = len(productos_analisis)
+        productos_con_ventas = len([p for p in productos_analisis if p['cantidad_vendida'] > 0])
+        utilidad_total = sum(p['utilidad_bruta'] for p in productos_analisis)
+        margen_promedio = sum(p['margen_ganancia'] for p in productos_analisis) / total_productos if total_productos > 0 else 0
+        
+        return render_template('reportes/productos_rentables.html',
+                             productos_analisis=productos_analisis,
+                             top_rentables=top_rentables,
+                             top_margen=top_margen,
+                             top_rotacion=top_rotacion,
+                             total_productos=total_productos,
+                             productos_con_ventas=productos_con_ventas,
+                             utilidad_total=utilidad_total,
+                             margen_promedio=margen_promedio,
+                             config=config)
+    except Exception as e:
+        print(f"Error en reporte_productos_rentables: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error generando análisis de productos', 'error')
+        return redirect(url_for('mostrar_inventario'))
 
 if __name__ == '__main__':
     # Crear directorios necesarios

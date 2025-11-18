@@ -391,7 +391,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Método de Pago <span class="required">*</span></label>
-                        <select name="metodo_pago" class="neo-input" required>
+                        <select name="metodo_pago" id="metodo_pago" class="neo-input" required>
                             <option value="">Seleccionar método...</option>
                             {% if metodos_pago and metodos_pago is iterable and metodos_pago is not string %}
                             {% for metodo in metodos_pago %}
@@ -406,16 +406,16 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Número de Referencia</label>
-                        <input type="text" name="numero_referencia" class="neo-input" placeholder="Número de referencia bancaria">
-                        <div class="form-text">Número de referencia, transferencia o comprobante</div>
+                    <!-- Campos dinámicos según método de pago -->
+                    <div id="campos_pago_dinamicos">
+                        <!-- Los campos se cargarán dinámicamente aquí -->
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Banco</label>
-                        <input type="text" name="banco" class="neo-input" placeholder="Nombre del banco">
-                        <div class="form-text">Solo para transferencias bancarias</div>
+                    <!-- Campo de referencia (visible según método) -->
+                    <div class="mb-3" id="campo_referencia" style="display: none;">
+                        <label class="form-label">Número de Referencia</label>
+                        <input type="text" name="numero_referencia" class="neo-input" placeholder="Número de referencia, comprobante, etc.">
+                        <div class="form-text">Número de referencia o comprobante del pago</div>
                     </div>
                 </div>
             </div>
@@ -511,6 +511,315 @@
 
 <script>
     const tasaBCV = {{ tasa_bcv }};
+    
+    // Mapeo de métodos de pago a sus campos requeridos
+    const camposPorMetodo = {
+        'Efectivo': {
+            tipo: 'efectivo',
+            campos: []
+        },
+        'Transferencia': {
+            tipo: 'normal',
+            campos: [
+                { nombre: 'banco', label: 'Banco', placeholder: 'Nombre del banco', requerido: true },
+                { nombre: 'numero_cuenta', label: 'Número de Cuenta (Opcional)', placeholder: 'Número de cuenta', requerido: false }
+            ]
+        },
+        'Pago Móvil': {
+            tipo: 'normal',
+            campos: [
+                { nombre: 'banco_pago_movil', label: 'Banco', placeholder: 'Banco del Pago Móvil', requerido: true },
+                { nombre: 'telefono_pago_movil', label: 'Teléfono', placeholder: 'Teléfono registrado', requerido: true }
+            ]
+        },
+        'Zelle': {
+            tipo: 'normal',
+            campos: [
+                { nombre: 'email_zelle', label: 'Email Zelle', placeholder: 'correo@ejemplo.com', tipo: 'email', requerido: true }
+            ]
+        },
+        'PayPal': {
+            tipo: 'normal',
+            campos: [
+                { nombre: 'email_paypal', label: 'Email PayPal', placeholder: 'correo@ejemplo.com', tipo: 'email', requerido: true }
+            ]
+        },
+        'Binance': {
+            tipo: 'normal',
+            campos: [
+                { nombre: 'email_binance', label: 'Email Binance', placeholder: 'correo@ejemplo.com', tipo: 'email', requerido: true }
+            ]
+        }
+    };
+
+    // Denominaciones para efectivo
+    const denominacionesUSD = [100, 50, 20, 10, 5, 1];
+    const denominacionesBS = [500, 200, 100, 50, 20, 10, 5];
+    
+    // Configuración de efectivo desde el servidor
+    const aceptarEfectivoUSD = {{ 'true' if aceptar_efectivo_usd else 'false' }};
+    const aceptarEfectivoBS = {{ 'true' if aceptar_efectivo_bs else 'false' }};
+
+    // Función para calcular total de denominaciones
+    function calcularTotalDenominaciones(tipoMoneda) {
+        const denominaciones = tipoMoneda === 'USD' ? denominacionesUSD : denominacionesBS;
+        let total = 0;
+        
+        denominaciones.forEach(denominacion => {
+            const cantidad = parseInt(document.getElementById(`denom_${tipoMoneda}_${denominacion}`)?.value || 0);
+            total += cantidad * denominacion;
+        });
+        
+        return total;
+    }
+
+    // Función para actualizar total de efectivo
+    function actualizarTotalEfectivo(tipoMoneda) {
+        const total = calcularTotalDenominaciones(tipoMoneda);
+        const totalInput = document.getElementById(`total_efectivo_${tipoMoneda}`);
+        if (totalInput) {
+            totalInput.textContent = total.toFixed(2);
+            // Actualizar el monto correspondiente en el formulario
+            if (tipoMoneda === 'USD') {
+                document.getElementById('monto_usd').value = total.toFixed(2);
+                calcularConversion();
+            } else {
+                document.getElementById('monto_bs').value = total.toFixed(2);
+                calcularConversion();
+            }
+        }
+    }
+
+    // Función para crear calculadora de denominaciones
+    function crearCalculadoraDenominaciones(tipoMoneda) {
+        const denominaciones = tipoMoneda === 'USD' ? denominacionesUSD : denominacionesBS;
+        const simbolo = tipoMoneda === 'USD' ? '$' : 'Bs';
+        
+        let html = `
+            <div class="mb-3">
+                <label class="form-label"><strong>Efectivo en ${tipoMoneda} - Denominaciones</strong></label>
+                <div class="row g-2">
+        `;
+        
+        denominaciones.forEach(denominacion => {
+            html += `
+                <div class="col-md-6 mb-2">
+                    <div class="input-group">
+                        <span class="input-group-text">${simbolo} ${denominacion}</span>
+                        <input type="number" 
+                               id="denom_${tipoMoneda}_${denominacion}" 
+                               class="form-control denominacion-input" 
+                               min="0" 
+                               value="0"
+                               data-tipo="${tipoMoneda}"
+                               data-denominacion="${denominacion}">
+                        <span class="input-group-text">= ${simbolo} <span id="subtotal_${tipoMoneda}_${denominacion}">0.00</span></span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+                <div class="mt-2">
+                    <strong>Total ${tipoMoneda}: ${simbolo} <span id="total_efectivo_${tipoMoneda}">0.00</span></strong>
+                    <input type="hidden" id="total_efectivo_${tipoMoneda}_hidden" name="total_efectivo_${tipoMoneda.toLowerCase()}" value="0">
+                </div>
+            </div>
+        `;
+        
+        return html;
+    }
+
+    // Función para actualizar campos dinámicos según método de pago
+    function actualizarCamposPago() {
+        const metodoSeleccionado = document.getElementById('metodo_pago').value;
+        const contenedor = document.getElementById('campos_pago_dinamicos');
+        
+        // Limpiar campos anteriores
+        contenedor.innerHTML = '';
+        
+        // Obtener configuración del método
+        const configMetodo = camposPorMetodo[metodoSeleccionado];
+        
+        if (!configMetodo) {
+            return; // Método no encontrado
+        }
+        
+        // Mostrar/ocultar campo de referencia según método
+        const campoReferencia = document.getElementById('campo_referencia');
+        if (campoReferencia) {
+            // Referencia visible para todos excepto efectivo
+            campoReferencia.style.display = configMetodo.tipo === 'efectivo' ? 'none' : 'block';
+        }
+        
+        // Si es efectivo, mostrar calculadora de denominaciones
+        if (configMetodo.tipo === 'efectivo') {
+            let htmlEfectivo = `
+                <div class="mb-3">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Seleccione el tipo de efectivo y ingrese la cantidad de billetes por denominación
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>Seleccionar Tipo de Efectivo:</strong></label>
+                    <div class="row">
+            `;
+            
+            // Checkbox para USD
+            if (aceptarEfectivoUSD) {
+                htmlEfectivo += `
+                    <div class="col-md-6 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="efectivo_usd_check" checked>
+                            <label class="form-check-label" for="efectivo_usd_check">
+                                💵 Efectivo en Dólares (USD)
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Checkbox para Bs
+            if (aceptarEfectivoBS) {
+                htmlEfectivo += `
+                    <div class="col-md-6 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="efectivo_bs_check" checked>
+                            <label class="form-check-label" for="efectivo_bs_check">
+                                💵 Efectivo en Bolívares (Bs)
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            htmlEfectivo += `
+                    </div>
+                </div>
+                <div id="calculadoras_efectivo">
+            `;
+            
+            // Mostrar calculadoras según configuración
+            if (aceptarEfectivoUSD) {
+                htmlEfectivo += `<div id="calculadora_usd">${crearCalculadoraDenominaciones('USD')}</div>`;
+            }
+            if (aceptarEfectivoBS) {
+                htmlEfectivo += `<div id="calculadora_bs">${crearCalculadoraDenominaciones('BS')}</div>`;
+            }
+            
+            htmlEfectivo += `</div>`;
+            
+            contenedor.innerHTML = htmlEfectivo;
+            
+            // Agregar event listeners a los checkboxes
+            if (aceptarEfectivoUSD) {
+                document.getElementById('efectivo_usd_check').addEventListener('change', function() {
+                    const calculadora = document.getElementById('calculadora_usd');
+                    if (calculadora) {
+                        calculadora.style.display = this.checked ? 'block' : 'none';
+                        if (!this.checked) {
+                            // Limpiar valores de USD
+                            denominacionesUSD.forEach(denom => {
+                                const input = document.getElementById(`denom_USD_${denom}`);
+                                if (input) input.value = 0;
+                                const subtotal = document.getElementById(`subtotal_USD_${denom}`);
+                                if (subtotal) subtotal.textContent = '0.00';
+                            });
+                            document.getElementById('total_efectivo_USD').textContent = '0.00';
+                            document.getElementById('monto_usd').value = '0.00';
+                            calcularConversion();
+                        }
+                    }
+                });
+            }
+            
+            if (aceptarEfectivoBS) {
+                document.getElementById('efectivo_bs_check').addEventListener('change', function() {
+                    const calculadora = document.getElementById('calculadora_bs');
+                    if (calculadora) {
+                        calculadora.style.display = this.checked ? 'block' : 'none';
+                        if (!this.checked) {
+                            // Limpiar valores de Bs
+                            denominacionesBS.forEach(denom => {
+                                const input = document.getElementById(`denom_BS_${denom}`);
+                                if (input) input.value = 0;
+                                const subtotal = document.getElementById(`subtotal_BS_${denom}`);
+                                if (subtotal) subtotal.textContent = '0.00';
+                            });
+                            document.getElementById('total_efectivo_BS').textContent = '0.00';
+                            document.getElementById('monto_bs').value = '0.00';
+                            calcularConversion();
+                        }
+                    }
+                });
+            }
+            
+            // Agregar event listeners a los inputs de denominaciones
+            setTimeout(() => {
+                document.querySelectorAll('.denominacion-input').forEach(input => {
+                    input.addEventListener('input', function() {
+                        const tipo = this.dataset.tipo;
+                        const denominacion = parseFloat(this.dataset.denominacion);
+                        const cantidad = parseInt(this.value || 0);
+                        const subtotal = cantidad * denominacion;
+                        
+                        // Actualizar subtotal
+                        document.getElementById(`subtotal_${tipo}_${denominacion}`).textContent = subtotal.toFixed(2);
+                        
+                        // Actualizar total
+                        actualizarTotalEfectivo(tipo);
+                    });
+                });
+            }, 100);
+            
+            return;
+        }
+        
+        // Para otros métodos, mostrar campos normales
+        const campos = configMetodo.campos || [];
+        
+        if (campos.length === 0) {
+            return; // No hay campos adicionales para este método
+        }
+        
+        // Crear campos dinámicamente
+        campos.forEach(campo => {
+            const div = document.createElement('div');
+            div.className = 'mb-3 campo-pago-dinamico';
+            
+            let inputHTML = '';
+            
+            if (campo.tipo === 'select') {
+                inputHTML = `
+                    <label class="form-label">${campo.label} ${campo.requerido ? '<span class="required">*</span>' : ''}</label>
+                    <select name="${campo.nombre}" class="neo-input" ${campo.requerido ? 'required' : ''}>
+                        <option value="">Seleccionar...</option>
+                        ${campo.opciones.map(op => `<option value="${op}">${op}</option>`).join('')}
+                    </select>
+                `;
+            } else {
+                const tipoInput = campo.tipo || 'text';
+                inputHTML = `
+                    <label class="form-label">${campo.label} ${campo.requerido ? '<span class="required">*</span>' : ''}</label>
+                    <input type="${tipoInput}" name="${campo.nombre}" class="neo-input" 
+                           placeholder="${campo.placeholder}" 
+                           ${campo.requerido ? 'required' : ''}>
+                `;
+            }
+            
+            div.innerHTML = inputHTML;
+            contenedor.appendChild(div);
+        });
+    }
+
+    // Event listener para el cambio de método de pago
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectMetodo = document.getElementById('metodo_pago');
+        if (selectMetodo) {
+            selectMetodo.addEventListener('change', actualizarCamposPago);
+        }
+    });
     
     // Función para calcular conversión automática
     function calcularConversion() {

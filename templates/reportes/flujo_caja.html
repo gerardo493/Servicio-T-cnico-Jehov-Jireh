@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Flujo de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h2 class="mb-1">
+                    <i class="fas fa-money-bill-wave me-2"></i>
+                    Flujo de Caja
+                </h2>
+                <p class="text-muted mb-0">Entradas y salidas de efectivo</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Mes</label>
+                        <select name="mes" class="form-select">
+                            <option value="">Todos</option>
+                            {% for mes in meses %}
+                            <option value="{{ mes.valor }}" {% if mes_filtro == mes.valor %}selected{% endif %}>
+                                {{ mes.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Año</label>
+                        <select name="año" class="form-select">
+                            {% for año in años %}
+                            <option value="{{ año.valor }}" {% if año_filtro == año.valor %}selected{% endif %}>
+                                {{ año.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(entradas) }}</h3>
+                        <p class="stat-label">Entradas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-arrow-up"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(salidas) }}</h3>
+                        <p class="stat-label">Salidas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(flujo_neto) }}</h3>
+                        <p class="stat-label">Flujo Neto</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proyección -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5 class="mb-3">Proyección</h5>
+                <p><strong>Proyección 30 días:</strong> ${{ "%.2f"|format(proyeccion_30_dias) }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico -->
+    <div class="row">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5 class="mb-3">Entradas por Día</h5>
+                <canvas id="graficoFlujo" height="60"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+const ctx = document.getElementById('graficoFlujo');
+if (ctx) {
+    const datos = {{ entradas_por_dia|tojson }};
+    const dias = Object.keys(datos).sort();
+    const valores = dias.map(d => datos[d]);
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dias,
+            datasets: [{
+                label: 'Entradas USD',
+                data: valores,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}
+

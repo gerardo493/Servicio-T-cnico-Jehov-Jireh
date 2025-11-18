@@ -1,0 +1,105 @@
+{
+    "OS-20251118005542": {
+        "id": "OS-20251118005542",
+        "numero_orden": "OS-20251118005542",
+        "fecha_recepcion": "2025-11-18",
+        "fecha_entrega_estimada": "2025-11-25",
+        "estado": "en_espera_revision",
+        "es_borrador": false,
+        "prioridad": "media",
+        "tipo_servicio": "revision",
+        "tecnico_asignado": "tecnico1",
+        "costo_estimado": 0.0,
+        "cliente_id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+        "cliente": {
+            "id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+            "nombre": "angel jaimes",
+            "cedula_rif": "V-26369968",
+            "telefono": "4121447869",
+            "telefono2": "02432838262",
+            "telefono_fijo": "",
+            "email": "angelrobertojaimes50@gmail.com",
+            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
+        },
+        "equipo": {
+            "marca": "Xiaomi",
+            "modelo": "14",
+            "imei": "511111111111111",
+            "imei2": "555555555555555",
+            "color": "Negro",
+            "ano": "",
+            "numero_serie": "445454448888888",
+            "tipo": "telefono"
+        },
+        "problema_reportado": "4454",
+        "categoria_problema": "software",
+        "tipo_problema": "se_apaga",
+        "accesorios_entregados": {
+            "cargador": true,
+            "audifonos": false,
+            "caja": false,
+            "cable": false,
+            "tarjeta_memoria": false,
+            "capacidad_memoria": "",
+            "marca_memoria": "",
+            "tipo_memoria": "",
+            "sim_card": false,
+            "tipo_sim": "",
+            "operadora_sim1": "",
+            "operadora_sim1_doble": "",
+            "operadora_sim2": "",
+            "numero_sim1": "",
+            "numero_sim1_doble": "",
+            "numero_sim2": "",
+            "otros": ""
+        },
+        "condicion_fisica": {
+            "rayones": true,
+            "golpes": false,
+            "pantalla": false,
+            "carcasa": false,
+            "botones": false,
+            "conectores": false,
+            "bateria": false,
+            "audio": false,
+            "agua": false,
+            "sobrecalentamiento": false,
+            "carcasa_suelta": false,
+            "pantalla_parpadea": false,
+            "equipo_enciende": true,
+            "restauracion_fabrica": false,
+            "observaciones": ""
+        },
+        "diagnostico": {
+            "problema_identificado": "",
+            "solucion_aplicada": "",
+            "piezas_usadas": [],
+            "comentarios_tecnicos": "5454",
+            "costo_mano_obra": 0.0,
+            "costo_piezas": 0.0,
+            "total_estimado": 0.0
+        },
+        "historial_estados": [
+            {
+                "estado": "en_espera_revision",
+                "fecha": "2025-11-18 00:55:42",
+                "usuario": "administradorp1",
+                "comentarios": "Orden de servicio creada"
+            }
+        ],
+        "notificaciones_enviadas": [],
+        "cliente_notificado": false,
+        "whatsapp_enviado": false,
+        "atendido_por": "ANTONIO",
+        "desbloqueo": {
+            "tipo": "patron",
+            "estado": "activo",
+            "clave": "00-01-02-12-11-20-21-22",
+            "notas": ""
+        },
+        "fecha_creacion": "2025-11-18 00:55:42",
+        "fecha_actualizacion": "2025-11-18 00:55:42",
+        "nota_entrega_generada": "",
+        "urgente": false
+    }
+}

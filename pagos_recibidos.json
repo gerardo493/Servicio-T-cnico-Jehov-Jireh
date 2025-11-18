@@ -1,1 +1,26 @@
-{}
+{
+    "df5d5ac5-936f-4a39-aee3-f1e70d27c3e6": {
+        "id": "df5d5ac5-936f-4a39-aee3-f1e70d27c3e6",
+        "cliente": "ANGEL JAIMES",
+        "monto_usd": 70.0,
+        "monto_bs": 16578.8,
+        "metodo_pago": "Binance",
+        "numero_referencia": "556",
+        "banco": "",
+        "banco_pago_movil": "",
+        "telefono_pago_movil": "",
+        "cedula_pago_movil": "",
+        "email_zelle": "",
+        "email_paypal": "",
+        "email_binance": "gerardojaime72@gmail.com",
+        "numero_cuenta": "",
+        "tipo_cuenta": "",
+        "observaciones": "",
+        "numero_nota": "NE-0001",
+        "fecha": "2025-11-18",
+        "hora": "01:11:31",
+        "tasa_bcv": 236.84,
+        "usuario": "Sistema",
+        "comprobante_adjunto": null
+    }
+}

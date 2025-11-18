@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Análisis de Clientes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h2 class="mb-1">
+                    <i class="fas fa-users me-2"></i>
+                    Análisis de Clientes
+                </h2>
+                <p class="text-muted mb-0">Comportamiento, valor y frecuencia de compra</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>{{ total_clientes }}</h3>
+                <p class="text-muted mb-0">Total Clientes</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>{{ clientes_activos }}</h3>
+                <p class="text-muted mb-0">Clientes Activos</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>{{ clientes_vip }}</h3>
+                <p class="text-muted mb-0">Clientes VIP</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <h3>${{ "%.2f"|format(total_facturado_general) }}</h3>
+                <p class="text-muted mb-0">Total Facturado</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Análisis -->
+    <div class="row">
+        <div class="col-12">
+            <div class="neo-card">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Categoría</th>
+                                <th>Total Compras</th>
+                                <th>Total Facturado</th>
+                                <th>Total Pagado</th>
+                                <th>Saldo Pendiente</th>
+                                <th>Ticket Promedio</th>
+                                <th>Frecuencia/Mes</th>
+                                <th>Primera Compra</th>
+                                <th>Última Compra</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cliente in analisis_clientes %}
+                            <tr>
+                                <td>
+                                    <strong>{{ cliente.nombre }}</strong>
+                                    {% if cliente.telefono %}
+                                    <br><small class="text-muted">{{ cliente.telefono }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if cliente.categoria == 'VIP' %}bg-danger{% elif cliente.categoria == 'Premium' %}bg-warning{% elif cliente.categoria == 'Regular' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ cliente.categoria }}
+                                    </span>
+                                </td>
+                                <td>{{ cliente.total_compras }}</td>
+                                <td><strong class="text-success">${{ "%.2f"|format(cliente.total_facturado) }}</strong></td>
+                                <td>${{ "%.2f"|format(cliente.total_pagado) }}</td>
+                                <td>
+                                    {% if cliente.saldo_pendiente > 0 %}
+                                    <strong class="text-danger">${{ "%.2f"|format(cliente.saldo_pendiente) }}</strong>
+                                    {% else %}
+                                    <span class="text-success">$0.00</span>
+                                    {% endif %}
+                                </td>
+                                <td>${{ "%.2f"|format(cliente.ticket_promedio) }}</td>
+                                <td>{{ "%.2f"|format(cliente.frecuencia_mensual) }}</td>
+                                <td>{{ cliente.primera_compra or 'N/A' }}</td>
+                                <td>{{ cliente.ultima_compra or 'N/A' }}</td>
+                                <td>
+                                    <a href="/clientes/{{ cliente.id }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

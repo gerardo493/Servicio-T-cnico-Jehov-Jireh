@@ -271,6 +271,7 @@
                 <div class="config-tab" onclick="mostrarTab('visual')"><i class="fas fa-palette"></i> Visual</div>
                 <div class="config-tab" onclick="mostrarTab('inventario')"><i class="fas fa-boxes"></i> Inventario</div>
                 <div class="config-tab" onclick="mostrarTab('proveedores')"><i class="fas fa-truck"></i> Proveedores</div>
+                <div class="config-tab" onclick="mostrarTab('dashboard')"><i class="fas fa-chart-line"></i> Dashboard</div>
                 <div class="config-tab" onclick="mostrarTab('calendario')"><i class="fas fa-calendar"></i> Calendario</div>
                 <div class="config-tab" onclick="mostrarTab('contadores')"><i class="fas fa-hashtag"></i> Contadores</div>
                 <div class="config-tab" onclick="mostrarTab('reportes')"><i class="fas fa-chart-bar"></i> Reportes</div>
@@ -848,6 +849,9 @@
                     <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
                         <i class="fas fa-info-circle"></i> 
                         <strong>Gestión de Equipos Completa:</strong> Configure seguimiento, estados, características y trazabilidad de equipos de clientes.
+                        <br><br>
+                        <i class="fas fa-link"></i> 
+                        <strong>Integrado con Órdenes de Servicio:</strong> Las marcas, colores y configuraciones definidas aquí se utilizan automáticamente en el sistema de órdenes de servicio al crear o editar órdenes.
                     </div>
                     
                     {% set equipos = config.get('equipos_clientes', {}) %}
@@ -880,19 +884,365 @@
                     <h5 class="mb-3 mt-4"><i class="fas fa-tags section-icon"></i> Tipos y Marcas</h5>
                     
                     <div class="neo-form-group mb-3">
-                        <label class="neo-label">Marcas Permitidas (separadas por comas)</label>
-                        <input type="text" name="equipos_marcas_permitidas" class="neo-input" 
-                               value="{{ equipos.get('marcas_permitidas', [])|join(', ') }}" 
-                               placeholder="Apple, Samsung, Xiaomi, Huawei, Motorola, LG...">
-                        <small class="help-text">Marcas que puede gestionar el sistema</small>
+                        <label class="neo-label">Marcas Permitidas (editable - una por línea o separadas por coma)</label>
+                        <textarea name="equipos_marcas_permitidas" class="neo-input" rows="8" 
+                                  placeholder="Lista de marcas permitidas...">{% if equipos.get('marcas_permitidas', []) %}{{ equipos.get('marcas_permitidas', [])|join('\n') }}{% else %}Apple
+Samsung
+Xiaomi
+Huawei
+Oppo
+Vivo
+OnePlus
+Motorola
+Google
+Realme
+LG
+Sony
+Nokia
+TCL
+Alcatel
+ZTE
+Honor
+Infinix
+Tecno
+Otro{% endif %}</textarea>
+                        <small class="help-text">Marcas que puede gestionar el sistema. Una marca por línea o separadas por comas.</small>
                     </div>
                     
                     <div class="neo-form-group mb-3">
-                        <label class="neo-label">Modelos Disponibles (separados por coma)</label>
-                        <input type="text" name="modelos_disponibles" class="neo-input" 
-                               value="{{ equipos.get('modelos_disponibles', [])|join(', ') }}" 
-                               placeholder="iPhone, Galaxy, Redmi, Mate, Edge...">
-                        <small class="help-text">Modelos más comunes que se manejan</small>
+                        <label class="neo-label">Modelos Disponibles (editable - uno por línea o separados por coma)</label>
+                        <textarea name="modelos_disponibles" class="neo-input" rows="25" 
+                                  placeholder="Lista de modelos disponibles...">{% if equipos.get('modelos_disponibles', []) %}{{ equipos.get('modelos_disponibles', [])|join('\n') }}{% else %}Apple iPhone 15 Pro Max (2024)
+Apple iPhone 15 Pro (2024)
+Apple iPhone 15 Plus (2024)
+Apple iPhone 15 (2024)
+Apple iPhone 14 Pro Max (2023)
+Apple iPhone 14 Pro (2023)
+Apple iPhone 14 Plus (2023)
+Apple iPhone 14 (2023)
+Apple iPhone 13 Pro Max (2022)
+Apple iPhone 13 Pro (2022)
+Apple iPhone 13 mini (2022)
+Apple iPhone 13 (2022)
+Apple iPhone 12 Pro Max (2021)
+Apple iPhone 12 Pro (2021)
+Apple iPhone 12 mini (2021)
+Apple iPhone 12 (2021)
+Apple iPhone 11 Pro Max (2020)
+Apple iPhone 11 Pro (2020)
+Apple iPhone 11 (2020)
+Apple iPhone SE (2020)
+Apple iPhone XS Max (2019)
+Apple iPhone XS (2019)
+Apple iPhone XR (2019)
+Apple iPhone X (2018)
+Apple iPhone 8 Plus (2018)
+Apple iPhone 8 (2018)
+Apple iPhone 7 Plus (2017)
+Apple iPhone 7 (2017)
+Samsung Galaxy S24 Ultra (2024)
+Samsung Galaxy S24+ (2024)
+Samsung Galaxy S24 (2024)
+Samsung Galaxy A55 (2024)
+Samsung Galaxy A35 (2024)
+Samsung Galaxy A15 (2024)
+Samsung Galaxy S23 Ultra (2023)
+Samsung Galaxy S23+ (2023)
+Samsung Galaxy S23 (2023)
+Samsung Galaxy A54 (2023)
+Samsung Galaxy A34 (2023)
+Samsung Galaxy A14 (2023)
+Samsung Galaxy Z Fold5 (2023)
+Samsung Galaxy Z Flip5 (2023)
+Samsung Galaxy S22 Ultra (2022)
+Samsung Galaxy S22+ (2022)
+Samsung Galaxy S22 (2022)
+Samsung Galaxy A53 (2022)
+Samsung Galaxy A33 (2022)
+Samsung Galaxy A13 (2022)
+Samsung Galaxy Z Fold4 (2022)
+Samsung Galaxy Z Flip4 (2022)
+Samsung Galaxy S21 Ultra (2021)
+Samsung Galaxy S21+ (2021)
+Samsung Galaxy S21 (2021)
+Samsung Galaxy A52 (2021)
+Samsung Galaxy A32 (2021)
+Samsung Galaxy A12 (2021)
+Samsung Galaxy Z Fold3 (2021)
+Samsung Galaxy Z Flip3 (2021)
+Samsung Galaxy S20 Ultra (2020)
+Samsung Galaxy S20+ (2020)
+Samsung Galaxy S20 (2020)
+Samsung Galaxy Note 20 Ultra (2020)
+Samsung Galaxy Note 20 (2020)
+Samsung Galaxy A51 (2020)
+Samsung Galaxy A31 (2020)
+Samsung Galaxy A11 (2020)
+Samsung Galaxy S10+ (2019)
+Samsung Galaxy S10 (2019)
+Samsung Galaxy S10e (2019)
+Samsung Galaxy Note 10+ (2019)
+Samsung Galaxy Note 10 (2019)
+Samsung Galaxy A50 (2019)
+Samsung Galaxy A30 (2019)
+Samsung Galaxy A10 (2019)
+Samsung Galaxy S9+ (2018)
+Samsung Galaxy S9 (2018)
+Samsung Galaxy Note 9 (2018)
+Samsung Galaxy A8+ (2018)
+Samsung Galaxy A8 (2018)
+Samsung Galaxy A6+ (2018)
+Samsung Galaxy A6 (2018)
+Samsung Galaxy S8+ (2017)
+Samsung Galaxy S8 (2017)
+Samsung Galaxy Note 8 (2017)
+Samsung Galaxy A7 (2017)
+Samsung Galaxy A5 (2017)
+Samsung Galaxy J7 (2017)
+Samsung Galaxy J5 (2017)
+Xiaomi 14 Ultra (2024)
+Xiaomi 14 Pro (2024)
+Xiaomi 14 (2024)
+Xiaomi Redmi Note 13 Pro+ (2024)
+Xiaomi Redmi Note 13 Pro (2024)
+Xiaomi Redmi Note 13 (2024)
+Xiaomi 13 Ultra (2023)
+Xiaomi 13 Pro (2023)
+Xiaomi 13 (2023)
+Xiaomi Redmi Note 12 Pro+ (2023)
+Xiaomi Redmi Note 12 Pro (2023)
+Xiaomi Redmi Note 12 (2023)
+Xiaomi 12 Ultra (2022)
+Xiaomi 12 Pro (2022)
+Xiaomi 12 (2022)
+Xiaomi Redmi Note 11 Pro+ (2022)
+Xiaomi Redmi Note 11 Pro (2022)
+Xiaomi Redmi Note 11 (2022)
+Xiaomi Mi 11 Ultra (2021)
+Xiaomi Mi 11 Pro (2021)
+Xiaomi Mi 11 (2021)
+Xiaomi Redmi Note 10 Pro (2021)
+Xiaomi Redmi Note 10 (2021)
+Xiaomi Mi 10 Ultra (2020)
+Xiaomi Mi 10 Pro (2020)
+Xiaomi Mi 10 (2020)
+Xiaomi Redmi Note 9 Pro (2020)
+Xiaomi Redmi Note 9 (2020)
+Xiaomi Mi 9 Pro (2019)
+Xiaomi Mi 9 (2019)
+Xiaomi Redmi Note 8 Pro (2019)
+Xiaomi Redmi Note 8 (2019)
+Xiaomi Mi 8 Pro (2018)
+Xiaomi Mi 8 (2018)
+Xiaomi Redmi Note 7 (2018)
+Xiaomi Redmi Note 6 Pro (2018)
+Xiaomi Mi 6 (2017)
+Xiaomi Mi Note 3 (2017)
+Xiaomi Redmi Note 5 (2017)
+Xiaomi Redmi Note 4X (2017)
+Huawei P60 Pro (2024)
+Huawei P60 (2024)
+Huawei Mate 60 Pro (2024)
+Huawei Mate 60 (2024)
+Huawei P50 Pro (2023)
+Huawei P50 (2023)
+Huawei Mate 50 Pro (2023)
+Huawei Mate 50 (2023)
+Huawei P40 Pro+ (2022)
+Huawei P40 Pro (2022)
+Huawei P40 (2022)
+Huawei Mate 40 Pro (2022)
+Huawei Mate 40 (2022)
+Huawei P30 Pro (2021)
+Huawei P30 (2021)
+Huawei Mate 30 Pro (2021)
+Huawei Mate 30 (2021)
+Huawei P20 Pro (2020)
+Huawei P20 (2020)
+Huawei Mate 20 Pro (2020)
+Huawei Mate 20 (2020)
+Huawei P10 Plus (2019)
+Huawei P10 (2019)
+Huawei Mate 10 Pro (2019)
+Huawei Mate 10 (2019)
+Huawei P9 Plus (2018)
+Huawei P9 (2018)
+Huawei Mate 9 Pro (2018)
+Huawei Mate 9 (2018)
+Huawei P8 (2017)
+Huawei Mate 8 (2017)
+Huawei Honor 8 (2017)
+Oppo Find X7 Ultra (2024)
+Oppo Find X7 (2024)
+Oppo Reno 11 Pro (2024)
+Oppo Reno 11 (2024)
+Oppo Find X6 Pro (2023)
+Oppo Find X6 (2023)
+Oppo Reno 10 Pro+ (2023)
+Oppo Reno 10 Pro (2023)
+Oppo Reno 10 (2023)
+Oppo Find X5 Pro (2022)
+Oppo Find X5 (2022)
+Oppo Reno 8 Pro (2022)
+Oppo Reno 8 (2022)
+Oppo Find X3 Pro (2021)
+Oppo Find X3 (2021)
+Oppo Reno 6 Pro (2021)
+Oppo Reno 6 (2021)
+Oppo Find X2 Pro (2020)
+Oppo Find X2 (2020)
+Oppo Reno 5 Pro (2020)
+Oppo Reno 5 (2020)
+Oppo Reno 10x Zoom (2019)
+Oppo Reno (2019)
+Oppo Find X (2019)
+Oppo R17 Pro (2018)
+Oppo R17 (2018)
+Oppo Find X (2018)
+Oppo R11s Plus (2017)
+Oppo R11s (2017)
+Oppo R11 (2017)
+Vivo X100 Pro (2024)
+Vivo X100 (2024)
+Vivo V30 Pro (2024)
+Vivo V30 (2024)
+Vivo X90 Pro+ (2023)
+Vivo X90 Pro (2023)
+Vivo X90 (2023)
+Vivo V29 Pro (2023)
+Vivo V29 (2023)
+Vivo X80 Pro (2022)
+Vivo X80 (2022)
+Vivo V25 Pro (2022)
+Vivo V25 (2022)
+Vivo X70 Pro+ (2021)
+Vivo X70 Pro (2021)
+Vivo X70 (2021)
+Vivo V21 (2021)
+Vivo X50 Pro+ (2020)
+Vivo X50 Pro (2020)
+Vivo X50 (2020)
+Vivo V20 Pro (2020)
+Vivo V20 (2020)
+Vivo X30 Pro (2019)
+Vivo X30 (2019)
+Vivo V17 Pro (2019)
+Vivo V17 (2019)
+Vivo X23 (2018)
+Vivo V11 Pro (2018)
+Vivo V11 (2018)
+Vivo X20 Plus (2017)
+Vivo X20 (2017)
+Vivo V7+ (2017)
+Vivo V7 (2017)
+OnePlus 12 (2024)
+OnePlus 12R (2024)
+OnePlus 11 (2023)
+OnePlus 11R (2023)
+OnePlus Nord 3 (2023)
+OnePlus 10 Pro (2022)
+OnePlus 10T (2022)
+OnePlus Nord 2T (2022)
+OnePlus 9 Pro (2021)
+OnePlus 9 (2021)
+OnePlus Nord 2 (2021)
+OnePlus 8 Pro (2020)
+OnePlus 8T (2020)
+OnePlus 8 (2020)
+OnePlus Nord (2020)
+OnePlus 7T Pro (2019)
+OnePlus 7T (2019)
+OnePlus 7 Pro (2019)
+OnePlus 7 (2019)
+OnePlus 6T (2018)
+OnePlus 6 (2018)
+OnePlus 5T (2017)
+OnePlus 5 (2017)
+Motorola Edge 50 Pro (2024)
+Motorola Edge 50 (2024)
+Motorola Moto G84 (2024)
+Motorola Edge 40 Pro (2023)
+Motorola Edge 40 (2023)
+Motorola Moto G73 (2023)
+Motorola Moto G53 (2023)
+Motorola Edge 30 Pro (2022)
+Motorola Edge 30 (2022)
+Motorola Moto G82 (2022)
+Motorola Moto G52 (2022)
+Motorola Edge 20 Pro (2021)
+Motorola Edge 20 (2021)
+Motorola Moto G100 (2021)
+Motorola Moto G60 (2021)
+Motorola Edge+ (2020)
+Motorola Edge (2020)
+Motorola Moto G9 Plus (2020)
+Motorola Moto G9 (2020)
+Motorola Moto G8 Plus (2019)
+Motorola Moto G8 (2019)
+Motorola Moto Z4 (2019)
+Motorola Moto G7 Plus (2018)
+Motorola Moto G7 (2018)
+Motorola Moto Z3 (2018)
+Motorola Moto G6 Plus (2017)
+Motorola Moto G6 (2017)
+Motorola Moto Z2 Force (2017)
+Google Pixel 9 Pro (2024)
+Google Pixel 9 (2024)
+Google Pixel 8a (2024)
+Google Pixel 8 Pro (2023)
+Google Pixel 8 (2023)
+Google Pixel 7a (2023)
+Google Pixel 7 Pro (2022)
+Google Pixel 7 (2022)
+Google Pixel 6a (2022)
+Google Pixel 6 Pro (2021)
+Google Pixel 6 (2021)
+Google Pixel 5a (2021)
+Google Pixel 5 (2020)
+Google Pixel 4a 5G (2020)
+Google Pixel 4a (2020)
+Google Pixel 4 XL (2019)
+Google Pixel 4 (2019)
+Google Pixel 3a XL (2019)
+Google Pixel 3a (2019)
+Google Pixel 3 XL (2018)
+Google Pixel 3 (2018)
+Google Pixel 2 XL (2017)
+Google Pixel 2 (2017)
+Realme GT 6 (2024)
+Realme 12 Pro+ (2024)
+Realme 12 Pro (2024)
+Realme GT 5 Pro (2023)
+Realme GT 5 (2023)
+Realme 11 Pro+ (2023)
+Realme 11 Pro (2023)
+Realme GT 2 Pro (2022)
+Realme GT 2 (2022)
+Realme 10 Pro+ (2022)
+Realme 10 Pro (2022)
+Realme GT (2021)
+Realme 8 Pro (2021)
+Realme 8 (2021)
+Realme X50 Pro (2020)
+Realme 7 Pro (2020)
+Realme 7 (2020)
+Realme X2 Pro (2019)
+Realme 5 Pro (2019)
+Realme 5 (2019)
+Realme 2 Pro (2018)
+Realme 2 (2018)
+Realme 1 (2017)
+LG (Varios modelos)
+Sony Xperia (Varios modelos)
+Nokia (Varios modelos)
+TCL (Varios modelos)
+Alcatel (Varios modelos)
+ZTE (Varios modelos)
+Honor (Varios modelos)
+Infinix (Varios modelos)
+Tecno (Varios modelos)
+Otro (Especificar en modelo){% endif %}</textarea>
+                        <small class="help-text">Lista completa de modelos disponibles desde 2017 hasta 2024. Puede editar esta lista agregando o eliminando modelos. Un modelo por línea o separados por comas.</small>
                     </div>
                     
                     <div class="neo-checkbox mb-3">
@@ -1506,12 +1856,35 @@
                                 <input type="text" name="titular_cuenta" class="neo-input" value="{{ config.get('metodos_pago', {}).get('titular_cuenta', config.get('empresa', {}).get('nombre', '')) }}" placeholder="Nombre del titular">
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
+                    </div>
+                    
+                    <h5 class="mb-3 mt-4"><i class="fas fa-mobile-alt section-icon"></i> Configuración de Pago Móvil</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-university"></i> Banco Pago Móvil
+                                </label>
+                                <input type="text" name="banco_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('banco_pago_movil', '') }}" placeholder="Banesco, Mercantil, BNC...">
+                                <small class="help-text">Banco asociado al Pago Móvil</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <div class="neo-form-group">
                                 <label class="neo-label">
                                     <i class="fas fa-phone"></i> Teléfono Pago Móvil
                                 </label>
                                 <input type="text" name="telefono_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('telefono_pago_movil', '') }}" placeholder="0412-1234567">
+                                <small class="help-text">Teléfono registrado en Pago Móvil</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
+                                    <i class="fas fa-id-card"></i> Cédula/RIF Pago Móvil
+                                </label>
+                                <input type="text" name="cedula_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('cedula_pago_movil', '') }}" placeholder="V-12345678 o J-12345678-9">
+                                <small class="help-text">Cédula o RIF registrado en Pago Móvil</small>
                             </div>
                         </div>
                     </div>
@@ -1542,16 +1915,28 @@
                         <div class="col-md-6 mb-3">
                             <div class="neo-form-group">
                                 <label class="neo-label">
+                                    <i class="fas fa-university"></i> Banco Pago Móvil
+                                </label>
+                                <input type="text" name="banco_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('banco_pago_movil', '') }}" placeholder="Banesco, Mercantil, BNC...">
+                                <small class="help-text">Banco asociado al Pago Móvil</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="neo-form-group">
+                                <label class="neo-label">
                                     <i class="fas fa-phone"></i> Teléfono Pago Móvil
                                 </label>
                                 <input type="text" name="telefono_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('telefono_pago_movil', '') }}" placeholder="0412-1234567">
                                 <small class="help-text">Teléfono registrado en Pago Móvil</small>
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <div class="neo-form-group">
                                 <label class="neo-label">
-                                    <i class="fas fa-id-card"></i> Cédula RIF Pago Móvil
+                                    <i class="fas fa-id-card"></i> Cédula/RIF Pago Móvil
                                 </label>
                                 <input type="text" name="cedula_pago_movil" class="neo-input" value="{{ config.get('metodos_pago', {}).get('cedula_pago_movil', '') }}" placeholder="V-12345678 o J-12345678-9">
                                 <small class="help-text">Cédula o RIF registrado en Pago Móvil</small>
@@ -3230,6 +3615,160 @@
                 </div>
             </div>
 
+            <!-- DASHBOARD -->
+            <div id="tab-dashboard" class="config-tab-content">
+                <div class="neo-card-config">
+                    <h3><i class="fas fa-chart-line me-2"></i>Configuración del Dashboard</h3>
+                    <p class="text-muted mb-4">Configure las tarjetas de métricas del dashboard principal</p>
+                    
+                    <div class="alert alert-info mb-4" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 1rem;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Tarjetas del Dashboard:</strong> Configure qué tarjetas mostrar, colores, iconos y comportamiento de las métricas principales.
+                    </div>
+                    
+                    {% set dashboard_config = config.get('dashboard', {}) %}
+                    {% set tarjetas_habilitadas = dashboard_config.get('tarjetas_habilitadas', {}) %}
+                    {% set colores = dashboard_config.get('colores', {}) %}
+                    {% set iconos = dashboard_config.get('iconos', {}) %}
+                    
+                    <!-- TARJETAS HABILITADAS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-toggle-on section-icon"></i> Tarjetas Habilitadas</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="dashboard_cuentas_por_cobrar" 
+                               {% if tarjetas_habilitadas.get('cuentas_por_cobrar', True) %}checked{% endif %}>
+                        <label><strong>Cuentas por Cobrar</strong></label>
+                        <small class="help-text d-block">Muestra el total de cuentas pendientes de cobro</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="dashboard_pagos_recibidos" 
+                               {% if tarjetas_habilitadas.get('pagos_recibidos', True) %}checked{% endif %}>
+                        <label><strong>Pagos Recibidos</strong></label>
+                        <small class="help-text d-block">Muestra el total de pagos recibidos</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="dashboard_nota_entrega" 
+                               {% if tarjetas_habilitadas.get('nota_entrega', True) %}checked{% endif %}>
+                        <label><strong>Nota de Entrega</strong></label>
+                        <small class="help-text d-block">Muestra el total facturado en notas de entrega</small>
+                    </div>
+                    
+                    <!-- OPCIONES DE VISUALIZACIÓN -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-eye section-icon"></i> Opciones de Visualización</h5>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="dashboard_mostrar_porcentajes" 
+                               {% if dashboard_config.get('mostrar_porcentajes_crecimiento', True) %}checked{% endif %}>
+                        <label><strong>Mostrar Porcentajes de Crecimiento</strong></label>
+                        <small class="help-text d-block">Muestra el porcentaje de cambio vs mes anterior</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="dashboard_mostrar_valores_bs" 
+                               {% if dashboard_config.get('mostrar_valores_bs', True) %}checked{% endif %}>
+                        <label><strong>Mostrar Valores en Bolívares</strong></label>
+                        <small class="help-text d-block">Muestra el equivalente en Bs además de USD</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-2">
+                        <input type="checkbox" name="dashboard_mostrar_filtros" 
+                               {% if dashboard_config.get('mostrar_filtros', True) %}checked{% endif %}>
+                        <label><strong>Mostrar Filtros en Tarjetas</strong></label>
+                        <small class="help-text d-block">Permite filtrar por fecha en cada tarjeta</small>
+                    </div>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="dashboard_comparar_mes_anterior" 
+                               {% if dashboard_config.get('comparar_con_mes_anterior', True) %}checked{% endif %}>
+                        <label><strong>Comparar con Mes Anterior</strong></label>
+                        <small class="help-text d-block">Calcula porcentajes comparando con el mes anterior</small>
+                    </div>
+                    
+                    <!-- ACTUALIZACIÓN AUTOMÁTICA -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-sync-alt section-icon"></i> Actualización Automática</h5>
+                    
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="dashboard_actualizacion_automatica" 
+                               {% if dashboard_config.get('actualizacion_automatica', True) %}checked{% endif %}>
+                        <label><strong>Actualización Automática</strong></label>
+                        <small class="help-text d-block">Actualiza los valores automáticamente sin recargar la página</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Intervalo de Actualización (segundos)</label>
+                                <input type="number" name="dashboard_intervalo_actualizacion" class="neo-input" 
+                                       value="{{ dashboard_config.get('intervalo_actualizacion', 60) }}" min="10" max="3600">
+                                <small class="help-text">Cada cuántos segundos se actualizan los valores</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PERSONALIZACIÓN DE COLORES -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-palette section-icon"></i> Personalización de Colores</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color - Cuentas por Cobrar</label>
+                                <input type="color" name="dashboard_color_cuentas" class="neo-input" 
+                                       value="{{ colores.get('cuentas_por_cobrar', '#00ff88') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color - Pagos Recibidos</label>
+                                <input type="color" name="dashboard_color_pagos" class="neo-input" 
+                                       value="{{ colores.get('pagos_recibidos', '#00ff88') }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Color - Nota de Entrega</label>
+                                <input type="color" name="dashboard_color_nota" class="neo-input" 
+                                       value="{{ colores.get('nota_entrega', '#00ff88') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PERSONALIZACIÓN DE ICONOS -->
+                    <h5 class="mb-3 mt-4"><i class="fas fa-icons section-icon"></i> Personalización de Iconos</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Icono - Cuentas por Cobrar</label>
+                                <input type="text" name="dashboard_icono_cuentas" class="neo-input" 
+                                       value="{{ iconos.get('cuentas_por_cobrar', 'fas fa-hand-holding-usd') }}" 
+                                       placeholder="fas fa-hand-holding-usd">
+                                <small class="help-text">Clase de Font Awesome</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Icono - Pagos Recibidos</label>
+                                <input type="text" name="dashboard_icono_pagos" class="neo-input" 
+                                       value="{{ iconos.get('pagos_recibidos', 'fas fa-money-check-alt') }}" 
+                                       placeholder="fas fa-money-check-alt">
+                                <small class="help-text">Clase de Font Awesome</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Icono - Nota de Entrega</label>
+                                <input type="text" name="dashboard_icono_nota" class="neo-input" 
+                                       value="{{ iconos.get('nota_entrega', 'fas fa-file-invoice-dollar') }}" 
+                                       placeholder="fas fa-file-invoice-dollar">
+                                <small class="help-text">Clase de Font Awesome</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- PROVEEDORES -->
             <div id="tab-proveedores" class="config-tab-content">
                 <div class="neo-card-config">
@@ -3792,10 +4331,130 @@
             <!-- REPORTES -->
             <div id="tab-reportes" class="config-tab-content">
                 <div class="neo-card-config">
-                    <h3><i class="fas fa-chart-bar me-2"></i>Reportes</h3>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('reportes', {}).get('habilitados', True) %}checked{% endif %}><label>Habilitar Reportes</label></div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('reportes', {}).get('exportacion_excel', True) %}checked{% endif %}><label>Exportar a Excel</label></div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('reportes', {}).get('exportacion_pdf', True) %}checked{% endif %}><label>Exportar a PDF</label></div>
+                    <h3><i class="fas fa-chart-bar me-2"></i>Configuración de Reportes</h3>
+                    
+                    <h4 class="mt-4 mb-3">General</h4>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_habilitados" id="reportes_habilitados" 
+                               {% if config.get('reportes', {}).get('habilitados', True) %}checked{% endif %}>
+                        <label for="reportes_habilitados">Habilitar Reportes</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_graficos_interactivos" id="reportes_graficos_interactivos"
+                               {% if config.get('reportes', {}).get('graficos_interactivos', True) %}checked{% endif %}>
+                        <label for="reportes_graficos_interactivos">Gráficos Interactivos</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_comparaciones_periodos" id="reportes_comparaciones_periodos"
+                               {% if config.get('reportes', {}).get('comparaciones_periodos', True) %}checked{% endif %}>
+                        <label for="reportes_comparaciones_periodos">Comparaciones de Períodos</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_filtros_avanzados" id="reportes_filtros_avanzados"
+                               {% if config.get('reportes', {}).get('filtros_avanzados', True) %}checked{% endif %}>
+                        <label for="reportes_filtros_avanzados">Filtros Avanzados</label>
+                    </div>
+                    
+                    <h4 class="mt-4 mb-3">Exportación</h4>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_exportacion_excel" id="reportes_exportacion_excel"
+                               {% if config.get('reportes', {}).get('exportacion_excel', True) %}checked{% endif %}>
+                        <label for="reportes_exportacion_excel">Exportar a Excel (CSV)</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_exportacion_pdf" id="reportes_exportacion_pdf"
+                               {% if config.get('reportes', {}).get('exportacion_pdf', True) %}checked{% endif %}>
+                        <label for="reportes_exportacion_pdf">Exportar a PDF</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_exportacion_json" id="reportes_exportacion_json"
+                               {% if config.get('reportes', {}).get('exportacion_json', True) %}checked{% endif %}>
+                        <label for="reportes_exportacion_json">Exportar a JSON</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_exportacion_html" id="reportes_exportacion_html"
+                               {% if config.get('reportes', {}).get('exportacion_html', True) %}checked{% endif %}>
+                        <label for="reportes_exportacion_html">Exportar a HTML</label>
+                    </div>
+                    
+                    <h4 class="mt-4 mb-3">Funcionalidades Avanzadas</h4>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_personalizacion_habilitada" id="reportes_personalizacion_habilitada"
+                               {% if config.get('reportes', {}).get('personalizacion_habilitada', True) %}checked{% endif %}>
+                        <label for="reportes_personalizacion_habilitada">Personalización de Reportes</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_programacion_habilitada" id="reportes_programacion_habilitada"
+                               {% if config.get('reportes', {}).get('programacion_habilitada', True) %}checked{% endif %}>
+                        <label for="reportes_programacion_habilitada">Programación de Reportes</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_envio_automatico" id="reportes_envio_automatico"
+                               {% if config.get('reportes', {}).get('envio_automatico', False) %}checked{% endif %}>
+                        <label for="reportes_envio_automatico">Envío Automático por Email</label>
+                    </div>
+                    
+                    <h4 class="mt-4 mb-3">Reportes Específicos</h4>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_dashboard_ejecutivo" id="reportes_dashboard_ejecutivo"
+                               {% if config.get('reportes', {}).get('dashboard_ejecutivo', True) %}checked{% endif %}>
+                        <label for="reportes_dashboard_ejecutivo">Dashboard Ejecutivo</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_estado_resultados" id="reportes_estado_resultados"
+                               {% if config.get('reportes', {}).get('reporte_estado_resultados', True) %}checked{% endif %}>
+                        <label for="reportes_estado_resultados">Estado de Resultados</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_flujo_caja" id="reportes_flujo_caja"
+                               {% if config.get('reportes', {}).get('reporte_flujo_caja', True) %}checked{% endif %}>
+                        <label for="reportes_flujo_caja">Flujo de Caja</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_rotacion_inventario" id="reportes_rotacion_inventario"
+                               {% if config.get('reportes', {}).get('reporte_rotacion_inventario', True) %}checked{% endif %}>
+                        <label for="reportes_rotacion_inventario">Rotación de Inventario</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_analisis_clientes" id="reportes_analisis_clientes"
+                               {% if config.get('reportes', {}).get('reporte_analisis_clientes', True) %}checked{% endif %}>
+                        <label for="reportes_analisis_clientes">Análisis de Clientes</label>
+                    </div>
+                    <div class="neo-checkbox">
+                        <input type="checkbox" name="reportes_productos_rentables" id="reportes_productos_rentables"
+                               {% if config.get('reportes', {}).get('reporte_productos_rentables', True) %}checked{% endif %}>
+                        <label for="reportes_productos_rentables">Productos Rentables</label>
+                    </div>
+                    
+                    <h4 class="mt-4 mb-3">Permisos</h4>
+                    <div class="mb-3">
+                        <label class="form-label">Permiso Ver Reportes</label>
+                        <select name="reportes_permiso_ver_reportes" class="form-select">
+                            <option value="todos" {% if config.get('reportes', {}).get('permiso_ver_reportes', 'admin') == 'todos' %}selected{% endif %}>Todos</option>
+                            <option value="admin" {% if config.get('reportes', {}).get('permiso_ver_reportes', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Permiso Exportar</label>
+                        <select name="reportes_permiso_exportar" class="form-select">
+                            <option value="todos" {% if config.get('reportes', {}).get('permiso_exportar', 'admin') == 'todos' %}selected{% endif %}>Todos</option>
+                            <option value="admin" {% if config.get('reportes', {}).get('permiso_exportar', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Permiso Programar</label>
+                        <select name="reportes_permiso_programar" class="form-select">
+                            <option value="todos" {% if config.get('reportes', {}).get('permiso_programar', 'admin') == 'todos' %}selected{% endif %}>Todos</option>
+                            <option value="admin" {% if config.get('reportes', {}).get('permiso_programar', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Permiso Personalizar</label>
+                        <select name="reportes_permiso_personalizar" class="form-select">
+                            <option value="todos" {% if config.get('reportes', {}).get('permiso_personalizar', 'admin') == 'todos' %}selected{% endif %}>Todos</option>
+                            <option value="admin" {% if config.get('reportes', {}).get('permiso_personalizar', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -3803,9 +4462,220 @@
             <div id="tab-integraciones" class="config-tab-content">
                 <div class="neo-card-config">
                     <h3><i class="fas fa-plug me-2"></i>Integraciones</h3>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('integraciones', {}).get('api_externas', False) %}checked{% endif %}><label>APIs Externas</label></div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('integraciones', {}).get('sincronizacion_nube', False) %}checked{% endif %}><label>Sincronización con Nube</label></div>
-                    <div class="neo-checkbox"><input type="checkbox" {% if config.get('integraciones', {}).get('webhooks', False) %}checked{% endif %}><label>Webhooks</label></div>
+                    <p class="text-muted mb-4">Configure las integraciones con servicios externos para ampliar las funcionalidades del sistema.</p>
+                    
+                    <!-- APIs Externas -->
+                    <h5 class="mb-3"><i class="fas fa-code section-icon"></i> APIs Externas</h5>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_api_externas" id="integraciones_api_externas" {% if config.get('integraciones', {}).get('api_externas', False) %}checked{% endif %}>
+                        <label for="integraciones_api_externas">Habilitar APIs Externas</label>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="integraciones_api_tasas_cambio" id="integraciones_api_tasas_cambio" {% if config.get('integraciones', {}).get('api_tasas_cambio', False) %}checked{% endif %}>
+                                <label for="integraciones_api_tasas_cambio">API de Tasas de Cambio (DólarToday)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="integraciones_api_whatsapp" id="integraciones_api_whatsapp" {% if config.get('integraciones', {}).get('api_whatsapp', False) %}checked{% endif %}>
+                                <label for="integraciones_api_whatsapp">API de WhatsApp</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="integraciones_api_email" id="integraciones_api_email" {% if config.get('integraciones', {}).get('api_email', False) %}checked{% endif %}>
+                                <label for="integraciones_api_email">API de Email (SMTP)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-checkbox">
+                                <input type="checkbox" name="integraciones_api_sms" id="integraciones_api_sms" {% if config.get('integraciones', {}).get('api_sms', False) %}checked{% endif %}>
+                                <label for="integraciones_api_sms">API de SMS</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Sincronización con Nube -->
+                    <h5 class="mb-3"><i class="fas fa-cloud section-icon"></i> Sincronización con Nube</h5>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_sincronizacion_nube" id="integraciones_sincronizacion_nube" {% if config.get('integraciones', {}).get('sincronizacion_nube', False) %}checked{% endif %}>
+                        <label for="integraciones_sincronizacion_nube">Habilitar Sincronización con Nube</label>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Proveedor de Nube</label>
+                                <select name="integraciones_nube_proveedor" class="neo-input">
+                                    <option value="google_drive" {% if config.get('integraciones', {}).get('nube_proveedor', 'google_drive') == 'google_drive' %}selected{% endif %}>Google Drive</option>
+                                    <option value="dropbox" {% if config.get('integraciones', {}).get('nube_proveedor') == 'dropbox' %}selected{% endif %}>Dropbox</option>
+                                    <option value="onedrive" {% if config.get('integraciones', {}).get('nube_proveedor') == 'onedrive' %}selected{% endif %}>OneDrive</option>
+                                    <option value="aws_s3" {% if config.get('integraciones', {}).get('nube_proveedor') == 'aws_s3' %}selected{% endif %}>AWS S3</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Frecuencia de Sincronización</label>
+                                <select name="integraciones_nube_frecuencia" class="neo-input">
+                                    <option value="manual" {% if config.get('integraciones', {}).get('nube_frecuencia', 'diaria') == 'manual' %}selected{% endif %}>Manual</option>
+                                    <option value="diaria" {% if config.get('integraciones', {}).get('nube_frecuencia', 'diaria') == 'diaria' %}selected{% endif %}>Diaria</option>
+                                    <option value="semanal" {% if config.get('integraciones', {}).get('nube_frecuencia') == 'semanal' %}selected{% endif %}>Semanal</option>
+                                    <option value="mensual" {% if config.get('integraciones', {}).get('nube_frecuencia') == 'mensual' %}selected{% endif %}>Mensual</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_nube_automatica" id="integraciones_nube_automatica" {% if config.get('integraciones', {}).get('nube_automatica', False) %}checked{% endif %}>
+                        <label for="integraciones_nube_automatica">Sincronización Automática</label>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Webhooks -->
+                    <h5 class="mb-3"><i class="fas fa-link section-icon"></i> Webhooks</h5>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_webhooks" id="integraciones_webhooks" {% if config.get('integraciones', {}).get('webhooks', False) %}checked{% endif %}>
+                        <label for="integraciones_webhooks">Habilitar Webhooks</label>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="neo-form-group">
+                                <label class="neo-label">URL del Webhook</label>
+                                <input type="text" name="integraciones_webhook_url" class="neo-input" value="{{ config.get('integraciones', {}).get('webhook_url', '') }}" placeholder="https://ejemplo.com/webhook">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Secreto del Webhook (opcional)</label>
+                                <input type="password" name="integraciones_webhook_secreto" class="neo-input" value="{{ config.get('integraciones', {}).get('webhook_secreto', '') }}" placeholder="Secreto para validar las peticiones">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Eventos a Notificar</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" name="integraciones_webhook_eventos" value="nueva_factura" {% if 'nueva_factura' in config.get('integraciones', {}).get('webhook_eventos', []) %}checked{% endif %}>
+                                    <label>Nueva Factura</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" name="integraciones_webhook_eventos" value="nuevo_pago" {% if 'nuevo_pago' in config.get('integraciones', {}).get('webhook_eventos', []) %}checked{% endif %}>
+                                    <label>Nuevo Pago</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" name="integraciones_webhook_eventos" value="nuevo_cliente" {% if 'nuevo_cliente' in config.get('integraciones', {}).get('webhook_eventos', []) %}checked{% endif %}>
+                                    <label>Nuevo Cliente</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" name="integraciones_webhook_eventos" value="stock_bajo" {% if 'stock_bajo' in config.get('integraciones', {}).get('webhook_eventos', []) %}checked{% endif %}>
+                                    <label>Stock Bajo</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="neo-checkbox">
+                                    <input type="checkbox" name="integraciones_webhook_eventos" value="orden_completada" {% if 'orden_completada' in config.get('integraciones', {}).get('webhook_eventos', []) %}checked{% endif %}>
+                                    <label>Orden Completada</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Bases de Datos Externas -->
+                    <h5 class="mb-3"><i class="fas fa-database section-icon"></i> Bases de Datos Externas</h5>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_bases_datos" id="integraciones_bases_datos" {% if config.get('integraciones', {}).get('bases_datos', False) %}checked{% endif %}>
+                        <label for="integraciones_bases_datos">Habilitar Conexión a Base de Datos Externa</label>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Tipo de Base de Datos</label>
+                                <select name="integraciones_bd_tipo" class="neo-input">
+                                    <option value="mysql" {% if config.get('integraciones', {}).get('bd_tipo', 'mysql') == 'mysql' %}selected{% endif %}>MySQL</option>
+                                    <option value="postgresql" {% if config.get('integraciones', {}).get('bd_tipo') == 'postgresql' %}selected{% endif %}>PostgreSQL</option>
+                                    <option value="sqlite" {% if config.get('integraciones', {}).get('bd_tipo') == 'sqlite' %}selected{% endif %}>SQLite</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Host</label>
+                                <input type="text" name="integraciones_bd_host" class="neo-input" value="{{ config.get('integraciones', {}).get('bd_host', '') }}" placeholder="localhost">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Puerto</label>
+                                <input type="text" name="integraciones_bd_puerto" class="neo-input" value="{{ config.get('integraciones', {}).get('bd_puerto', '3306') }}" placeholder="3306">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Nombre de la Base de Datos</label>
+                                <input type="text" name="integraciones_bd_nombre" class="neo-input" value="{{ config.get('integraciones', {}).get('bd_nombre', '') }}" placeholder="nombre_bd">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Usuario</label>
+                                <input type="text" name="integraciones_bd_usuario" class="neo-input" value="{{ config.get('integraciones', {}).get('bd_usuario', '') }}" placeholder="usuario">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Integraciones de Pago -->
+                    <h5 class="mb-3"><i class="fas fa-credit-card section-icon"></i> Integraciones de Pago</h5>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_pagos_online" id="integraciones_pagos_online" {% if config.get('integraciones', {}).get('pagos_online', False) %}checked{% endif %}>
+                        <label for="integraciones_pagos_online">Habilitar Pagos en Línea</label>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Proveedor de Pago</label>
+                                <select name="integraciones_pago_proveedor" class="neo-input">
+                                    <option value="paypal" {% if config.get('integraciones', {}).get('pago_proveedor', 'paypal') == 'paypal' %}selected{% endif %}>PayPal</option>
+                                    <option value="stripe" {% if config.get('integraciones', {}).get('pago_proveedor') == 'stripe' %}selected{% endif %}>Stripe</option>
+                                    <option value="mercadopago" {% if config.get('integraciones', {}).get('pago_proveedor') == 'mercadopago' %}selected{% endif %}>MercadoPago</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">API Key</label>
+                                <input type="password" name="integraciones_pago_api_key" class="neo-input" value="{{ config.get('integraciones', {}).get('pago_api_key', '') }}" placeholder="API Key del proveedor">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Integraciones de Contabilidad -->
+                    <h5 class="mb-3"><i class="fas fa-calculator section-icon"></i> Integraciones de Contabilidad</h5>
+                    <div class="neo-checkbox mb-3">
+                        <input type="checkbox" name="integraciones_contabilidad" id="integraciones_contabilidad" {% if config.get('integraciones', {}).get('contabilidad', False) %}checked{% endif %}>
+                        <label for="integraciones_contabilidad">Habilitar Integración con Sistema de Contabilidad</label>
+                    </div>
+                    <div class="neo-form-group mb-3">
+                        <label class="neo-label">Sistema de Contabilidad</label>
+                        <input type="text" name="integraciones_contabilidad_sistema" class="neo-input" value="{{ config.get('integraciones', {}).get('contabilidad_sistema', '') }}" placeholder="Ej: QuickBooks, Xero, Contasol">
+                    </div>
                 </div>
             </div>
 
@@ -3813,19 +4683,81 @@
             <div id="tab-usuarios" class="config-tab-content">
                 <div class="neo-card-config">
                     <h3><i class="fas fa-users me-2"></i>Permisos de Usuarios</h3>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Permiso Eliminar Órdenes</label>
-                        <select name="permiso_eliminar_ordenes" class="neo-input">
-                            <option value="admin" {% if config.get('usuarios', {}).get('permiso_eliminar_ordenes', 'admin') == 'admin' %}selected{% endif %}>Admin</option>
-                            <option value="manager">Manager</option>
-                        </select>
+                    <p class="text-muted mb-4">Configure los permisos globales del sistema. Estos permisos se combinan con los permisos por rol.</p>
+                    
+                    <h5 class="mb-3"><i class="fas fa-shield-alt section-icon"></i> Permisos de Acción</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Permiso Eliminar Órdenes</label>
+                                <select name="permiso_eliminar_ordenes" class="neo-input">
+                                    <option value="admin" {% if config.get('usuarios', {}).get('permiso_eliminar_ordenes', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                                    <option value="manager" {% if config.get('usuarios', {}).get('permiso_eliminar_ordenes') == 'manager' %}selected{% endif %}>Administradores y Managers</option>
+                                    <option value="todos" {% if config.get('usuarios', {}).get('permiso_eliminar_ordenes') == 'todos' %}selected{% endif %}>Todos los Usuarios</option>
+                                </select>
+                                <small class="text-muted">Quién puede eliminar órdenes de servicio</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Permiso Modificar Precios</label>
+                                <select name="permiso_modificar_precios" class="neo-input">
+                                    <option value="admin" {% if config.get('usuarios', {}).get('permiso_modificar_precios', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                                    <option value="manager" {% if config.get('usuarios', {}).get('permiso_modificar_precios') == 'manager' %}selected{% endif %}>Administradores y Managers</option>
+                                    <option value="todos" {% if config.get('usuarios', {}).get('permiso_modificar_precios') == 'todos' %}selected{% endif %}>Todos los Usuarios</option>
+                                </select>
+                                <small class="text-muted">Quién puede modificar precios de productos</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="neo-form-group">
-                        <label class="neo-label">Permiso Ver Reportes</label>
-                        <select name="permiso_ver_reportes" class="neo-input">
-                            <option value="admin">Admin</option>
-                            <option value="all">Todos</option>
-                        </select>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="mb-3"><i class="fas fa-chart-bar section-icon"></i> Permisos de Visualización</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Permiso Ver Reportes</label>
+                                <select name="permiso_ver_reportes" class="neo-input">
+                                    <option value="admin" {% if config.get('usuarios', {}).get('permiso_ver_reportes', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                                    <option value="manager" {% if config.get('usuarios', {}).get('permiso_ver_reportes') == 'manager' %}selected{% endif %}>Administradores y Managers</option>
+                                    <option value="todos" {% if config.get('usuarios', {}).get('permiso_ver_reportes') == 'todos' %}selected{% endif %}>Todos los Usuarios</option>
+                                </select>
+                                <small class="text-muted">Quién puede ver reportes del sistema</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="mb-3"><i class="fas fa-cog section-icon"></i> Permisos de Administración</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Permiso Gestionar Usuarios</label>
+                                <select name="permiso_gestionar_usuarios" class="neo-input">
+                                    <option value="admin" {% if config.get('usuarios', {}).get('permiso_gestionar_usuarios', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                                    <option value="manager" {% if config.get('usuarios', {}).get('permiso_gestionar_usuarios') == 'manager' %}selected{% endif %}>Administradores y Managers</option>
+                                </select>
+                                <small class="text-muted">Quién puede crear, editar o eliminar usuarios</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="neo-form-group">
+                                <label class="neo-label">Permiso Configuración del Sistema</label>
+                                <select name="permiso_configuracion" class="neo-input">
+                                    <option value="admin" {% if config.get('usuarios', {}).get('permiso_configuracion', 'admin') == 'admin' %}selected{% endif %}>Solo Administradores</option>
+                                    <option value="manager" {% if config.get('usuarios', {}).get('permiso_configuracion') == 'manager' %}selected{% endif %}>Administradores y Managers</option>
+                                </select>
+                                <small class="text-muted">Quién puede modificar la configuración del sistema</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Nota:</strong> Estos permisos se combinan con los permisos por rol definidos en el sistema de roles. 
+                        Si un usuario tiene permiso en su rol pero no en esta configuración, se aplicará la restricción más estricta.
                     </div>
                 </div>
             </div>

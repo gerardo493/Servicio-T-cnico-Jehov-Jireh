@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Personalización de Reportes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h2 class="mb-1">
+                    <i class="fas fa-cog me-2"></i>
+                    Personalización de Reportes
+                </h2>
+                <p class="text-muted mb-0">Gestiona tus plantillas, columnas y reportes favoritos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#plantillas">Plantillas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#columnas">Columnas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#favoritos">Favoritos</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Plantillas -->
+        <div class="tab-pane fade show active" id="plantillas">
+            <div class="row">
+                <div class="col-12">
+                    <div class="neo-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Plantillas Guardadas</h5>
+                            <button class="btn btn-primary" onclick="mostrarModalPlantilla()">
+                                <i class="fas fa-plus me-2"></i>Nueva Plantilla
+                            </button>
+                        </div>
+                        <div id="listaPlantillas">
+                            <p class="text-muted">No hay plantillas guardadas. Crea una nueva para comenzar.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columnas -->
+        <div class="tab-pane fade" id="columnas">
+            <div class="row">
+                <div class="col-12">
+                    <div class="neo-card">
+                        <h5 class="mb-3">Configuración de Columnas por Reporte</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Seleccionar Reporte</label>
+                            <select class="form-select" id="selectReporteColumnas" onchange="cargarColumnasReporte()">
+                                <option value="">Seleccionar...</option>
+                                <option value="notas_entrega">Notas de Entrega</option>
+                                <option value="pagos_recibidos">Pagos Recibidos</option>
+                                <option value="clientes">Clientes</option>
+                                <option value="inventario">Inventario</option>
+                            </select>
+                        </div>
+                        <div id="configColumnas">
+                            <p class="text-muted">Selecciona un reporte para configurar sus columnas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Favoritos -->
+        <div class="tab-pane fade" id="favoritos">
+            <div class="row">
+                <div class="col-12">
+                    <div class="neo-card">
+                        <h5 class="mb-3">Reportes Favoritos</h5>
+                        <div id="listaFavoritos">
+                            {% if config_personalizada.favoritos %}
+                                {% for favorito in config_personalizada.favoritos %}
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <h6>{{ favorito.nombre }}</h6>
+                                        <p class="text-muted mb-0">{{ favorito.tipo_reporte }}</p>
+                                        <a href="{{ favorito.url }}" class="btn btn-sm btn-primary mt-2">Abrir</a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No hay reportes favoritos. Agrega reportes desde sus páginas correspondientes.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Plantilla -->
+<div class="modal fade" id="modalPlantilla" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva Plantilla</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formPlantilla">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="nombrePlantilla" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Reporte</label>
+                        <select class="form-select" id="tipoReportePlantilla" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="notas_entrega">Notas de Entrega</option>
+                            <option value="pagos_recibidos">Pagos Recibidos</option>
+                            <option value="clientes">Clientes</option>
+                            <option value="inventario">Inventario</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Configuración (JSON)</label>
+                        <textarea class="form-control" id="configPlantilla" rows="5" placeholder='{"filtros": {}, "columnas": []}'></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarPlantilla()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function mostrarModalPlantilla() {
+    const modal = new bootstrap.Modal(document.getElementById('modalPlantilla'));
+    modal.show();
+}
+
+function guardarPlantilla() {
+    const nombre = document.getElementById('nombrePlantilla').value;
+    const tipo = document.getElementById('tipoReportePlantilla').value;
+    const config = document.getElementById('configPlantilla').value;
+    
+    try {
+        const configObj = JSON.parse(config);
+        
+        fetch('/api/reportes/guardar-plantilla', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                nombre: nombre,
+                tipo_reporte: tipo,
+                configuracion: configObj
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Plantilla guardada correctamente');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    } catch (e) {
+        alert('Error en el formato JSON: ' + e.message);
+    }
+}
+
+function cargarColumnasReporte() {
+    const tipo = document.getElementById('selectReporteColumnas').value;
+    if (!tipo) return;
+    
+    // Aquí se cargarían las columnas disponibles según el tipo de reporte
+    const columnas = {
+        'notas_entrega': ['Número', 'Fecha', 'Cliente', 'Estado', 'Total USD', 'Total Bs'],
+        'pagos_recibidos': ['Fecha', 'Cliente', 'Monto', 'Método', 'Nota'],
+        'clientes': ['Nombre', 'Teléfono', 'Email', 'Total Facturado', 'Saldo Pendiente'],
+        'inventario': ['Nombre', 'Categoría', 'Stock', 'Precio', 'Valor']
+    };
+    
+    const div = document.getElementById('configColumnas');
+    let html = '<div class="form-check-group">';
+    
+    (columnas[tipo] || []).forEach(col => {
+        html += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${col}" id="col_${col}" checked>
+                <label class="form-check-label" for="col_${col}">${col}</label>
+            </div>
+        `;
+    });
+    
+    html += '</div><button class="btn btn-primary mt-3" onclick="guardarColumnas(\'' + tipo + '\')">Guardar Columnas</button>';
+    div.innerHTML = html;
+}
+
+function guardarColumnas(tipo) {
+    const checkboxes = document.querySelectorAll('#configColumnas input[type="checkbox"]');
+    const columnas = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+    
+    fetch('/api/reportes/guardar-columnas', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            tipo_reporte: tipo,
+            columnas: columnas
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Columnas guardadas correctamente');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
+</script>
+{% endblock %}
+

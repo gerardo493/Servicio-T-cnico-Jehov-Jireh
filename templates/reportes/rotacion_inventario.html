@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Rotación de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h2 class="mb-1">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    Rotación de Inventario
+                </h2>
+                <p class="text-muted mb-0">Análisis ABC y rotación de productos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5>Valor Total del Inventario: ${{ "%.2f"|format(valor_total_inventario) }}</h5>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Rotación -->
+    <div class="row">
+        <div class="col-12">
+            <div class="neo-card">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Stock Actual</th>
+                                <th>Valor Inventario</th>
+                                <th>Ventas 30 días</th>
+                                <th>Rotación</th>
+                                <th>Días Rotación</th>
+                                <th>ABC</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in productos_rotacion %}
+                            <tr>
+                                <td><strong>{{ producto.nombre }}</strong></td>
+                                <td>{{ producto.categoria }}</td>
+                                <td>{{ producto.stock_actual|int }}</td>
+                                <td>${{ "%.2f"|format(producto.valor_inventario) }}</td>
+                                <td>{{ producto.ventas_30_dias|int }}</td>
+                                <td>
+                                    <span class="badge {% if producto.rotacion > 1 %}bg-success{% elif producto.rotacion > 0.5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.2f"|format(producto.rotacion) }}
+                                    </span>
+                                </td>
+                                <td>{{ producto.dias_rotacion|int }} días</td>
+                                <td>
+                                    <span class="badge {% if producto.categoria_abc == 'A' %}bg-danger{% elif producto.categoria_abc == 'B' %}bg-warning{% else %}bg-info{% endif %}">
+                                        {{ producto.categoria_abc }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

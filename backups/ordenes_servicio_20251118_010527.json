@@ -1,0 +1,140 @@
+{
+    "OS-20251118005542": {
+        "id": "OS-20251118005542",
+        "numero_orden": "OS-20251118005542",
+        "fecha_recepcion": "2025-11-18",
+        "fecha_entrega_estimada": "2025-11-25",
+        "estado": "presupuesto_enviado",
+        "es_borrador": false,
+        "prioridad": "media",
+        "tipo_servicio": "revision",
+        "tecnico_asignado": "tecnico1",
+        "costo_estimado": 0.0,
+        "cliente_id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+        "cliente": {
+            "id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+            "nombre": "angel jaimes",
+            "cedula_rif": "V-26369968",
+            "telefono": "4121447869",
+            "telefono2": "02432838262",
+            "telefono_fijo": "",
+            "email": "angelrobertojaimes50@gmail.com",
+            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
+        },
+        "equipo": {
+            "marca": "Xiaomi",
+            "modelo": "14",
+            "imei": "511111111111111",
+            "imei2": "555555555555555",
+            "color": "Negro",
+            "ano": "",
+            "numero_serie": "445454448888888",
+            "tipo": "telefono"
+        },
+        "problema_reportado": "4454",
+        "categoria_problema": "software",
+        "tipo_problema": "se_apaga",
+        "accesorios_entregados": {
+            "cargador": true,
+            "audifonos": false,
+            "caja": false,
+            "cable": false,
+            "tarjeta_memoria": false,
+            "capacidad_memoria": "",
+            "marca_memoria": "",
+            "tipo_memoria": "",
+            "sim_card": false,
+            "tipo_sim": "",
+            "operadora_sim1": "",
+            "operadora_sim1_doble": "",
+            "operadora_sim2": "",
+            "numero_sim1": "",
+            "numero_sim1_doble": "",
+            "numero_sim2": "",
+            "otros": ""
+        },
+        "condicion_fisica": {
+            "rayones": true,
+            "golpes": false,
+            "pantalla": false,
+            "carcasa": false,
+            "botones": false,
+            "conectores": false,
+            "bateria": false,
+            "audio": false,
+            "agua": false,
+            "sobrecalentamiento": false,
+            "carcasa_suelta": false,
+            "pantalla_parpadea": false,
+            "equipo_enciende": true,
+            "restauracion_fabrica": false,
+            "observaciones": ""
+        },
+        "diagnostico": {
+            "problema_identificado": "",
+            "solucion_aplicada": "",
+            "piezas_usadas": [],
+            "comentarios_tecnicos": "5454",
+            "costo_mano_obra": 0.0,
+            "costo_piezas": 0.0,
+            "total_estimado": 0.0,
+            "descripcion_tecnica": "8999999999999",
+            "categoria_dano": "hardware",
+            "partes_revisadas": [
+                "pantalla",
+                "cargador"
+            ],
+            "resultado_diagnostico": "reparable",
+            "detalle_repuestos": "",
+            "estado_presupuesto": "pendiente",
+            "fecha_diagnostico": "2025-11-18 01:04:34",
+            "tecnico_diagnostico": "administradorp1",
+            "repuestos_seleccionados": "[]"
+        },
+        "historial_estados": [
+            {
+                "estado": "en_espera_revision",
+                "fecha": "2025-11-18 00:55:42",
+                "usuario": "administradorp1",
+                "comentarios": "Orden de servicio creada"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-18 01:04:34",
+                "usuario": "administradorp1",
+                "comentarios": "Diagnóstico completado - Resultado: reparable"
+            }
+        ],
+        "notificaciones_enviadas": [
+            {
+                "tipo": "equipo_recibido",
+                "fecha": "2025-11-18 01:03:34",
+                "mensaje": "🔧 *SERVICIO TÉCNICO JEHOVÁ JIREH* 🔧\n\n¡Hola angel jaimes! 👋\n\n📱 Tu equipo *Xiaomi 14* ha sido recibido exitosamente en nuestro taller.\n\n📋 *Número de Orden:* OS-20251118005542\n\n⏰ *Próximos pasos:*\n• 🔍 Nuestro técnico revisará tu equipo\n• 📞 Te contactaremos con el diagnóstico\n• 💰 Te enviaremos el presupuesto detallado\n\n📞 *Contacto:*\n• 📱 Teléfono: 0424-123-4567\n• 💬 WhatsApp: 0424-123-4567\n• 📧 Email: info@jehovajireh.com\n\n📍 *Dirección:*\nAv. Principal, Local 15, Centro Comercial Plaza, Caracas\n\n¡Gracias por confiar en nosotros! 🙏",
+                "usuario": "administradorp1",
+                "metodos_envio": [
+                    "whatsapp"
+                ],
+                "resultados": {
+                    "whatsapp": true,
+                    "email": false
+                },
+                "telefono": "584121447869",
+                "enlace_whatsapp": "https://wa.me/584121447869?text=%F0%9F%94%A7%20%2ASERVICIO%20T%C3%89CNICO%20JEHOV%C3%81%20JIREH%2A%20%F0%9F%94%A7%0A%0A%C2%A1Hola%20angel%20jaimes%21%20%F0%9F%91%8B%0A%0A%F0%9F%93%B1%20Tu%20equipo%20%2AXiaomi%2014%2A%20ha%20sido%20recibido%20exitosamente%20en%20nuestro%20taller.%0A%0A%F0%9F%93%8B%20%2AN%C3%BAmero%20de%20Orden%3A%2A%20OS-20251118005542%0A%0A%E2%8F%B0%20%2APr%C3%B3ximos%20pasos%3A%2A%0A%E2%80%A2%20%F0%9F%94%8D%20Nuestro%20t%C3%A9cnico%20revisar%C3%A1%20tu%20equipo%0A%E2%80%A2%20%F0%9F%93%9E%20Te%20contactaremos%20con%20el%20diagn%C3%B3stico%0A%E2%80%A2%20%F0%9F%92%B0%20Te%20enviaremos%20el%20presupuesto%20detallado%0A%0A%F0%9F%93%9E%20%2AContacto%3A%2A%0A%E2%80%A2%20%F0%9F%93%B1%20Tel%C3%A9fono%3A%200424-123-4567%0A%E2%80%A2%20%F0%9F%92%AC%20WhatsApp%3A%200424-123-4567%0A%E2%80%A2%20%F0%9F%93%A7%20Email%3A%20info%40jehovajireh.com%0A%0A%F0%9F%93%8D%20%2ADirecci%C3%B3n%3A%2A%0AAv.%20Principal%2C%20Local%2015%2C%20Centro%20Comercial%20Plaza%2C%20Caracas%0A%0A%C2%A1Gracias%20por%20confiar%20en%20nosotros%21%20%F0%9F%99%8F",
+                "email": "angelrobertojaimes50@gmail.com"
+            }
+        ],
+        "cliente_notificado": false,
+        "whatsapp_enviado": false,
+        "atendido_por": "ANTONIO",
+        "desbloqueo": {
+            "tipo": "patron",
+            "estado": "activo",
+            "clave": "00-01-02-12-11-20-21-22",
+            "notas": ""
+        },
+        "fecha_creacion": "2025-11-18 00:55:42",
+        "fecha_actualizacion": "2025-11-18 01:04:34",
+        "nota_entrega_generada": "",
+        "urgente": false
+    }
+}

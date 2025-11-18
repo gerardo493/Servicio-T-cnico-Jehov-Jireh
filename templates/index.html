@@ -2310,9 +2310,11 @@ x    {% extends "base.html" %}
                     </div>
                     <div class="col-12 mt-3">
                         <div class="row g-3 justify-content-center">
+                            {% if tarjetas_habilitadas.get('cuentas_por_cobrar', True) %}
                             <div class="col-md-6 col-lg-3">
                                 <div class="header-stat-card cobranza d-flex flex-column align-items-start justify-content-center position-relative" id="card-cobranza">
                                     <!-- Filtro principal en esquina superior derecha -->
+                                    {% if dashboard_config.get('mostrar_filtros', True) %}
                                     <div class="filtro-principal position-absolute" style="top: 10px; right: 10px;">
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-outline-light filtro-btn" type="button" onclick="abrirModalFiltro('cobranza')" data-tarjeta="cobranza">
@@ -2346,24 +2348,34 @@ x    {% extends "base.html" %}
                                             </ul>
                                         </div>
                                     </div>
+                                    {% endif %}
                                     <div class="icon-container mb-2" style="width: 50px; height: 50px; background: #f0f0f3; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; border: none;">
-                                        <i class="fas fa-hand-holding-usd" style="font-size: 1.5rem; color: #00ff88;"></i>
+                                        <i class="{{ iconos_dashboard.get('cuentas_por_cobrar', 'fas fa-hand-holding-usd') }}" style="font-size: 1.5rem; color: {{ colores_dashboard.get('cuentas_por_cobrar', '#00ff88') }};"></i>
                                     </div>
                                     <i class="fas fa-sync-alt header-stat-refresh" id="refresh-cobranza" title="Actualizando datos..."></i>
                                     <div class="header-stat-label">Cuentas por Cobrar</div>
                                     <div class="header-stat-value" id="valor-cobranza">${{ total_cobrar_usd|float|es_number }}</div>
+                                    {% if dashboard_config.get('mostrar_valores_bs', True) %}
                                     <div class="header-stat-bs" id="valor-cobranza-bs">{{ total_cobrar_bs|float|es_number }} Bs</div>
+                                    {% endif %}
+                                    {% if dashboard_config.get('mostrar_porcentajes_crecimiento', True) and dashboard_config.get('comparar_con_mes_anterior', True) %}
                                     <div class="growth-metric mt-2">
-                                        <span class="growth-indicator positive">
-                                            <i class="fas fa-arrow-up"></i> +12%
+                                        {% set crecimiento = crecimiento_cobranza|default(0) %}
+                                        <span class="growth-indicator {% if crecimiento >= 0 %}positive{% else %}negative{% endif %}">
+                                            <i class="fas fa-arrow-{% if crecimiento >= 0 %}up{% else %}down{% endif %}"></i> 
+                                            {{ "%.1f"|format(crecimiento|abs) }}%
                                         </span>
                                         <span class="growth-text">vs mes anterior</span>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
+                            {% if tarjetas_habilitadas.get('pagos_recibidos', True) %}
                             <div class="col-md-6 col-lg-3">
                                 <div class="header-stat-card pagos d-flex flex-column align-items-start justify-content-center position-relative" id="card-pagos">
                                     <!-- Filtro principal en esquina superior derecha -->
+                                    {% if dashboard_config.get('mostrar_filtros', True) %}
                                     <div class="filtro-principal position-absolute" style="top: 10px; right: 10px;">
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-outline-light filtro-btn" type="button" onclick="abrirModalFiltro('pagos')" data-tarjeta="pagos">
@@ -2397,24 +2409,34 @@ x    {% extends "base.html" %}
                                             </ul>
                                         </div>
                                     </div>
+                                    {% endif %}
                                     <div class="icon-container mb-2" style="width: 50px; height: 50px; background: #f0f0f3; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; border: none;">
-                                        <i class="fas fa-money-check-alt" style="font-size: 1.5rem; color: #00ff88;"></i>
+                                        <i class="{{ iconos_dashboard.get('pagos_recibidos', 'fas fa-money-check-alt') }}" style="font-size: 1.5rem; color: {{ colores_dashboard.get('pagos_recibidos', '#00ff88') }};"></i>
                                     </div>
                                     <i class="fas fa-sync-alt header-stat-refresh" id="refresh-pagos" title="Actualizando datos..."></i>
                                     <div class="header-stat-label">Pagos Recibidos</div>
                                     <div class="header-stat-value" id="valor-pagos">${{ total_pagos_recibidos_usd|float|es_number }}</div>
+                                    {% if dashboard_config.get('mostrar_valores_bs', True) %}
                                     <div class="header-stat-bs" id="valor-pagos-bs">{{ total_pagos_recibidos_bs|float|es_number }} Bs</div>
+                                    {% endif %}
+                                    {% if dashboard_config.get('mostrar_porcentajes_crecimiento', True) and dashboard_config.get('comparar_con_mes_anterior', True) %}
                                     <div class="growth-metric mt-2">
-                                        <span class="growth-indicator positive">
-                                            <i class="fas fa-arrow-up"></i> +8%
+                                        {% set crecimiento = crecimiento_pagos|default(0) %}
+                                        <span class="growth-indicator {% if crecimiento >= 0 %}positive{% else %}negative{% endif %}">
+                                            <i class="fas fa-arrow-{% if crecimiento >= 0 %}up{% else %}down{% endif %}"></i> 
+                                            {{ "%.1f"|format(crecimiento|abs) }}%
                                         </span>
                                         <span class="growth-text">vs mes anterior</span>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
+                            {% if tarjetas_habilitadas.get('nota_entrega', True) %}
                             <div class="col-md-6 col-lg-3">
                                 <div class="header-stat-card facturado d-flex flex-column align-items-start justify-content-center position-relative" id="card-facturado">
                                     <!-- Filtro principal en esquina superior derecha -->
+                                    {% if dashboard_config.get('mostrar_filtros', True) %}
                                     <div class="filtro-principal position-absolute" style="top: 10px; right: 10px;">
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-outline-light filtro-btn" type="button" onclick="abrirModalFiltro('facturado')" data-tarjeta="facturado">
@@ -2448,20 +2470,28 @@ x    {% extends "base.html" %}
                                             </ul>
                                         </div>
                                     </div>
+                                    {% endif %}
                                     <div class="icon-container mb-2" style="width: 50px; height: 50px; background: #f0f0f3; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; border: none;">
-                                        <i class="fas fa-file-invoice-dollar" style="font-size: 1.5rem; color: #00ff88;"></i>
+                                        <i class="{{ iconos_dashboard.get('nota_entrega', 'fas fa-file-invoice-dollar') }}" style="font-size: 1.5rem; color: {{ colores_dashboard.get('nota_entrega', '#00ff88') }};"></i>
                                     </div>
                                     <div class="header-stat-label">Nota de Entrega</div>
                                     <div class="header-stat-value" id="valor-facturado">${{ total_facturado_usd|float|es_number }}</div>
+                                    {% if dashboard_config.get('mostrar_valores_bs', True) %}
                                     <div class="header-stat-bs" id="valor-facturado-bs">{{ (total_facturado_usd * tasa_bcv)|float|es_number }} Bs</div>
+                                    {% endif %}
+                                    {% if dashboard_config.get('mostrar_porcentajes_crecimiento', True) and dashboard_config.get('comparar_con_mes_anterior', True) %}
                                     <div class="growth-metric mt-2">
-                                        <span class="growth-indicator positive">
-                                            <i class="fas fa-arrow-up"></i> +15%
+                                        {% set crecimiento = crecimiento_facturado|default(0) %}
+                                        <span class="growth-indicator {% if crecimiento >= 0 %}positive{% else %}negative{% endif %}">
+                                            <i class="fas fa-arrow-{% if crecimiento >= 0 %}up{% else %}down{% endif %}"></i> 
+                                            {{ "%.1f"|format(crecimiento|abs) }}%
                                         </span>
                                         <span class="growth-text">vs mes anterior</span>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

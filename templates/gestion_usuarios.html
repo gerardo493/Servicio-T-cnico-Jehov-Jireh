@@ -43,6 +43,24 @@
         border-radius: 8px;
         border: 2px solid #e2e8f0;
     }
+
+    .btn-save {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        color: white;
+    }
 </style>
 
 <div class="roles-container">
@@ -67,6 +85,7 @@
                         <tr>
                             <th>Usuario</th>
                             <th>Rol Actual</th>
+                            <th>Email / Teléfono</th>
                             <th>Cambiar Rol</th>
                             <th>Acciones</th>
                         </tr>
@@ -76,6 +95,20 @@
                         <tr>
                             <td><strong>{{ username }}</strong></td>
                             <td><span class="rol-badge rol-{{ datos.rol.lower().replace(' ', '-') }}">{{ datos.rol }}</span></td>
+                            <td>
+                                <div>
+                                    {% if datos.get('email') %}
+                                        <div><i class="fas fa-envelope text-primary"></i> {{ datos.email }}</div>
+                                    {% else %}
+                                        <div class="text-muted"><i class="fas fa-envelope"></i> Sin email</div>
+                                    {% endif %}
+                                    {% if datos.get('telefono') %}
+                                        <div><i class="fas fa-phone text-success"></i> {{ datos.telefono }}</div>
+                                    {% else %}
+                                        <div class="text-muted"><i class="fas fa-phone"></i> Sin teléfono</div>
+                                    {% endif %}
+                                </div>
+                            </td>
                             <td>
                                 <form method="POST" class="d-inline">
                                     <input type="hidden" name="accion" value="asignar_rol">
@@ -88,20 +121,65 @@
                                 </form>
                             </td>
                             <td>
+                                <button type="button" class="btn btn-sm btn-info me-1" data-bs-toggle="modal" data-bs-target="#modalEditarContacto{{ loop.index }}" title="Editar Email/Teléfono">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 <form method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar usuario {{ username }}?');">
                                     <input type="hidden" name="accion" value="eliminar_usuario">
                                     <input type="hidden" name="username" value="{{ username }}">
-                                    <button type="submit" class="btn btn-sm btn-danger">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar Usuario">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
                             </td>
                         </tr>
+                        
+                        <!-- Modal para editar contacto -->
+                        <div class="modal fade" id="modalEditarContacto{{ loop.index }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Editar Contacto - {{ username }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST">
+                                        <div class="modal-body">
+                                            <input type="hidden" name="accion" value="editar_contacto">
+                                            <input type="hidden" name="username" value="{{ username }}">
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <i class="fas fa-envelope me-2"></i>Email
+                                                </label>
+                                                <input type="email" name="email" class="form-control" 
+                                                       value="{{ datos.get('email', '') }}" 
+                                                       placeholder="usuario@ejemplo.com">
+                                                <small class="text-muted">Para recibir códigos 2FA por email</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <i class="fas fa-phone me-2"></i>Teléfono
+                                                </label>
+                                                <input type="text" name="telefono" class="form-control" 
+                                                       value="{{ datos.get('telefono', '') }}" 
+                                                       placeholder="0412-1234567 o +584121234567">
+                                                <small class="text-muted">Para recibir códigos 2FA por SMS/WhatsApp</small>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-save me-2"></i>Guardar Cambios
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                         {% endfor %}
                         
                         {% if not usuarios %}
                         <tr>
-                            <td colspan="4" class="text-center text-muted">
+                            <td colspan="5" class="text-center text-muted">
                                 No hay usuarios registrados
                             </td>
                         </tr>

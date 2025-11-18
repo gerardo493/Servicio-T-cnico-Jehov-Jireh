@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Programación de Reportes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            Programación de Reportes
+                        </h2>
+                        <p class="text-muted mb-0">Configura envío automático de reportes por email</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="mostrarModalProgramar()">
+                        <i class="fas fa-plus me-2"></i>Programar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Reportes Programados -->
+    <div class="row">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5 class="mb-3">Reportes Programados</h5>
+                {% if reportes_programados %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Tipo</th>
+                                <th>Frecuencia</th>
+                                <th>Email</th>
+                                <th>Formato</th>
+                                <th>Próximo Envío</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reporte in reportes_programados %}
+                            <tr>
+                                <td><strong>{{ reporte.nombre }}</strong></td>
+                                <td>{{ reporte.tipo_reporte }}</td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ reporte.frecuencia|title }}
+                                        {% if reporte.dia_semana %}({{ reporte.dia_semana }}){% endif %}
+                                        {% if reporte.dia_mes %}(Día {{ reporte.dia_mes }}){% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ reporte.email }}</td>
+                                <td><span class="badge bg-secondary">{{ reporte.formato|upper }}</span></td>
+                                <td>
+                                    {% if reporte.proximo_envio %}
+                                    {{ reporte.proximo_envio[:10] }} {{ reporte.hora }}
+                                    {% else %}
+                                    No programado
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if reporte.activo %}
+                                    <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" onclick="desprogramar('{{ reporte.id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay reportes programados. Crea uno nuevo para comenzar.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Programar -->
+<div class="modal fade" id="modalProgramar" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programar Reporte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formProgramar">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre del Reporte</label>
+                            <input type="text" class="form-control" id="nombreProgramado" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo de Reporte</label>
+                            <select class="form-select" id="tipoProgramado" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="notas_entrega">Notas de Entrega</option>
+                                <option value="pagos_recibidos">Pagos Recibidos</option>
+                                <option value="dashboard_ejecutivo">Dashboard Ejecutivo</option>
+                                <option value="estado_resultados">Estado de Resultados</option>
+                                <option value="flujo_caja">Flujo de Caja</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Frecuencia</label>
+                            <select class="form-select" id="frecuenciaProgramado" required onchange="actualizarCamposFrecuencia()">
+                                <option value="">Seleccionar...</option>
+                                <option value="diario">Diario</option>
+                                <option value="semanal">Semanal</option>
+                                <option value="mensual">Mensual</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="divDiaSemana" style="display: none;">
+                            <label class="form-label">Día de la Semana</label>
+                            <select class="form-select" id="diaSemanaProgramado">
+                                <option value="lunes">Lunes</option>
+                                <option value="martes">Martes</option>
+                                <option value="miercoles">Miércoles</option>
+                                <option value="jueves">Jueves</option>
+                                <option value="viernes">Viernes</option>
+                                <option value="sabado">Sábado</option>
+                                <option value="domingo">Domingo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="divDiaMes" style="display: none;">
+                            <label class="form-label">Día del Mes</label>
+                            <input type="number" class="form-control" id="diaMesProgramado" min="1" max="31" value="1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Hora de Envío</label>
+                            <input type="time" class="form-control" id="horaProgramado" value="08:00" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email Destinatario</label>
+                            <input type="email" class="form-control" id="emailProgramado" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Formato</label>
+                            <select class="form-select" id="formatoProgramado">
+                                <option value="pdf">PDF</option>
+                                <option value="csv">CSV</option>
+                                <option value="json">JSON</option>
+                                <option value="html">HTML</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarProgramacion()">Programar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function mostrarModalProgramar() {
+    const modal = new bootstrap.Modal(document.getElementById('modalProgramar'));
+    modal.show();
+}
+
+function actualizarCamposFrecuencia() {
+    const frecuencia = document.getElementById('frecuenciaProgramado').value;
+    document.getElementById('divDiaSemana').style.display = frecuencia === 'semanal' ? 'block' : 'none';
+    document.getElementById('divDiaMes').style.display = frecuencia === 'mensual' ? 'block' : 'none';
+}
+
+function guardarProgramacion() {
+    const data = {
+        nombre: document.getElementById('nombreProgramado').value,
+        tipo_reporte: document.getElementById('tipoProgramado').value,
+        frecuencia: document.getElementById('frecuenciaProgramado').value,
+        dia_semana: document.getElementById('diaSemanaProgramado').value,
+        dia_mes: document.getElementById('diaMesProgramado').value,
+        hora: document.getElementById('horaProgramado').value,
+        email: document.getElementById('emailProgramado').value,
+        formato: document.getElementById('formatoProgramado').value,
+        filtros: {}
+    };
+    
+    fetch('/api/reportes/programar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('Reporte programado correctamente');
+            location.reload();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    });
+}
+
+function desprogramar(id) {
+    if (confirm('¿Estás seguro de eliminar esta programación?')) {
+        fetch(`/api/reportes/desprogramar/${id}`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                alert('Programación eliminada');
+                location.reload();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
+

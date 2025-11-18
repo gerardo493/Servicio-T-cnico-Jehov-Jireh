@@ -893,7 +893,7 @@
                                 <td>${{ pendiente.total_usd|money }}</td>
                                 <td>Bs {{ pendiente.total_bs|money }}</td>
                                 <td>
-                                    <a href="/pagos-recibidos/nuevo?cliente={{ cliente.get('nombre', '') }}" class="action-btn action-btn-primary">
+                                    <a href="/pagos-recibidos/nuevo?cliente_id={{ cliente_id }}" class="action-btn action-btn-primary">
                                         <i class="fas fa-dollar-sign me-1"></i>
                                         Registrar Pago
                                     </a>

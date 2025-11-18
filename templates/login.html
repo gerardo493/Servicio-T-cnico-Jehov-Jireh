@@ -268,6 +268,15 @@
                 <h4 class="mb-0">Iniciar Sesión</h4>
             </div>
             <div class="card-body">
+                {% if mostrar_2fa %}
+                <div class="alert alert-info mb-3" style="background: rgba(33, 150, 243, 0.15); border-color: var(--color-gold-light); color: #2196F3;">
+                    <i class="fas fa-shield-alt"></i> 
+                    <strong>Autenticación de Dos Factores Activada</strong>
+                    <br>
+                    <small>Después de ingresar tus credenciales, recibirás un código de verificación.</small>
+                </div>
+                {% endif %}
+                
                 <form method="POST" autocomplete="off">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
@@ -287,6 +296,21 @@
                             </button>
                         </div>
                     </div>
+                    {% if mostrar_2fa %}
+                    <div class="mb-3">
+                        <label class="form-label">Método de Verificación</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="metodo_2fa" id="metodo_email" value="email" checked>
+                            <label class="btn btn-outline-secondary" for="metodo_email">
+                                <i class="fas fa-envelope"></i> Email
+                            </label>
+                            <input type="radio" class="btn-check" name="metodo_2fa" id="metodo_sms" value="sms">
+                            <label class="btn btn-outline-secondary" for="metodo_sms">
+                                <i class="fas fa-sms"></i> SMS
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
@@ -296,6 +320,11 @@
                     {% endwith %}
                     <div class="d-grid gap-2 mt-3">
                         <button type="submit" class="btn btn-primary btn-lg">Iniciar Sesión</button>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('recuperar_contraseña') }}" class="text-decoration-none" style="color: var(--color-gold-light);">
+                            <i class="fas fa-key me-1"></i> ¿Olvidaste tu contraseña?
+                        </a>
                     </div>
                 </form>
             </div>

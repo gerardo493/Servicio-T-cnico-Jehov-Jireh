@@ -299,20 +299,28 @@
                     <div class="form-group">
                         <label class="form-label">Marca *</label>
                         <select name="marca" class="form-input" required id="marcaSelect">
-                            <option value="">Seleccionar...</option>
-                            {% if modelos_disponibles %}
-                            {% for modelo in modelos_disponibles %}
-                            <option value="{{ modelo }}">{{ modelo }}</option>
-                            {% endfor %}
-                            {% else %}
-                            <option value="Samsung">Samsung</option>
-                            <option value="Apple">Apple</option>
-                            <option value="Huawei">Huawei</option>
-                            <option value="Xiaomi">Xiaomi</option>
-                            <option value="Motorola">Motorola</option>
-                            <option value="LG">LG</option>
-                            <option value="Otra">Otra</option>
-                            {% endif %}
+                            <option value="">Seleccionar marca</option>
+                            
+                            <option value="Apple">🍎 Apple</option>
+                            <option value="Samsung">📱 Samsung</option>
+                            <option value="Xiaomi">📱 Xiaomi</option>
+                            <option value="Huawei">📱 Huawei</option>
+                            <option value="Oppo">📱 Oppo</option>
+                            <option value="Vivo">📱 Vivo</option>
+                            <option value="OnePlus">📱 OnePlus</option>
+                            <option value="Motorola">📱 Motorola</option>
+                            <option value="Google">📱 Google</option>
+                            <option value="Realme">📱 Realme</option>
+                            <option value="LG">📱 LG</option>
+                            <option value="Sony">📱 Sony</option>
+                            <option value="Nokia">📱 Nokia</option>
+                            <option value="TCL">📱 TCL</option>
+                            <option value="Alcatel">📱 Alcatel</option>
+                            <option value="ZTE">📱 ZTE</option>
+                            <option value="Honor">📱 Honor</option>
+                            <option value="Infinix">📱 Infinix</option>
+                            <option value="Tecno">📱 Tecno</option>
+                            <option value="Otro">📱 Otro</option>
                         </select>
                     </div>
                 </div>

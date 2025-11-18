@@ -380,8 +380,49 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="equipo_marca" class="form-label neo-subtitle">Marca:</label>
-                                            <input type="text" class="form-control neo-input" id="equipo_marca" name="equipo_marca" 
-                                                   value="{{ orden.equipo.marca }}" required>
+                                            <select class="form-control neo-input" id="equipo_marca" name="equipo_marca" required>
+                                                <option value="">Seleccionar marca</option>
+                                                {% if marcas_permitidas %}
+                                                    {% for marca in marcas_permitidas %}
+                                                    {% set marca_actual = orden.equipo.marca|default('')|string %}
+                                                    {% set marca_lower = marca|lower %}
+                                                    {% set marca_actual_lower = marca_actual|lower %}
+                                                    {% set is_exact_match = (marca_actual == marca) or (marca_actual_lower == marca_lower) %}
+                                                    {% set is_prefix_match = False %}
+                                                    {% if marca_actual_lower and marca_lower and marca_actual_lower|length >= marca_lower|length %}
+                                                        {% set is_prefix_match = (marca_actual_lower[:marca_lower|length] == marca_lower) %}
+                                                    {% endif %}
+                                                    <option value="{{ marca }}" {% if is_exact_match or is_prefix_match %}selected{% endif %}>
+                                                        {% if marca_lower == 'apple' %}🍎
+                                                        {% elif marca_lower in ['samsung', 'xiaomi', 'huawei', 'oppo', 'vivo', 'oneplus', 'motorola', 'google', 'realme', 'lg', 'sony', 'nokia', 'tcl', 'alcatel', 'zte', 'honor', 'infinix', 'tecno'] %}📱
+                                                        {% else %}📱
+                                                        {% endif %}
+                                                        {{ marca }}
+                                                    </option>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <option value="Apple" {% if orden.equipo.marca == 'Apple' or (orden.equipo.marca and orden.equipo.marca|lower[:5] == 'apple') %}selected{% endif %}>🍎 Apple</option>
+                                                    <option value="Samsung" {% if orden.equipo.marca == 'Samsung' or (orden.equipo.marca and orden.equipo.marca|lower[:7] == 'samsung') %}selected{% endif %}>📱 Samsung</option>
+                                                    <option value="Xiaomi" {% if orden.equipo.marca == 'Xiaomi' or (orden.equipo.marca and orden.equipo.marca|lower[:6] == 'xiaomi') %}selected{% endif %}>📱 Xiaomi</option>
+                                                    <option value="Huawei" {% if orden.equipo.marca == 'Huawei' or (orden.equipo.marca and orden.equipo.marca|lower[:6] == 'huawei') %}selected{% endif %}>📱 Huawei</option>
+                                                    <option value="Oppo" {% if orden.equipo.marca == 'Oppo' or (orden.equipo.marca and orden.equipo.marca|lower[:4] == 'oppo') %}selected{% endif %}>📱 Oppo</option>
+                                                    <option value="Vivo" {% if orden.equipo.marca == 'Vivo' or (orden.equipo.marca and orden.equipo.marca|lower[:4] == 'vivo') %}selected{% endif %}>📱 Vivo</option>
+                                                    <option value="OnePlus" {% if orden.equipo.marca == 'OnePlus' or (orden.equipo.marca and orden.equipo.marca|lower[:7] == 'oneplus') %}selected{% endif %}>📱 OnePlus</option>
+                                                    <option value="Motorola" {% if orden.equipo.marca == 'Motorola' or (orden.equipo.marca and orden.equipo.marca|lower[:8] == 'motorola') %}selected{% endif %}>📱 Motorola</option>
+                                                    <option value="Google" {% if orden.equipo.marca == 'Google' or (orden.equipo.marca and orden.equipo.marca|lower[:6] == 'google') %}selected{% endif %}>📱 Google</option>
+                                                    <option value="Realme" {% if orden.equipo.marca == 'Realme' or (orden.equipo.marca and orden.equipo.marca|lower[:6] == 'realme') %}selected{% endif %}>📱 Realme</option>
+                                                    <option value="LG" {% if orden.equipo.marca == 'LG' or (orden.equipo.marca and orden.equipo.marca|lower[:2] == 'lg') %}selected{% endif %}>📱 LG</option>
+                                                    <option value="Sony" {% if orden.equipo.marca == 'Sony' or (orden.equipo.marca and orden.equipo.marca|lower[:4] == 'sony') %}selected{% endif %}>📱 Sony</option>
+                                                    <option value="Nokia" {% if orden.equipo.marca == 'Nokia' or (orden.equipo.marca and orden.equipo.marca|lower[:5] == 'nokia') %}selected{% endif %}>📱 Nokia</option>
+                                                    <option value="TCL" {% if orden.equipo.marca == 'TCL' or (orden.equipo.marca and orden.equipo.marca|lower[:3] == 'tcl') %}selected{% endif %}>📱 TCL</option>
+                                                    <option value="Alcatel" {% if orden.equipo.marca == 'Alcatel' or (orden.equipo.marca and orden.equipo.marca|lower[:7] == 'alcatel') %}selected{% endif %}>📱 Alcatel</option>
+                                                    <option value="ZTE" {% if orden.equipo.marca == 'ZTE' or (orden.equipo.marca and orden.equipo.marca|lower[:3] == 'zte') %}selected{% endif %}>📱 ZTE</option>
+                                                    <option value="Honor" {% if orden.equipo.marca == 'Honor' or (orden.equipo.marca and orden.equipo.marca|lower[:5] == 'honor') %}selected{% endif %}>📱 Honor</option>
+                                                    <option value="Infinix" {% if orden.equipo.marca == 'Infinix' or (orden.equipo.marca and orden.equipo.marca|lower[:7] == 'infinix') %}selected{% endif %}>📱 Infinix</option>
+                                                    <option value="Tecno" {% if orden.equipo.marca == 'Tecno' or (orden.equipo.marca and orden.equipo.marca|lower[:5] == 'tecno') %}selected{% endif %}>📱 Tecno</option>
+                                                    <option value="Otro" {% if orden.equipo.marca == 'Otro' or (orden.equipo.marca and orden.equipo.marca not in ['Apple', 'Samsung', 'Xiaomi', 'Huawei', 'Oppo', 'Vivo', 'OnePlus', 'Motorola', 'Google', 'Realme', 'LG', 'Sony', 'Nokia', 'TCL', 'Alcatel', 'ZTE', 'Honor', 'Infinix', 'Tecno'] and not (orden.equipo.marca and (orden.equipo.marca|lower[:5] == 'apple' or orden.equipo.marca|lower[:7] == 'samsung' or orden.equipo.marca|lower[:6] == 'xiaomi' or orden.equipo.marca|lower[:6] == 'huawei' or orden.equipo.marca|lower[:4] == 'oppo' or orden.equipo.marca|lower[:4] == 'vivo' or orden.equipo.marca|lower[:7] == 'oneplus' or orden.equipo.marca|lower[:8] == 'motorola' or orden.equipo.marca|lower[:6] == 'google' or orden.equipo.marca|lower[:6] == 'realme' or orden.equipo.marca|lower[:2] == 'lg' or orden.equipo.marca|lower[:4] == 'sony' or orden.equipo.marca|lower[:5] == 'nokia' or orden.equipo.marca|lower[:3] == 'tcl' or orden.equipo.marca|lower[:7] == 'alcatel' or orden.equipo.marca|lower[:3] == 'zte' or orden.equipo.marca|lower[:5] == 'honor' or orden.equipo.marca|lower[:7] == 'infinix' or orden.equipo.marca|lower[:5] == 'tecno'))) %}selected{% endif %}>📱 Otro</option>
+                                                {% endif %}
+                                            </select>
                                         </div>
                                         <div class="mb-3">
                                             <label for="equipo_modelo" class="form-label neo-subtitle">Modelo:</label>
@@ -402,8 +443,17 @@
                                         </div>
                                         <div class="mb-3">
                                             <label for="equipo_color" class="form-label neo-subtitle">Color:</label>
+                                            {% if colores_disponibles and colores_disponibles|length > 0 %}
+                                            <select id="equipo_color" name="equipo_color" class="form-control neo-input">
+                                                <option value="">Seleccionar color</option>
+                                                {% for color in colores_disponibles %}
+                                                <option value="{{ color }}" {% if orden.equipo.get('color', '') == color %}selected{% endif %}>{{ color }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            {% else %}
                                             <input type="text" class="form-control neo-input" id="equipo_color" name="equipo_color" 
                                                    value="{{ orden.equipo.get('color', '') }}">
+                                            {% endif %}
                                         </div>
                                         <div class="mb-3">
                                             <label for="equipo_serial" class="form-label neo-subtitle">Número de Serie:</label>

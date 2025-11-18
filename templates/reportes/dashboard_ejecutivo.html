@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Ejecutivo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="neo-card">
+                <h2 class="mb-1">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    Dashboard Ejecutivo
+                </h2>
+                <p class="text-muted mb-0">Vista general de KPIs y métricas del negocio</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs Principales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(ventas_mes) }}</h3>
+                        <p class="stat-label">Ventas del Mes</p>
+                        <small class="stat-variacion {% if variacion_ventas >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            <i class="fas fa-arrow-{% if variacion_ventas >= 0 %}up{% else %}down{% endif %}"></i>
+                            {{ "%.1f"|format(variacion_ventas|abs) }}% vs mes anterior
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-money-check-alt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(pagos_mes) }}</h3>
+                        <p class="stat-label">Pagos Recibidos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">${{ "%.2f"|format(total_cobrar) }}</h3>
+                        <p class="stat-label">Cuentas por Cobrar</p>
+                        <small class="stat-variacion">{{ notas_pendientes }} notas pendientes</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="neo-card text-center">
+                <div class="neo-stat-card" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ clientes_activos }}</h3>
+                        <p class="stat-label">Clientes Activos</p>
+                        <small class="stat-variacion">de {{ total_clientes }} totales</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Tendencias -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="neo-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Tendencia de Ventas (Últimos 6 Meses)
+                </h5>
+                <canvas id="graficoTendencias" height="80"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="neo-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-box me-2"></i>
+                    Inventario
+                </h5>
+                <div class="mb-3">
+                    <strong>Total Productos:</strong> {{ total_productos }}
+                </div>
+                <div class="mb-3">
+                    <strong>Valor Total:</strong> ${{ "%.2f"|format(valor_inventario) }}
+                </div>
+                <div class="mb-3">
+                    <strong>Bajo Stock:</strong> 
+                    <span class="badge {% if productos_bajo_stock > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                        {{ productos_bajo_stock }}
+                    </span>
+                </div>
+                <div>
+                    <strong>Órdenes Pendientes:</strong> 
+                    <span class="badge bg-info">{{ ordenes_pendientes }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Productos -->
+    {% if top_productos %}
+    <div class="row">
+        <div class="col-12">
+            <div class="neo-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-star me-2"></i>
+                    Top 10 Productos Más Vendidos (Últimos 30 días)
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th>Cantidad Vendida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto, cantidad in top_productos %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><strong>{{ producto }}</strong></td>
+                                <td><span class="badge bg-success">{{ cantidad|int }} unidades</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+const ctx = document.getElementById('graficoTendencias');
+if (ctx) {
+    const datos = {{ ventas_por_mes|tojson }};
+    const meses = Object.keys(datos).reverse();
+    const valores = meses.map(m => datos[m]);
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: meses,
+            datasets: [{
+                label: 'Ventas USD',
+                data: valores,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}
+

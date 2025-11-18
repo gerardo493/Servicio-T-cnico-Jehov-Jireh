@@ -1,0 +1,100 @@
+{
+    "OS-PRUEBA-20251111223658": {
+        "id": "OS-PRUEBA-20251111223658",
+        "numero_orden": "OS-PRUEBA-20251111223658",
+        "fecha_recepcion": "2025-11-11",
+        "fecha_entrega_estimada": "2025-11-18",
+        "estado": "entregado",
+        "prioridad": "media",
+        "tipo_servicio": "Reparación",
+        "tecnico_asignado": "Técnico",
+        "costo_estimado": 100.0,
+        "cliente_id": "6e10fe7c-006f-4f08-97d3-3357c9d6031c",
+        "cliente": {
+            "nombre": "armandi guizepe",
+            "cedula_rif": "V-3211345",
+            "telefono": "4121-447-869",
+            "telefono2": "",
+            "email": "admin@kisvic1045.com",
+            "direccion": "caña de azucar sector 2 vereda 64 casa 1-a"
+        },
+        "equipo": {
+            "marca": "Samsung",
+            "modelo": "Galaxy S22",
+            "imei": "123456789012345",
+            "imei2": "",
+            "color": "Negro",
+            "numero_serie": "SN123456",
+            "tipo": "telefono"
+        },
+        "problema_reportado": "Pantalla rota y batería con fallas",
+        "categoria_problema": "Falla física",
+        "diagnostico": {
+            "descripcion_tecnica": "Se requiere cambio de pantalla y batería",
+            "categoria_dano": "Físico",
+            "partes_revisadas": [
+                "Pantalla",
+                "Batería",
+                "Cámara"
+            ],
+            "resultado_diagnostico": "Equipo requiere reparación",
+            "costo_mano_obra": 50.0,
+            "costo_piezas": 90.0,
+            "total_estimado": 140.0,
+            "detalle_repuestos": "Pantalla y batería para Samsung Galaxy S22",
+            "estado_presupuesto": "aprobado",
+            "fecha_diagnostico": "2025-11-11 22:36:58",
+            "fecha_presupuesto": "2025-11-11 22:36:58",
+            "tecnico_diagnostico": "Técnico",
+            "repuestos_seleccionados": "[{\"id\": \"2\", \"nombre\": \"bateria generica\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}, {\"id\": \"3\", \"nombre\": \"M\\u00f3dulo de Pantalla para iPhone 14 / iPhone 15 Pro\", \"precio\": 20.0, \"cantidad\": 1, \"categoria\": \"Pantallas\"}, {\"id\": \"4\", \"nombre\": \"Bater\\u00eda para Samsung Galaxy S22 / Galaxy A54\", \"precio\": 50.0, \"cantidad\": 1, \"categoria\": \"Bater\\u00edas\"}]"
+        },
+        "historial_estados": [
+            {
+                "estado": "en_espera_revision",
+                "fecha": "2025-11-11 22:36:58",
+                "usuario": "Sistema",
+                "comentarios": "Orden de servicio creada"
+            },
+            {
+                "estado": "en_diagnostico",
+                "fecha": "2025-11-11 22:36:58",
+                "usuario": "Técnico",
+                "comentarios": "Diagnóstico completado"
+            },
+            {
+                "estado": "presupuesto_enviado",
+                "fecha": "2025-11-11 22:36:58",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto enviado y aprobado"
+            },
+            {
+                "estado": "en_reparacion",
+                "fecha": "2025-11-11 22:36:58",
+                "usuario": "Técnico",
+                "comentarios": "Presupuesto aprobado - Iniciando reparación"
+            },
+            {
+                "estado": "entregado",
+                "fecha": "2025-11-11 22:37:25",
+                "usuario": "Técnico",
+                "comentarios": "Equipo entregado a armandi guizepe - Pago: efectivo"
+            }
+        ],
+        "fecha_creacion": "2025-11-11 22:36:58",
+        "fecha_actualizacion": "2025-11-11 22:37:35",
+        "entrega": {
+            "fecha_entrega": "2025-11-11T22:37",
+            "nombre_retira": "armandi guizepe",
+            "cedula_retira": "V-3211345",
+            "telefono_retira": "4121-447-869",
+            "tipo_pago": "efectivo",
+            "monto_pagado": 140.0,
+            "monto_pendiente": 0.0,
+            "observaciones_entrega": "",
+            "tecnico_entrega": "Técnico",
+            "firma_digital": "data:image/png;base64,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",
+            "fecha_actualizacion": "2025-11-11 22:37:25"
+        },
+        "nota_entrega_generada": "NE-0001"
+    }
+}

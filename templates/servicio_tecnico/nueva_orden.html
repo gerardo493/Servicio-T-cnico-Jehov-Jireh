@@ -591,17 +591,38 @@
                                 </label>
                                 <select id="equipo_marca" name="equipo_marca" class="neo-select" required>
                                     <option value="">Seleccionar marca</option>
-                                    <option value="Samsung">Samsung</option>
-                                    <option value="Apple">Apple</option>
-                                    <option value="Huawei">Huawei</option>
-                                    <option value="Xiaomi">Xiaomi</option>
-                                    <option value="Oppo">Oppo</option>
-                                    <option value="Vivo">Vivo</option>
-                                    <option value="OnePlus">OnePlus</option>
-                                    <option value="Motorola">Motorola</option>
-                                    <option value="LG">LG</option>
-                                    <option value="Sony">Sony</option>
-                                    <option value="Otro">Otro</option>
+                                    {% if marcas_permitidas %}
+                                        {% for marca in marcas_permitidas %}
+                                        <option value="{{ marca }}">
+                                            {% if marca|lower == 'apple' %}🍎
+                                            {% elif marca|lower in ['samsung', 'xiaomi', 'huawei', 'oppo', 'vivo', 'oneplus', 'motorola', 'google', 'realme', 'lg', 'sony', 'nokia', 'tcl', 'alcatel', 'zte', 'honor', 'infinix', 'tecno'] %}📱
+                                            {% else %}📱
+                                            {% endif %}
+                                            {{ marca }}
+                                        </option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="Apple">🍎 Apple</option>
+                                        <option value="Samsung">📱 Samsung</option>
+                                        <option value="Xiaomi">📱 Xiaomi</option>
+                                        <option value="Huawei">📱 Huawei</option>
+                                        <option value="Oppo">📱 Oppo</option>
+                                        <option value="Vivo">📱 Vivo</option>
+                                        <option value="OnePlus">📱 OnePlus</option>
+                                        <option value="Motorola">📱 Motorola</option>
+                                        <option value="Google">📱 Google</option>
+                                        <option value="Realme">📱 Realme</option>
+                                        <option value="LG">📱 LG</option>
+                                        <option value="Sony">📱 Sony</option>
+                                        <option value="Nokia">📱 Nokia</option>
+                                        <option value="TCL">📱 TCL</option>
+                                        <option value="Alcatel">📱 Alcatel</option>
+                                        <option value="ZTE">📱 ZTE</option>
+                                        <option value="Honor">📱 Honor</option>
+                                        <option value="Infinix">📱 Infinix</option>
+                                        <option value="Tecno">📱 Tecno</option>
+                                        <option value="Otro">📱 Otro</option>
+                                    {% endif %}
                                 </select>
                             </div>
                         </div>
@@ -636,8 +657,17 @@
                                 <label class="neo-label" for="equipo_color">
                                     <i class="fas fa-palette me-2"></i>Color
                                 </label>
+                                {% if colores_disponibles and colores_disponibles|length > 0 %}
+                                <select id="equipo_color" name="equipo_color" class="neo-select">
+                                    <option value="">Seleccionar color</option>
+                                    {% for color in colores_disponibles %}
+                                    <option value="{{ color }}">{{ color }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
                                 <input type="text" id="equipo_color" name="equipo_color" class="neo-input" 
                                        placeholder="Negro, Blanco, Azul, etc.">
+                                {% endif %}
                             </div>
                         </div>
                     </div>

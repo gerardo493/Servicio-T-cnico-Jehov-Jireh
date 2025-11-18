@@ -1,1 +1,53 @@
-{}
+{
+    "NE-0001": {
+        "numero": "NE-0001",
+        "numero_secuencial": 1,
+        "fecha": "2025-11-18",
+        "hora": "01:10:00",
+        "timestamp_creacion": "2025-11-18T01:10:00.490873",
+        "cliente_id": "c09f49e2-0974-48a7-9e6d-d676d535dffe",
+        "modalidad_pago": "contado",
+        "productos": [
+            "Servicio de Reparación - Xiaomi 14",
+            "bateria generica"
+        ],
+        "cantidades": [
+            "1",
+            "1"
+        ],
+        "precios": [
+            "50.0",
+            "20"
+        ],
+        "subtotal_usd": 70.0,
+        "total_usd": 70.0,
+        "tasa_bcv": 236.84,
+        "fecha_tasa_bcv": "2025-11-18",
+        "total_bs": 16578.8,
+        "estado": "PAGADA",
+        "usuario_creacion": "administradorp1",
+        "observaciones": "Nota de entrega generada desde orden de servicio OS-20251118005542",
+        "orden_servicio_id": "OS-20251118005542",
+        "firma_recibido": false,
+        "fecha_entrega": null,
+        "hora_entrega": null,
+        "entregado_por": null,
+        "recibido_por": null,
+        "documento_identidad": null,
+        "pagos": [
+            {
+                "id": "df5d5ac5-936f-4a39-aee3-f1e70d27c3e6",
+                "fecha": "2025-11-18 01:11:31",
+                "monto": 70.0,
+                "metodo": "Binance",
+                "referencia": "556",
+                "timestamp": "2025-11-18T01:11:31.563303"
+            }
+        ],
+        "total_abonado": 70.0,
+        "saldo_pendiente": 0.0,
+        "saldo_pendiente_usd": 0.0,
+        "estado_pago": "Pagada",
+        "fecha_pago_completo": "2025-11-18"
+    }
+}

@@ -129,13 +129,6 @@
     font-size: 1.2rem;
 }
 
-/* Canvas para firma */
-#firmaCanvas {
-    border: 2px solid #d1d5db;
-    border-radius: 15px;
-    background: white;
-    cursor: crosshair;
-}
 
 /* Timeline */
 .timeline {
@@ -290,40 +283,33 @@
                                 
                                 <div class="col-md-6">
                                     <div class="mb-4">
-                                        <label for="tipo_pago" class="neo-subtitle">Método de Pago:</label>
-                                        <select id="tipo_pago" name="tipo_pago" class="neo-input" required>
-                                            <option value="">Seleccionar...</option>
-                                            {% for metodo in metodos_pago %}
-                                            <option value="{{ metodo.lower() }}" {% if orden.entrega and orden.entrega.tipo_pago == metodo.lower() %}selected{% endif %}>{{ metodo }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="mb-4">
-                                        <label for="monto_pagado" class="neo-subtitle">Monto Pagado:</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" id="monto_pagado" name="monto_pagado" class="neo-input" 
-                                                   step="0.01" min="0" max="{{ orden.diagnostico.total_estimado if orden.diagnostico else 0 }}" 
-                                                   value="{{ orden.entrega.monto_pagado if orden.entrega else 0 }}" required>
-                                        </div>
-                                        <small class="text-muted">Máximo: ${{ "%.2f"|format(orden.diagnostico.total_estimado) if orden.diagnostico else '0.00' }}</small>
-                                    </div>
-                                    
-                                    <div class="mb-4">
-                                        <label for="monto_pendiente" class="neo-subtitle">Monto Pendiente:</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input type="number" id="monto_pendiente" name="monto_pendiente" class="neo-input" 
-                                                   step="0.01" min="0" value="{{ orden.entrega.monto_pendiente if orden.entrega else 0 }}" readonly>
-                                        </div>
-                                        <small class="text-muted">Se calcula automáticamente: Total - Monto Pagado</small>
-                                    </div>
-                                    
-                                    <div class="mb-4">
                                         <label for="tecnico_entrega" class="neo-subtitle">Técnico Responsable:</label>
                                         <input type="text" id="tecnico_entrega" name="tecnico_entrega" class="neo-input" 
                                                value="{{ orden.entrega.tecnico_entrega if orden.entrega else session.username or 'Técnico' }}" required>
+                                    </div>
+                                    
+                                    <!-- Botón para registrar pago -->
+                                    <div class="mb-4">
+                                        <label class="neo-subtitle">Registro de Pago:</label>
+                                        <div>
+                                            <a href="/pagos-recibidos/nuevo?cliente_id={{ orden.cliente_id }}" class="btn neo-button-primary w-100 mb-2">
+                                                <i class="fas fa-dollar-sign me-2"></i>
+                                                Registrar Pago
+                                            </a>
+                                            <small class="text-muted d-block mb-2">El pago se registra en el módulo de Pagos Recibidos</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Botón para enviar notificación de pago -->
+                                    <div class="mb-4">
+                                        <label class="neo-subtitle">Notificación al Cliente:</label>
+                                        <div>
+                                            <button type="button" class="btn neo-button-success w-100" onclick="enviarNotificacionPago()">
+                                                <i class="fas fa-paper-plane me-2"></i>
+                                                Enviar Notificación de Pago
+                                            </button>
+                                            <small class="text-muted d-block mt-2">Envía datos de cuentas y monto pendiente</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -332,23 +318,6 @@
                                 <label for="observaciones_entrega" class="neo-subtitle">Observaciones de la Entrega:</label>
                                 <textarea id="observaciones_entrega" name="observaciones_entrega" class="neo-input" rows="3" 
                                           placeholder="Observaciones adicionales sobre la entrega...">{{ orden.entrega.observaciones_entrega if orden.entrega else '' }}</textarea>
-                            </div>
-                            
-                            <!-- Firma Digital -->
-                            <div class="mb-4">
-                                <label class="neo-subtitle">Firma Digital del Cliente:</label>
-                                <div class="neo-card-inset p-3">
-                                    <canvas id="firmaCanvas" width="600" height="200"></canvas>
-                                    <div class="mt-2">
-                                        <button type="button" class="btn neo-button btn-sm" onclick="limpiarFirma()">
-                                            <i class="fas fa-eraser me-1"></i>Limpiar Firma
-                                        </button>
-                                        <button type="button" class="btn neo-button btn-sm" onclick="guardarFirma()">
-                                            <i class="fas fa-save me-1"></i>Guardar Firma
-                                        </button>
-                                    </div>
-                                </div>
-                                <input type="hidden" id="firma_digital" name="firma_digital" value="{{ orden.entrega.firma_digital if orden.entrega else '' }}">
                             </div>
                             
                             {% if nota_entrega_existente %}
@@ -429,12 +398,6 @@
                             <div class="info-value"><strong id="total-final">$0.00</strong></div>
                         </div>
                         
-                        <div class="info-item">
-                            <span class="neo-subtitle">Estado del Pago:</span>
-                            <div class="info-value">
-                                <span class="badge badge-entregado" id="estado-pago">Pendiente</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 
@@ -455,97 +418,83 @@
     </div>
 </div>
 
-<script>
-// Variables globales
-let canvas, ctx;
-let isDrawing = false;
-let firmaGuardada = false;
+<!-- Modal para personalizar notificación de pago -->
+<div class="modal fade" id="modalNotificacionPago" tabindex="-1" aria-labelledby="modalNotificacionPagoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background: #e0e5ec; border-radius: 20px; border: none;">
+            <div class="modal-header" style="border-bottom: 2px solid #a3b1c6;">
+                <h5 class="modal-title" id="modalNotificacionPagoLabel">
+                    <i class="fas fa-paper-plane me-2" style="color: #00ff88;"></i>
+                    Personalizar Notificación de Pago
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Selección de canales de envío -->
+                <div class="mb-4">
+                    <label class="neo-subtitle mb-3">Canales de Envío:</label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="canal_whatsapp" checked>
+                                <label class="form-check-label" for="canal_whatsapp">
+                                    <i class="fab fa-whatsapp me-2" style="color: #25D366;"></i>
+                                    WhatsApp
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="canal_email" checked>
+                                <label class="form-check-label" for="canal_email">
+                                    <i class="fas fa-envelope me-2" style="color: #EA4335;"></i>
+                                    Email
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr style="border-color: #a3b1c6;">
+                
+                <!-- Selección de métodos de pago a incluir -->
+                <div class="mb-4">
+                    <label class="neo-subtitle mb-3">Métodos de Pago a Incluir:</label>
+                    <div id="metodos-pago-container" class="row">
+                        <div class="col-12 text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando métodos de pago...</span>
+                            </div>
+                            <p class="text-muted mt-2">Cargando métodos de pago desde la configuración...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Vista previa del mensaje -->
+                <div class="mb-3">
+                    <label class="neo-subtitle mb-2">Vista Previa del Mensaje:</label>
+                    <div class="neo-card-inset p-3" style="max-height: 200px; overflow-y: auto;">
+                        <pre id="vistaPreviaMensaje" style="white-space: pre-wrap; font-size: 0.9rem; margin: 0; color: #4a5568;"></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 2px solid #a3b1c6;">
+                <button type="button" class="btn neo-button" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn neo-button-success" onclick="confirmarEnvioNotificacion()">
+                    <i class="fas fa-paper-plane me-2"></i>
+                    Enviar Notificación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
+<script>
 // Inicializar página
 document.addEventListener('DOMContentLoaded', function() {
-    inicializarCanvas();
     cargarHistorialCompleto();
     calcularTotalFinal();
-    actualizarEstadoPago();
 });
-
-// Inicializar canvas para firma
-function inicializarCanvas() {
-    canvas = document.getElementById('firmaCanvas');
-    ctx = canvas.getContext('2d');
-    
-    // Configurar canvas
-    ctx.strokeStyle = '#2d3748';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    // Eventos del mouse
-    canvas.addEventListener('mousedown', iniciarDibujo);
-    canvas.addEventListener('mousemove', dibujar);
-    canvas.addEventListener('mouseup', detenerDibujo);
-    canvas.addEventListener('mouseleave', detenerDibujo);
-    
-    // Eventos táctiles
-    canvas.addEventListener('touchstart', manejarTactil);
-    canvas.addEventListener('touchmove', manejarTactil);
-    canvas.addEventListener('touchend', detenerDibujo);
-}
-
-// Manejar eventos táctiles
-function manejarTactil(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-}
-
-// Iniciar dibujo
-function iniciarDibujo(e) {
-    isDrawing = true;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-}
-
-// Dibujar
-function dibujar(e) {
-    if (!isDrawing) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    ctx.lineTo(x, y);
-    ctx.stroke();
-}
-
-// Detener dibujo
-function detenerDibujo() {
-    isDrawing = false;
-    ctx.beginPath();
-}
-
-// Limpiar firma
-function limpiarFirma() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    firmaGuardada = false;
-    document.getElementById('firma_digital').value = '';
-}
-
-// Guardar firma
-function guardarFirma() {
-    const dataURL = canvas.toDataURL();
-    document.getElementById('firma_digital').value = dataURL;
-    firmaGuardada = true;
-    mostrarNotificacion('Firma guardada correctamente', 'success');
-}
 
 // Recalcular repuestos utilizados
 function recalcularRepuestos() {
@@ -574,19 +523,6 @@ function recalcularRepuestos() {
     });
 }
 
-// Actualizar límite máximo del monto pagado
-function actualizarLimiteMontoPagado() {
-    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
-    const campoMontoPagado = document.getElementById('monto_pagado');
-    
-    campoMontoPagado.setAttribute('max', total);
-    
-    // Actualizar el texto de ayuda
-    const textoAyuda = campoMontoPagado.parentNode.nextElementSibling;
-    if (textoAyuda && textoAyuda.classList.contains('text-muted')) {
-        textoAyuda.textContent = `Máximo: $${total.toFixed(2)}`;
-    }
-}
 
 // Calcular total final
 function calcularTotalFinal() {
@@ -610,46 +546,8 @@ function calcularTotalFinal() {
     }
     
     document.getElementById('total-final').textContent = `$${totalFinal.toFixed(2)}`;
-    actualizarLimiteMontoPagado();
 }
 
-// Calcular monto pendiente automáticamente
-function calcularMontoPendiente() {
-    let montoPagado = parseFloat(document.getElementById('monto_pagado').value) || 0;
-    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
-    
-    // Validar que el monto pagado no sea mayor al total
-    if (montoPagado > total) {
-        mostrarNotificacion(`El monto pagado ($${montoPagado.toFixed(2)}) no puede ser mayor al total ($${total.toFixed(2)})`, 'warning');
-        document.getElementById('monto_pagado').value = total.toFixed(2);
-        montoPagado = total;
-    }
-    
-    const montoPendiente = Math.max(0, total - montoPagado);
-    document.getElementById('monto_pendiente').value = montoPendiente.toFixed(2);
-    
-    return montoPendiente;
-}
-
-// Actualizar estado del pago
-function actualizarEstadoPago() {
-    const montoPagado = parseFloat(document.getElementById('monto_pagado').value) || 0;
-    const montoPendiente = calcularMontoPendiente(); // Calcular automáticamente
-    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
-    
-    const estadoPago = document.getElementById('estado-pago');
-    
-    if (montoPendiente > 0) {
-        estadoPago.textContent = 'Parcial';
-        estadoPago.className = 'badge bg-warning';
-    } else if (montoPagado >= total) {
-        estadoPago.textContent = 'Completo';
-        estadoPago.className = 'badge badge-entregado';
-    } else {
-        estadoPago.textContent = 'Pendiente';
-        estadoPago.className = 'badge bg-danger';
-    }
-}
 
 // Cargar historial completo
 function cargarHistorialCompleto() {
@@ -790,40 +688,261 @@ function mostrarNotificacion(mensaje, tipo) {
     }, 5000);
 }
 
-// Event listeners
-document.getElementById('monto_pagado').addEventListener('input', function() {
-    const montoPagado = parseFloat(this.value) || 0;
-    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
+// Abrir modal de notificación de pago
+function enviarNotificacionPago() {
+    // Cargar monto pendiente
+    cargarMontoPendiente();
     
-    // Validación inmediata mientras el usuario escribe
-    if (montoPagado > total) {
-        this.value = total.toFixed(2);
-        mostrarNotificacion(`El monto pagado no puede ser mayor al total ($${total.toFixed(2)})`, 'warning');
+    // Cargar métodos de pago desde la configuración
+    cargarMetodosPagoDisponibles();
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('modalNotificacionPago'));
+    modal.show();
+    
+    // Actualizar vista previa cuando cambien las selecciones
+    setTimeout(() => {
+        document.querySelectorAll('.metodo-pago, #canal_whatsapp, #canal_email').forEach(element => {
+            element.removeEventListener('change', actualizarVistaPrevia);
+            element.addEventListener('change', actualizarVistaPrevia);
+        });
+        
+        // Actualizar vista previa inicial después de cargar métodos
+        actualizarVistaPrevia();
+    }, 500);
+}
+
+// Cargar monto pendiente desde el servidor
+let montoPendienteData = { monto_pendiente_usd: 0, monto_pendiente_bs: 0, notas_pendientes: [] };
+
+function cargarMontoPendiente() {
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/monto-pendiente')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                montoPendienteData = data;
+                actualizarVistaPrevia();
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando monto pendiente:', error);
+        });
+}
+
+// Cargar métodos de pago disponibles desde la configuración
+function cargarMetodosPagoDisponibles() {
+    const container = document.getElementById('metodos-pago-container');
+    
+    fetch('/api/metodos-pago-habilitados')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.metodos && data.metodos.length > 0) {
+                container.innerHTML = '';
+                
+                // Dividir métodos en dos columnas
+                const mitad = Math.ceil(data.metodos.length / 2);
+                const columna1 = data.metodos.slice(0, mitad);
+                const columna2 = data.metodos.slice(mitad);
+                
+                // Crear columnas
+                const col1 = document.createElement('div');
+                col1.className = 'col-md-6';
+                
+                const col2 = document.createElement('div');
+                col2.className = 'col-md-6';
+                
+                // Agregar métodos a la primera columna
+                columna1.forEach(metodo => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check mb-2';
+                    div.innerHTML = `
+                        <input class="form-check-input metodo-pago" type="checkbox" id="metodo_${metodo.clave}" value="${metodo.clave}" checked>
+                        <label class="form-check-label" for="metodo_${metodo.clave}">
+                            ${metodo.icono} ${metodo.nombre}
+                        </label>
+                    `;
+                    col1.appendChild(div);
+                });
+                
+                // Agregar métodos a la segunda columna
+                columna2.forEach(metodo => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check mb-2';
+                    div.innerHTML = `
+                        <input class="form-check-input metodo-pago" type="checkbox" id="metodo_${metodo.clave}" value="${metodo.clave}" checked>
+                        <label class="form-check-label" for="metodo_${metodo.clave}">
+                            ${metodo.icono} ${metodo.nombre}
+                        </label>
+                    `;
+                    col2.appendChild(div);
+                });
+                
+                container.appendChild(col1);
+                if (columna2.length > 0) {
+                    container.appendChild(col2);
+                }
+                
+                // Agregar event listeners a los nuevos checkboxes
+                document.querySelectorAll('.metodo-pago').forEach(element => {
+                    element.addEventListener('change', actualizarVistaPrevia);
+                });
+                
+                // Actualizar vista previa después de cargar
+                actualizarVistaPrevia();
+            } else {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No hay métodos de pago habilitados en la configuración del sistema.
+                            <br>
+                            <small>Configure los métodos de pago en <a href="/configuracion">Configuración del Sistema</a></small>
+                        </div>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando métodos de pago:', error);
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Error al cargar los métodos de pago. Por favor, intente nuevamente.
+                    </div>
+                </div>
+            `;
+        });
+}
+
+// Actualizar vista previa del mensaje
+function actualizarVistaPrevia() {
+    // Obtener métodos seleccionados
+    const metodosSeleccionados = [];
+    document.querySelectorAll('.metodo-pago:checked').forEach(checkbox => {
+        metodosSeleccionados.push(checkbox.value);
+    });
+    
+    // Obtener canales seleccionados
+    const canales = [];
+    if (document.getElementById('canal_whatsapp').checked) canales.push('WhatsApp');
+    if (document.getElementById('canal_email').checked) canales.push('Email');
+    
+    // Construir vista previa con datos reales
+    let vistaPrevia = '💳 RECORDATORIO DE PAGO PENDIENTE\n\n';
+    vistaPrevia += `👤 Cliente: {{ orden.cliente.nombre if orden.cliente else 'Cliente' }}\n`;
+    vistaPrevia += `📋 Orden: {{ orden.numero_orden if orden.numero_orden else orden.id }}\n\n`;
+    vistaPrevia += '💰 MONTO PENDIENTE:\n';
+    
+    if (montoPendienteData.monto_pendiente_usd > 0) {
+        vistaPrevia += `• USD: $${montoPendienteData.monto_pendiente_usd.toFixed(2)}\n`;
+        vistaPrevia += `• Bs: Bs ${montoPendienteData.monto_pendiente_bs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n\n`;
+    } else {
+        vistaPrevia += '• USD: $0.00\n';
+        vistaPrevia += '• Bs: Bs 0,00\n\n';
     }
     
-    calcularMontoPendiente();
-    actualizarEstadoPago();
-});
-document.getElementById('monto_pendiente').addEventListener('input', actualizarEstadoPago);
+    if (metodosSeleccionados.length > 0) {
+        vistaPrevia += 'MÉTODOS DE PAGO SELECCIONADOS:\n';
+        const nombresMetodos = {
+            'efectivo': '💵 Efectivo',
+            'transferencia': '🏦 Transferencia Bancaria',
+            'pago_movil': '📱 Pago Móvil',
+            'zelle': '💳 Zelle',
+            'paypal': '💰 PayPal',
+            'binance': '₿ Binance'
+        };
+        metodosSeleccionados.forEach(metodo => {
+            vistaPrevia += `• ${nombresMetodos[metodo] || metodo.charAt(0).toUpperCase() + metodo.slice(1).replace('_', ' ')}\n`;
+        });
+    } else {
+        vistaPrevia += '⚠️ No se han seleccionado métodos de pago\n';
+    }
+    
+    vistaPrevia += `\n📤 Se enviará por: ${canales.length > 0 ? canales.join(' y ') : 'Ningún canal seleccionado'}`;
+    
+    document.getElementById('vistaPreviaMensaje').textContent = vistaPrevia;
+}
+
+// Confirmar y enviar notificación
+function confirmarEnvioNotificacion() {
+    // Validar que al menos un canal esté seleccionado
+    const whatsapp = document.getElementById('canal_whatsapp').checked;
+    const email = document.getElementById('canal_email').checked;
+    
+    if (!whatsapp && !email) {
+        mostrarNotificacion('Debe seleccionar al menos un canal de envío (WhatsApp o Email)', 'warning');
+        return;
+    }
+    
+    // Obtener métodos de pago seleccionados
+    const metodosSeleccionados = [];
+    document.querySelectorAll('.metodo-pago:checked').forEach(checkbox => {
+        metodosSeleccionados.push(checkbox.value);
+    });
+    
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalNotificacionPago'));
+    modal.hide();
+    
+    // Enviar notificación
+    const boton = document.querySelector('button[onclick="enviarNotificacionPago()"]');
+    const textoOriginal = boton.innerHTML;
+    boton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+    boton.disabled = true;
+    
+    fetch('/servicio-tecnico/orden/{{ orden.id }}/enviar-notificacion-pago', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            metodos_pago: metodosSeleccionados,
+            enviar_whatsapp: whatsapp,
+            enviar_email: email
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let mensaje = 'Notificación enviada exitosamente';
+            if (data.resultados) {
+                const metodos = [];
+                if (data.resultados.whatsapp) metodos.push('WhatsApp');
+                if (data.resultados.email) metodos.push('Email');
+                if (metodos.length > 0) {
+                    mensaje += ` por ${metodos.join(' y ')}`;
+                }
+                
+                // Si hay enlace de WhatsApp, abrirlo
+                if (data.resultados.enlace_whatsapp) {
+                    window.open(data.resultados.enlace_whatsapp, '_blank');
+                }
+            }
+            
+            mostrarNotificacion(mensaje, 'success');
+            
+            if (data.monto_pendiente_usd) {
+                mostrarNotificacion(`Monto pendiente: $${data.monto_pendiente_usd.toFixed(2)} USD`, 'info');
+            }
+        } else {
+            mostrarNotificacion('Error: ' + (data.message || 'Error desconocido'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al enviar la notificación', 'danger');
+    })
+    .finally(() => {
+        boton.innerHTML = textoOriginal;
+        boton.disabled = false;
+    });
+}
 
 // Manejar envío del formulario
 document.getElementById('formEntrega').addEventListener('submit', function(e) {
     e.preventDefault();
-    
-    // Validar firma
-    if (!firmaGuardada) {
-        mostrarNotificacion('Debe guardar la firma digital antes de confirmar la entrega', 'warning');
-        return;
-    }
-    
-    // Validar monto pagado
-    const montoPagado = parseFloat(document.getElementById('monto_pagado').value) || 0;
-    const total = parseFloat(document.getElementById('total-final').textContent.replace('$', '')) || 0;
-    
-    if (montoPagado > total) {
-        mostrarNotificacion(`El monto pagado ($${montoPagado.toFixed(2)}) no puede ser mayor al total ($${total.toFixed(2)})`, 'danger');
-        return;
-    }
     
     const formData = new FormData(this);
     
@@ -854,14 +973,6 @@ document.getElementById('formEntrega').addEventListener('submit', function(e) {
         console.error('Error completo:', error);
         mostrarNotificacion('Error al registrar entrega: ' + error.message, 'danger');
     });
-});
-
-// Inicializar cálculos cuando se carga la página
-document.addEventListener('DOMContentLoaded', function() {
-    calcularTotalFinal();
-    calcularMontoPendiente();
-    actualizarEstadoPago();
-    cargarHistorialCompleto();
 });
 </script>
 {% endblock %}

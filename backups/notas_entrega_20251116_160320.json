@@ -1,0 +1,49 @@
+{
+    "NE-0001": {
+        "numero": "NE-0001",
+        "numero_secuencial": 1,
+        "fecha": "2025-11-16",
+        "hora": "15:18:57",
+        "timestamp_creacion": "2025-11-16T15:18:57.802481",
+        "cliente_id": "cliente_4",
+        "modalidad_pago": "contado",
+        "productos": [
+            "Servicio de Reparación - Samsung Galaxy S22",
+            "bateria generica",
+            "Módulo de Pantalla para iPhone 14 / iPhone 15 Pro",
+            "Batería para Samsung Galaxy S22 / Galaxy A54"
+        ],
+        "cantidades": [
+            "1",
+            "1",
+            "1",
+            "1"
+        ],
+        "precios": [
+            "50.0",
+            "20.0",
+            "20.0",
+            "50.0"
+        ],
+        "subtotal_usd": 140.0,
+        "total_usd": 140.0,
+        "tasa_bcv": 236.46,
+        "fecha_tasa_bcv": "2025-11-16",
+        "total_bs": 33104.4,
+        "estado": "PENDIENTE_ENTREGA",
+        "usuario_creacion": "administrador",
+        "observaciones": "Nota de entrega generada desde orden de servicio OS-PRUEBA-20251116142044",
+        "orden_servicio_id": "OS-PRUEBA-20251116142044",
+        "firma_recibido": false,
+        "fecha_entrega": null,
+        "hora_entrega": null,
+        "entregado_por": null,
+        "recibido_por": null,
+        "documento_identidad": null,
+        "pagos": [],
+        "total_abonado": 0.0,
+        "saldo_pendiente": 140.0,
+        "saldo_pendiente_usd": 140.0,
+        "estado_pago": "Pendiente"
+    }
+}
