@@ -186,6 +186,17 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
+# Configuración para Render (URLs externas)
+# En Render, usar HTTPS si está disponible
+if os.environ.get('RENDER'):
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
+    # Si Render proporciona la URL, usarla
+    render_external_url = os.environ.get('RENDER_EXTERNAL_URL')
+    if render_external_url:
+        from urllib.parse import urlparse
+        parsed = urlparse(render_external_url)
+        app.config['SERVER_NAME'] = parsed.netloc
+
 # Contexto global para templates
 @app.context_processor
 def inject_alertas():
@@ -366,6 +377,7 @@ ARCHIVO_FACTURAS = os.path.join(BASE_DIR, 'facturas_json', 'facturas.json')
 ARCHIVO_CUENTAS = os.path.join(BASE_DIR, 'cuentas_por_cobrar.json')
 ARCHIVO_NOTAS_ENTREGA = os.path.join(BASE_DIR, 'notas_entrega.json')
 ARCHIVO_PAGOS_RECIBIDOS = os.path.join(BASE_DIR, 'pagos_recibidos.json')
+ARCHIVO_ORDENES_SERVICIO = os.path.join(BASE_DIR, 'ordenes_servicio.json')
 ULTIMA_TASA_BCV_FILE = os.path.join(BASE_DIR, 'ultima_tasa_bcv.json')
 ALLOWED_EXTENSIONS = {'csv', 'jpg', 'jpeg', 'png', 'gif', 'pdf'}
 BITACORA_FILE = os.path.join(BASE_DIR, 'bitacora.log')
@@ -375,6 +387,10 @@ BITACORA_FILE = os.path.join(BASE_DIR, 'bitacora.log')
 def cargar_datos(nombre_archivo):
     """Carga datos desde un archivo JSON con validación y reparación automática."""
     try:
+        # Si el nombre_archivo no es una ruta absoluta, convertirla usando BASE_DIR
+        if not os.path.isabs(nombre_archivo):
+            nombre_archivo = os.path.join(BASE_DIR, nombre_archivo)
+        
         # Asegurar que el directorio existe
         directorio = os.path.dirname(nombre_archivo)
         if directorio:  # Si hay un directorio en la ruta
@@ -464,6 +480,10 @@ def parsear_fecha_segura(fecha_str, formatos=['%Y-%m-%d', '%d/%m/%Y', '%Y-%m-%d 
 def guardar_datos(nombre_archivo, datos):
     """Guarda datos en un archivo JSON con backup automático para archivos críticos."""
     try:
+        # Si el nombre_archivo no es una ruta absoluta, convertirla usando BASE_DIR
+        if not os.path.isabs(nombre_archivo):
+            nombre_archivo = os.path.join(BASE_DIR, nombre_archivo)
+        
         # Asegurar que el directorio existe
         directorio = os.path.dirname(nombre_archivo)
         if directorio:  # Si hay un directorio en la ruta
@@ -1474,7 +1494,26 @@ def enviar_email_recuperacion(username, token):
         nombre_empresa = empresa.get('nombre', 'Sistema')
         
         # Generar enlace de recuperación
-        enlace_recuperacion = url_for('resetear_contraseña', token=token, _external=True)
+        try:
+            from flask import request
+            # Intentar obtener la URL base desde el request actual o variables de entorno
+            if hasattr(request, 'host_url') and request.host_url:
+                base_url = request.host_url.rstrip('/')
+            elif os.environ.get('RENDER_EXTERNAL_URL'):
+                base_url = os.environ.get('RENDER_EXTERNAL_URL').rstrip('/')
+            else:
+                base_url = 'https://tu-app.onrender.com'  # Fallback genérico
+            
+            # Construir URL manualmente para mayor compatibilidad con Render
+            enlace_recuperacion = f"{base_url}/resetear-contraseña/{token}"
+        except Exception as e:
+            # Fallback final: usar url_for si todo lo demás falla
+            print(f"Error construyendo URL manualmente: {e}")
+            try:
+                enlace_recuperacion = url_for('resetear_contraseña', token=token, _external=True)
+            except:
+                # Último fallback: URL relativa
+                enlace_recuperacion = f"/resetear-contraseña/{token}"
         
         # Preparar mensaje
         asunto = f'Recuperación de Contraseña - {nombre_empresa}'
